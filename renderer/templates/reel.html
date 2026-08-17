@@ -340,8 +340,13 @@ window.setFrame = function (p) {
 };
 
 window.DEMO = {
-  title: "Where the risk actually sits",
-  subtitle: "Share of mortality risk by daily step count",
+  // Plain sentence in the title, precise phrasing demoted to the caption.
+  // The reference format titles itself "What kills you at each age" and puts
+  // "share of deaths by cause, by age" underneath in small italic. Getting
+  // that the wrong way round is the difference between content that travels
+  // and content that is merely correct.
+  title: "What you are most likely to die of",
+  subtitle: "Share of deaths by cause, by daily step count",
   counter_prefix: "",
   counter_caption: "steps / day",
   counter_step: 100,
@@ -351,12 +356,12 @@ window.DEMO = {
     { at: 12000, label: "12,000" },
   ],
   annotations: [
-    { at: 4000, flag: "The steep part", detail: "Most of the benefit arrives early" },
-    { at: 7500, flag: "It flattens", detail: "Past here, more steps add little" },
+    { at: 4000, flag: "The steep part", detail: "Most of the change happens early" },
+    { at: 7500, flag: "It flattens", detail: "Past here, more steps change little" },
   ],
   series: [
-    { label: "Cardiovascular", points: [[2000, 38], [6000, 26], [12000, 21]] },
-    { label: "Metabolic", points: [[2000, 24], [6000, 22], [12000, 19]] },
+    { label: "Heart", points: [[2000, 38], [6000, 26], [12000, 21]] },
+    { label: "Diabetes", points: [[2000, 24], [6000, 22], [12000, 19]] },
     { label: "Cancer", points: [[2000, 18], [6000, 20], [12000, 22]] },
     { label: "Other", points: [[2000, 20], [6000, 32], [12000, 38]] },
   ],
