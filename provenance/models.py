@@ -168,6 +168,33 @@ class Claim(BaseModel):
         return v
 
 
+class AppraisalDraft(BaseModel):
+    """What the model is allowed to produce.
+
+    Identity and timestamps are deliberately absent: the model judges, code
+    records which paper was judged and when. A model that can write its own
+    ``paper_id`` can attach a sound appraisal to the wrong study.
+    """
+
+    tier: EvidenceTier
+    design: str = Field(description="e.g. 'randomised controlled trial'")
+    sample_size: int | None = None
+    population: str = ""
+    follow_up: str = ""
+    component_ids: list[str] = Field(default_factory=list)
+    alignment: Alignment = Alignment.NEUTRAL
+    claims: list[Claim] = Field(default_factory=list)
+    reasoning: str = ""
+
+
+class RelevanceVerdict(BaseModel):
+    """First-pass triage. Cheap model, one question, no judgement of quality."""
+
+    relevant: bool
+    component_ids: list[str] = Field(default_factory=list)
+    reason: str = Field(default="", description="One clause. Required when not relevant.")
+
+
 class Appraisal(BaseModel):
     paper_id: str
     tier: EvidenceTier

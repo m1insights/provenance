@@ -50,14 +50,23 @@ which is the opposite of what a bonus means.
 TODAY, including the actual numbers. This is what future evidence gets compared \
 against, so it must be accurate and specific. Quote thresholds exactly as written.
 - `source_ref`: `filename:line` of the governing constant where you can identify it.
-- `search_concepts`: 3-5 natural-language phrases that would retrieve literature \
-capable of CONFIRMING OR OVERTURNING this specific rule. Target the rule, not the \
-topic: for a component that credits a day of cardio at 20 minutes, search the \
-minimum-bout-duration literature, not "exercise is good for you". Phrases must be \
-ones an author would plausibly write in a title or abstract.
-- `mesh_terms`: 2-4 controlled MeSH headings for precise retrieval. Use real MeSH \
-headings only (e.g. "Exercise", "Sleep Initiation and Maintenance Disorders", \
-"Heart Rate"). Never invent one.
+- `search_concepts`: 4-6 SHORT phrases, each **two to four words**, that would \
+retrieve literature capable of CONFIRMING OR OVERTURNING this specific rule.
+
+  These are matched as exact phrases against titles and abstracts, so a long \
+  descriptive string like "moderate to vigorous physical activity dose response \
+  mortality" matches almost nothing. Write the phrase an author would actually \
+  type: "bout duration", "weekend warrior", "dose-response", "accumulated \
+  activity", "sedentary breaks".
+
+  Target the rule, not the topic. A component that credits a cardio day at 20 \
+  minutes needs the minimum-bout-duration literature, not "exercise benefits".
+
+- `mesh_terms`: 2-4 controlled MeSH headings that scope the subject area. These \
+are ANDed with the phrases above, so they should be BROAD topic anchors \
+("Exercise", "Sleep", "Heart Rate"), not narrow ones -- a narrow heading \
+combined with a specific phrase returns nothing. Use real MeSH headings only; \
+never invent one.
 
 Also report `algorithm_version` exactly as the source states it (e.g. "VI v2.11.0").
 

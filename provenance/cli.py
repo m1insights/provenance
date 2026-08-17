@@ -79,6 +79,88 @@ def cmd_sweep(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_appraise(args: argparse.Namespace) -> int:
+    import collections
+
+    from .agents.appraiser import appraise, triage
+    from .models import Paper
+    from .store import firestore as store
+
+    db = store.client()
+    agenda = build_agenda(_subject(args.subject))
+
+    already = {doc.id for doc in db.collection(store.APPRAISALS).select([]).stream()}
+    seen_rejects = {
+        doc.id.split("__")[0]
+        for doc in db.collection(store.REJECTIONS).select([]).stream()
+    }
+    done = already | seen_rejects
+
+    query = db.collection(store.PAPERS)
+    papers = [
+        paper
+        for doc in query.stream()
+        if (paper := Paper.model_validate(doc.to_dict())).doc_id not in done
+    ]
+    if args.limit_papers:
+        papers = papers[: args.limit_papers]
+
+    print(f"{len(papers)} unappraised papers")
+    if not papers:
+        return 0
+
+    kept, triaged_out = asyncio.run(triage(papers, agenda))
+    appraisals, rejected = asyncio.run(appraise(kept, agenda))
+
+    store.save_appraisals(appraisals, db=db)
+    store.save_rejections(triaged_out + rejected, db=db)
+
+    print(f"\n  tiers      {dict(collections.Counter(a.tier.value for a in appraisals))}")
+    print(f"  alignment  {dict(collections.Counter(a.alignment.value for a in appraisals))}")
+    print(f"  rejected   {dict(collections.Counter(r.reason_code for r in triaged_out + rejected))}")
+    return 0
+
+
+def cmd_synthesise(args: argparse.Namespace) -> int:
+    import collections
+
+    from .agents.synthesist import synthesise
+    from .models import Appraisal, Paper
+    from .store import firestore as store
+
+    subject = _subject(args.subject)
+    db = store.client()
+    agenda = build_agenda(subject)
+
+    appraisals = [
+        Appraisal.model_validate(doc.to_dict())
+        for doc in db.collection(store.APPRAISALS).stream()
+    ]
+    papers = {
+        paper.doc_id: paper
+        for doc in db.collection(store.PAPERS).stream()
+        if (paper := Paper.model_validate(doc.to_dict()))
+    }
+    print(f"{len(appraisals)} appraisals across {len(papers)} papers")
+    print(f"  alignment {dict(collections.Counter(a.alignment.value for a in appraisals))}")
+
+    findings, gated = asyncio.run(synthesise(subject, agenda, appraisals, papers))
+    for finding in findings:
+        store.save_finding(finding, db=db)
+    store.save_rejections(gated, db=db)
+
+    print(f"\n{len(findings)} finding(s) opened, {len(gated)} component(s) gated\n")
+    for finding in findings:
+        print(f"  [{finding.confidence:.2f}] {finding.component_id}: {finding.statement[:88]}")
+        for change in finding.proposed_changes:
+            print(f"      {change.symbol}: {change.current_value} -> {change.proposed_value}")
+    if args.show_gated:
+        print()
+        for rejection in gated:
+            print(f"  GATED {rejection.title:<18} [{rejection.reason_code}] {rejection.reason[:70]}")
+    return 0
+
+
 def cmd_status(args: argparse.Namespace) -> int:
     from .store import firestore as store
 
@@ -111,6 +193,14 @@ def main(argv: list[str] | None = None) -> int:
     sweep_cmd.add_argument("--components", nargs="*", default=None)
     sweep_cmd.add_argument("--no-store", action="store_true", help="do not write to Firestore")
     sweep_cmd.set_defaults(func=cmd_sweep)
+
+    appraise_cmd = sub.add_parser("appraise", help="triage and appraise unappraised papers")
+    appraise_cmd.add_argument("--limit-papers", type=int, default=None)
+    appraise_cmd.set_defaults(func=cmd_appraise)
+
+    synth = sub.add_parser("synthesise", help="open findings where evidence converges")
+    synth.add_argument("--show-gated", action="store_true", help="show why components were gated")
+    synth.set_defaults(func=cmd_synthesise)
 
     status = sub.add_parser("status", help="counts by collection")
     status.set_defaults(func=cmd_status)

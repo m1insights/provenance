@@ -24,19 +24,45 @@ SEARCH_URL = "https://www.ebi.ac.uk/europepmc/webservices/rest/search"
 _WANTED_SOURCES = {"MED", "PMC", "PPR"}
 
 
-def build_query(item: AgendaItem) -> str:
+#: Europe PMC equivalent of the design filter. Its publication-type vocabulary
+#: is coarser than MEDLINE's, so this also matches on abstract wording.
+_STRONG_DESIGNS = (
+    'PUB_TYPE:"Randomized Controlled Trial" OR '
+    'PUB_TYPE:"Meta-Analysis" OR '
+    'PUB_TYPE:"Systematic Review" OR '
+    'ABSTRACT:"cohort study" OR '
+    'ABSTRACT:"dose-response" OR '
+    'ABSTRACT:"randomised controlled trial"'
+)
+
+
+def build_query(item: AgendaItem, *, strong_designs: bool = True) -> str:
     """Render an agenda item in Europe PMC's ``FIELD:"value"`` syntax.
 
     Passing PubMed's ``"Exercise"[MeSH Terms]`` here does not error -- it
     matches nothing and returns an empty result set, which reads as "no new
     literature" rather than as a bug. Hence two builders.
+
+    Topic anchor AND specific phrases, for the same reason as the PubMed
+    builder: ORing them lets the broad heading swamp the specific question.
     """
     mesh = " OR ".join(f'MESH:"{t}"' for t in item.mesh_terms if t.strip())
-    free = " OR ".join(
+    phrases = " OR ".join(
         f'(TITLE:"{c}" OR ABSTRACT:"{c}")' for c in item.search_concepts if c.strip()
     )
-    parts = [f"({p})" for p in (mesh, free) if p]
-    return "(" + " OR ".join(parts) + ")" if parts else ""
+
+    if mesh and phrases:
+        query = f"(({mesh}) AND ({phrases}))"
+    elif phrases:
+        query = f"({phrases})"
+    elif mesh:
+        query = f"({mesh})"
+    else:
+        return ""
+
+    if strong_designs:
+        query = f"{query} AND ({_STRONG_DESIGNS})"
+    return query
 
 
 def _parse_date(raw: str) -> date | None:

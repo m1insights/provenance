@@ -23,12 +23,47 @@ log = logging.getLogger(__name__)
 BASE = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
 
 
-def build_query(item: AgendaItem) -> str:
-    """Render an agenda item in PubMed's bracketed field syntax."""
+#: Designs that can actually justify changing a threshold. Without this the
+#: sweep returns whatever was published most recently on a broad MeSH heading,
+#: which skews heavily to narrative reviews and mechanistic work -- tier C and
+#: D, none of which should move a production constant.
+_STRONG_DESIGNS = (
+    '"randomized controlled trial"[Publication Type] OR '
+    '"meta-analysis"[Publication Type] OR '
+    '"systematic review"[Publication Type] OR '
+    '"Cohort Studies"[MeSH Terms] OR '
+    '"Follow-Up Studies"[MeSH Terms] OR '
+    '"dose-response"[Title/Abstract]'
+)
+
+
+def build_query(item: AgendaItem, *, strong_designs: bool = True) -> str:
+    """Render an agenda item in PubMed's bracketed field syntax.
+
+    The topic anchor and the specific phrases are combined with AND, not OR.
+    ORing them lets the broad MeSH heading dominate: a search for
+    ``"Exercise"[MeSH] OR "bout duration"[tiab]`` returns essentially all
+    recent exercise literature, because the second clause matches almost
+    nothing on its own and the first matches everything. ANDing them asks the
+    question actually intended -- exercise papers *about bout duration*.
+    """
     mesh = " OR ".join(f'"{t}"[MeSH Terms]' for t in item.mesh_terms if t.strip())
-    free = " OR ".join(f'"{c}"[Title/Abstract]' for c in item.search_concepts if c.strip())
-    parts = [f"({p})" for p in (mesh, free) if p]
-    return "(" + " OR ".join(parts) + ")" if parts else ""
+    phrases = " OR ".join(
+        f'"{c}"[Title/Abstract]' for c in item.search_concepts if c.strip()
+    )
+
+    if mesh and phrases:
+        query = f"(({mesh}) AND ({phrases}))"
+    elif phrases:
+        query = f"({phrases})"
+    elif mesh:
+        query = f"({mesh})"
+    else:
+        return ""
+
+    if strong_designs:
+        query = f"{query} AND ({_STRONG_DESIGNS})"
+    return query
 
 _MONTHS = {
     m: i

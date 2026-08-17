@@ -1,0 +1,288 @@
+"""Appraiser -- grade the evidence, or reject it and say why.
+
+Two passes, two models, for reasons of both cost and calibration:
+
+* **Triage** (`gemini-3.5-flash-lite`) answers one cheap question -- does this
+  paper bear on any scoring component at all? Retrieval is keyword-driven and
+  returns a great deal of adjacent-but-irrelevant work; screening it out here
+  costs a fraction of a cent per paper.
+* **Appraisal** (`gemini-3.7-flash`) grades what survives against an explicit
+  rubric, and must quote the source for every claim it makes.
+
+Every rejection is recorded with a reason. A pipeline that silently discards is
+indistinguishable from one that never looked.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import json
+import logging
+
+from google.adk.agents import LlmAgent
+from google.adk.runners import InMemoryRunner
+from google.genai import types
+
+from .. import grounding
+from ..llm import model as llm_model
+from ..config import REASONING_MODEL, TRIAGE_MODEL
+from ..models import (
+    AgendaItem,
+    Appraisal,
+    AppraisalDraft,
+    Paper,
+    Rejection,
+    RelevanceVerdict,
+    ResearchAgenda,
+)
+
+log = logging.getLogger(__name__)
+
+#: Concurrent model calls. Bounded to stay inside default Vertex quota.
+_MAX_CONCURRENT = 6
+
+
+RUBRIC = """\
+Grade evidence with this rubric. Apply it strictly; when a study sits between \
+two tiers, assign the lower one.
+
+TIER A - Systematic review or meta-analysis of randomised trials, or a large \
+multi-site randomised trial reporting hard clinical endpoints (mortality, \
+incident disease, fracture, cardiovascular events).
+
+TIER B - A single adequately powered randomised trial, or a prospective cohort \
+with n >= 10,000 or >= 5 years of follow-up, reporting hard endpoints and \
+adjusted for the major confounders of its field.
+
+TIER C - A smaller prospective cohort, a cross-sectional or case-control study, \
+short follow-up, or a study whose only endpoints are surrogate or intermediate \
+measures (VO2 max, HRV, biomarkers, body composition).
+
+TIER D - Mechanistic, animal, or in-vitro work; case series; uncontrolled \
+before-after designs; narrative reviews; conference abstracts.
+
+OVERRIDING RULES
+- A preprint that has not been peer reviewed is capped at TIER C no matter how \
+strong its design. Note the cap in `reasoning`.
+- Non-human work is TIER D regardless of design or size.
+- If the paper reports no quantitative result, it cannot be appraised. Return \
+an empty `claims` list and say so in `reasoning`.
+"""
+
+APPRAISER_INSTRUCTION = f"""\
+You are appraising a scientific paper for its bearing on a production health \
+scoring algorithm. You will be shown the algorithm's CURRENT RULES for the \
+relevant components, then the paper.
+
+{RUBRIC}
+
+For each claim you extract:
+- `statement`: the claim in plain language.
+- `quote`: a span copied EXACTLY from the title or abstract you were shown, \
+character for character. Do not paraphrase, do not tidy the wording, do not \
+join fragments from different sentences. This is checked against the source by \
+string comparison and a claim whose quote is not found is discarded.
+- `value` / `ci_low` / `ci_high`: the numeric result, ONLY when that exact \
+number appears inside the span you quoted. If the number is stated elsewhere in \
+the abstract, quote THAT sentence instead. Leave `value` null rather than \
+reaching for a number that is not in your quote.
+
+Set `alignment` by comparing the paper against the CURRENT RULES shown:
+- `supports`   - consistent with what the algorithm already does.
+- `challenges` - implies a different threshold, weight, or window. THIS IS THE \
+IMPORTANT CASE. Only use it when the paper genuinely contradicts a stated \
+number or rule, not when it is merely about the same topic.
+- `extends`    - compatible, but concerns something the algorithm ignores.
+- `neutral`    - bears on the component without implying any change.
+
+`component_ids` must use the exact identifiers given in the CURRENT RULES.
+Be sceptical. Most papers do not justify changing a production algorithm.
+"""
+
+TRIAGE_INSTRUCTION = """\
+Decide whether a paper could bear on any of the listed scoring components of a \
+health algorithm. This is a relevance filter, not a quality judgement.
+
+Mark `relevant: false` when the paper is about a different organ system, a \
+clinical population whose findings would not generalise, a diagnostic or \
+therapeutic question rather than a behaviour or physiological measure, or is \
+purely methodological.
+
+When `relevant: false`, give a one-clause `reason`. When true, list the \
+`component_ids` it touches, using the exact identifiers given.
+"""
+
+
+def _rules_block(items: list[AgendaItem]) -> str:
+    return "\n\n".join(
+        f"### {item.component_id} ({item.display_name}) - {item.weight:g} points"
+        f"{f', {item.window_days}-day window' if item.window_days else ''}\n"
+        f"{item.current_rule}"
+        for item in items
+    )
+
+
+def _paper_block(paper: Paper) -> str:
+    meta = " | ".join(
+        part
+        for part in (
+            paper.journal,
+            str(paper.published) if paper.published else "",
+            ", ".join(paper.publication_types[:4]),
+        )
+        if part
+    )
+    return f"TITLE: {paper.title}\nMETADATA: {meta}\n\nABSTRACT:\n{paper.abstract}"
+
+
+def _agent(name: str, model_name: str, instruction: str, schema) -> LlmAgent:
+    return LlmAgent(
+        name=name,
+        model=llm_model(model_name),
+        instruction=instruction,
+        output_schema=schema,
+        # An appraisal is an extraction, not a composition. Sampling here buys
+        # nothing and costs reproducibility.
+        generate_content_config=types.GenerateContentConfig(temperature=0.1),
+    )
+
+
+async def _run(agent: LlmAgent, prompt: str) -> dict | None:
+    """Drive one ADK agent to completion and return its structured output."""
+    runner = InMemoryRunner(agent=agent, app_name="provenance")
+    session = await runner.session_service.create_session(
+        app_name="provenance", user_id="provenance"
+    )
+    final = None
+    try:
+        async for event in runner.run_async(
+            user_id="provenance",
+            session_id=session.id,
+            new_message=types.Content(role="user", parts=[types.Part(text=prompt)]),
+        ):
+            if event.is_final_response() and event.content and event.content.parts:
+                text = "".join(part.text or "" for part in event.content.parts)
+                if text.strip():
+                    final = text
+    finally:
+        await runner.close()
+
+    if not final:
+        return None
+    try:
+        return json.loads(final)
+    except json.JSONDecodeError:
+        log.warning("appraiser: non-JSON response: %s", final[:200])
+        return None
+
+
+async def triage(
+    papers: list[Paper], agenda: ResearchAgenda
+) -> tuple[list[Paper], list[Rejection]]:
+    """Cheap relevance filter. Returns survivors and reasons for the rest."""
+    agent = _agent("triage", TRIAGE_MODEL, TRIAGE_INSTRUCTION, RelevanceVerdict)
+    rules = _rules_block(agenda.items)
+    semaphore = asyncio.Semaphore(_MAX_CONCURRENT)
+
+    async def one(paper: Paper):
+        async with semaphore:
+            payload = await _run(
+                agent,
+                f"# SCORING COMPONENTS\n{rules}\n\n# PAPER\n{_paper_block(paper)}",
+            )
+        if payload is None:
+            # An unreadable verdict must not silently drop a paper; pass it to
+            # the appraiser, which is the stricter judge anyway.
+            return paper, None
+        verdict = RelevanceVerdict.model_validate(payload)
+        if not verdict.relevant:
+            return None, Rejection(
+                paper_id=paper.doc_id,
+                title=paper.title,
+                stage="appraiser",
+                reason_code="not_relevant",
+                reason=verdict.reason or "Does not bear on any scoring component.",
+            )
+        if verdict.component_ids:
+            paper.matched_components = verdict.component_ids
+        return paper, None
+
+    outcomes = await asyncio.gather(*(one(p) for p in papers))
+    kept = [paper for paper, _ in outcomes if paper is not None]
+    rejected = [rejection for _, rejection in outcomes if rejection is not None]
+    log.info("triage: %d in -> %d relevant, %d filtered", len(papers), len(kept), len(rejected))
+    return kept, rejected
+
+
+async def appraise(
+    papers: list[Paper], agenda: ResearchAgenda
+) -> tuple[list[Appraisal], list[Rejection]]:
+    """Grade each paper and verify every claim against its source."""
+    agent = _agent("appraiser", REASONING_MODEL, APPRAISER_INSTRUCTION, AppraisalDraft)
+    by_id = {item.component_id: item for item in agenda.items}
+    semaphore = asyncio.Semaphore(_MAX_CONCURRENT)
+
+    async def one(paper: Paper):
+        relevant = [by_id[c] for c in paper.matched_components if c in by_id] or agenda.items
+        async with semaphore:
+            payload = await _run(
+                agent,
+                f"# CURRENT RULES\n{_rules_block(relevant)}\n\n# PAPER\n{_paper_block(paper)}",
+            )
+        if payload is None:
+            return None, [
+                Rejection(
+                    paper_id=paper.doc_id,
+                    title=paper.title,
+                    stage="appraiser",
+                    reason_code="no_appraisal",
+                    reason="Model returned no parsable appraisal.",
+                )
+            ]
+
+        draft = AppraisalDraft.model_validate(payload)
+        appraisal = Appraisal(paper_id=paper.doc_id, **draft.model_dump())
+
+        # Distinguish "had nothing to claim" from "claimed things it could not
+        # support". Both end in rejection, but conflating them would make the
+        # rejection log lie about how often grounding actually fires -- and the
+        # log is the only evidence that this system filters anything at all.
+        if not appraisal.claims:
+            return None, [
+                Rejection(
+                    paper_id=paper.doc_id,
+                    title=paper.title,
+                    stage="appraiser",
+                    reason_code="no_quantitative_result",
+                    reason=(
+                        draft.reasoning[:300]
+                        or "Reports no quantitative result that could bear on a threshold."
+                    ),
+                )
+            ]
+
+        # The grounding check is the point of the whole exercise: claims that
+        # cannot be traced to words in the source do not survive.
+        verified, ground_rejections = grounding.verify(appraisal, paper)
+        if not verified.claims:
+            return None, ground_rejections + [
+                Rejection(
+                    paper_id=paper.doc_id,
+                    title=paper.title,
+                    stage="grounding",
+                    reason_code="no_grounded_claims",
+                    reason=(
+                        f"All {len(appraisal.claims)} claim(s) failed verification "
+                        "against the source text."
+                    ),
+                )
+            ]
+        return verified, ground_rejections
+
+    outcomes = await asyncio.gather(*(one(p) for p in papers))
+    appraisals = [a for a, _ in outcomes if a is not None]
+    rejections = [r for _, rs in outcomes for r in rs]
+    log.info(
+        "appraise: %d in -> %d appraised, %d rejected", len(papers), len(appraisals), len(rejections)
+    )
+    return appraisals, rejections
