@@ -10,3 +10,5 @@ content/
 *.mp4
 *.MP4
 service-account*.json
+renderer/node_modules/
+renderer/out/
