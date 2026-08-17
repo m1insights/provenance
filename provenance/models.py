@@ -117,11 +117,27 @@ class Paper(BaseModel):
         digest = hashlib.sha1(title.strip().lower().encode()).hexdigest()[:16]
         return f"title:{digest}"
 
+    @staticmethod
+    def surname(author: str) -> str:
+        """Extract the family name from a "Massar SAA" style entry.
+
+        Both PubMed and Europe PMC render authors as family name followed by
+        initials with no comma, so taking the last token yields the initials --
+        which is how a citation ends up reading "SAA et al." Everything except
+        a trailing initials token is the name, which also keeps particles
+        intact: "van de Sande JA" -> "van de Sande".
+        """
+        parts = author.split()
+        if len(parts) > 1 and parts[-1].isupper() and len(parts[-1]) <= 4:
+            return " ".join(parts[:-1])
+        return author.strip()
+
     def citation(self) -> str:
-        first = self.authors[0].split()[-1] if self.authors else "Unknown"
+        first = self.surname(self.authors[0]) if self.authors else "Unknown"
         year = self.published.year if self.published else "n.d."
         journal = f" {self.journal}." if self.journal else ""
-        return f"{first} et al., {year}.{journal}".strip()
+        suffix = " et al." if len(self.authors) > 1 else ""
+        return f"{first}{suffix}, {year}.{journal}".strip()
 
 
 # --------------------------------------------------------------------------- #
