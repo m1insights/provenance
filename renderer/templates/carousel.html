@@ -1,0 +1,455 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>synqology · research carousel</title>
+<style>
+/* ---------------------------------------------------------------------------
+   Brand tokens, inherited from apps/synqology/marketing/meta-ads/ad.css.
+   Not redesigned here -- hierarchy is carried by opacity and weight, never by
+   hue, and there is exactly one accent.
+--------------------------------------------------------------------------- */
+:root {
+  --stage:  #0A0C0E;
+  --lift:   #12161A;
+  --ink:    #F5F7F9;
+  --accent: #5AC8E8;
+  --line:   rgba(245, 247, 249, .10);
+
+  --ink-2:  rgba(245, 247, 249, .68);   /* body copy */
+  --ink-3:  rgba(245, 247, 249, .42);   /* labels */
+  --ink-4:  rgba(245, 247, 249, .26);   /* axis furniture */
+
+  --display: -apple-system, BlinkMacSystemFont, "SF Pro Display",
+             "Helvetica Neue", Helvetica, Arial, sans-serif;
+
+  /* Chart system. Every one of these must be defined: an undefined custom
+     property inside an SVG `fill` or `stroke` resolves to BLACK, which on a
+     #0A0C0E stage is an invisible chart that still looks like it rendered.
+     That is exactly how the reference comps came back with solid black
+     blobs where the data should be. */
+  --series-1:       var(--accent);
+  --series-1-width: 5px;
+  --series-2:       rgba(245, 247, 249, .55);
+  --series-2-width: 3px;
+  --series-3:       rgba(245, 247, 249, .30);
+  --series-3-width: 3px;
+  --series-3-dash:  10 8;
+  --series-4:       rgba(245, 247, 249, .20);
+  --series-4-width: 2px;
+  --series-4-dash:  4 8;
+
+  --axis:      rgba(245, 247, 249, .18);
+  --gridline:  rgba(245, 247, 249, .06);
+  --marker:    var(--accent);
+  --marker-r:  9px;
+  --bar-fill:  var(--accent);
+  --bar-track: rgba(245, 247, 249, .07);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  background: var(--stage);
+  font-family: var(--display);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Fixed canvas. The capture viewport is exactly this size; nothing here is
+   responsive on purpose. */
+.slide {
+  position: relative;
+  width: 1080px;
+  height: 1350px;
+  background: var(--stage);
+  padding: 88px 88px 74px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* --- head ---------------------------------------------------------------- */
+.head { display: flex; justify-content: space-between; align-items: baseline; }
+
+.kicker {
+  color: var(--accent);
+  font-size: 25px;
+  font-weight: 700;
+  letter-spacing: .22em;
+  text-transform: uppercase;
+}
+
+.index { color: var(--ink-3); font-size: 27px; font-weight: 500; letter-spacing: .04em; }
+
+/* --- copy ---------------------------------------------------------------- */
+.headline {
+  margin-top: 34px;
+  color: var(--ink);
+  font-size: 82px;
+  font-weight: 700;
+  line-height: 1.02;
+  letter-spacing: -.028em;
+}
+.headline em { font-style: normal; color: var(--accent); }
+
+/* One oversized figure, used when the finding IS a number. */
+.figure {
+  margin-top: 40px;
+  display: flex;
+  align-items: baseline;
+  gap: 18px;
+  color: var(--accent);
+  font-size: 168px;
+  font-weight: 700;
+  line-height: .92;
+  letter-spacing: -.04em;
+  font-variant-numeric: tabular-nums;
+}
+.figure .unit {
+  color: var(--ink-2);
+  font-size: 42px;
+  font-weight: 600;
+  letter-spacing: -.01em;
+}
+
+.body {
+  margin-top: 30px;
+  color: var(--ink-2);
+  font-size: 36px;
+  font-weight: 400;
+  line-height: 1.42;
+  max-width: 850px;
+}
+
+/* --- chart --------------------------------------------------------------- */
+.chart-wrap { margin-top: 54px; }
+
+.chart-label {
+  color: var(--ink-3);
+  font-size: 23px;
+  font-weight: 600;
+  letter-spacing: .17em;
+  text-transform: uppercase;
+  margin-bottom: 26px;
+}
+
+svg.chart { display: block; width: 904px; height: 320px; overflow: visible; }
+
+/* Stroked, never filled. A path without an explicit fill:none paints its
+   interior black and reads as a solid wedge. */
+svg.chart path.series { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+svg.chart path.s1 { stroke: var(--series-1); stroke-width: var(--series-1-width); }
+svg.chart path.s2 { stroke: var(--series-2); stroke-width: var(--series-2-width); }
+svg.chart path.s3 { stroke: var(--series-3); stroke-width: var(--series-3-width);
+                    stroke-dasharray: var(--series-3-dash); }
+svg.chart path.s4 { stroke: var(--series-4); stroke-width: var(--series-4-width);
+                    stroke-dasharray: var(--series-4-dash); }
+
+svg.chart .axis     { stroke: var(--axis); stroke-width: 1.5px; fill: none; }
+svg.chart .grid     { stroke: var(--gridline); stroke-width: 1px; fill: none; }
+svg.chart .marker   { fill: var(--marker); stroke: var(--stage); stroke-width: 4px; }
+svg.chart .bar      { fill: var(--bar-fill); }
+svg.chart .bar-track{ fill: var(--bar-track); }
+svg.chart .dot      { fill: var(--series-2); }
+
+svg.chart text            { font-family: var(--display); fill: var(--ink-4); font-size: 20px; }
+svg.chart text.value      { fill: var(--ink-2); font-size: 24px; font-weight: 700;
+                            font-variant-numeric: tabular-nums; }
+svg.chart text.value-lead { fill: var(--accent); }
+svg.chart text.caption    { fill: var(--ink-3); font-size: 21px; }
+
+/* --- foot ---------------------------------------------------------------- */
+.foot { margin-top: auto; border-top: 1px solid var(--line); padding-top: 30px; }
+
+.source {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  color: var(--ink-2);
+  font-size: 27px;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+.source .sep { color: var(--ink-4); }
+
+/* The evidence tier, shown rather than implied. This is the visible half of
+   the grounding guarantee, so it is a deliberate object and not a footnote. */
+.tier {
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 6px 13px;
+  color: var(--ink-3);
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: .15em;
+  text-transform: uppercase;
+}
+
+.wordmark {
+  margin-top: 22px;
+  color: var(--ink-4);
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: .34em;
+}
+</style>
+
+<body>
+<div id="deck"></div>
+
+<script>
+/* --------------------------------------------------------------------------
+   Charts are built from data, never from prose. `window.setSlides(payload)`
+   is the only entry point; the renderer calls it with records that already
+   passed grounding, so every number drawn here traces to a quoted sentence.
+-------------------------------------------------------------------------- */
+
+const W = 904, H = 320;
+
+const esc = (s) => String(s ?? "").replace(/[&<>]/g, (c) => (
+  { "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]
+));
+
+/**
+ * Map data space to canvas space, leaving room for right-edge labels.
+ *
+ * `minSpread` is the honesty control. Fitting the y-axis to the data means a
+ * series that barely moves gets stretched across the full height, so a null
+ * result renders as a dramatic zigzag — the chart contradicting the headline
+ * above it. When the observed spread is a small fraction of the mean, the
+ * domain is widened so that flat data looks flat. A chart may understate a
+ * difference; it may never manufacture one.
+ */
+function scaler(points, pad = { l: 8, r: 132, t: 18, b: 46 }, minSpread = 0) {
+  const xs = points.map((p) => p[0]), ys = points.map((p) => p[1]);
+  const x0 = Math.min(...xs), x1 = Math.max(...xs);
+  let y0 = Math.min(...ys), y1 = Math.max(...ys);
+
+  if (minSpread > 0) {
+    const mid = (y0 + y1) / 2;
+    const required = Math.abs(mid) * minSpread;
+    if (y1 - y0 < required) {
+      y0 = mid - required / 2;
+      y1 = mid + required / 2;
+    }
+  }
+
+  // Guard the degenerate case: a single point, or a perfectly flat series,
+  // would divide by zero and place every node at NaN — which renders nothing
+  // at all, silently.
+  const dx = (x1 - x0) || 1, dy = (y1 - y0) || 1;
+  return {
+    x: (v) => pad.l + ((v - x0) / dx) * (W - pad.l - pad.r),
+    y: (v) => H - pad.b - ((v - y0) / dy) * (H - pad.t - pad.b),
+    x0, x1, y0, y1, pad,
+  };
+}
+
+/** Null results are drawn on a domain wide enough to show they are null. */
+const FLAT_SERIES_MIN_SPREAD = 0.45;
+
+/** Catmull-Rom-ish smoothing, so a dose-response curve reads as a curve. */
+function path(points, s, progress = 1) {
+  const shown = points.slice(0, Math.max(2, Math.ceil(points.length * progress)));
+  if (shown.length < 2) return "";
+  return shown.reduce((d, p, i) => {
+    const x = s.x(p[0]).toFixed(2), y = s.y(p[1]).toFixed(2);
+    if (i === 0) return `M ${x} ${y}`;
+    const prev = shown[i - 1];
+    const cx = ((s.x(prev[0]) + s.x(p[0])) / 2).toFixed(2);
+    return `${d} C ${cx} ${s.y(prev[1]).toFixed(2)} ${cx} ${y} ${x} ${y}`;
+  }, "");
+}
+
+function axisTicks(ticks, s) {
+  return (ticks || []).map((t) =>
+    `<text x="${s.x(t.at).toFixed(1)}" y="${H - 12}" text-anchor="middle">${esc(t.label)}</text>`
+  ).join("");
+}
+
+/** A multi-series line chart with labelled right-hand endpoints. */
+function lineChart(spec, progress = 1) {
+  const all = spec.series.flatMap((s) => s.points);
+  const s = scaler(all);
+  const body = spec.series.map((series, i) => {
+    const cls = `s${Math.min(i + 1, 4)}`;
+    const d = path(series.points, s, progress);
+    const shown = series.points.slice(0, Math.max(2, Math.ceil(series.points.length * progress)));
+    const last = shown[shown.length - 1];
+    if (!last) return "";
+    const lx = s.x(last[0]), ly = s.y(last[1]);
+    const label = series.label
+      ? `<text class="value ${i === 0 ? "value-lead" : ""}" x="${(lx + 22).toFixed(1)}"
+             y="${(ly + 8).toFixed(1)}">${esc(series.label)}</text>`
+      : "";
+    return `<path class="series ${cls}" d="${d}"/>
+            <circle class="marker" cx="${lx.toFixed(1)}" cy="${ly.toFixed(1)}" r="var(--marker-r)"/>
+            ${label}`;
+  }).join("");
+
+  const note = spec.note
+    ? `<text class="caption" x="0" y="14">${esc(spec.note)}</text>` : "";
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}">
+    <line class="axis" x1="0" y1="${H - 42}" x2="${W - 120}" y2="${H - 42}"/>
+    ${note}${body}${axisTicks(spec.ticks, s)}
+  </svg>`;
+}
+
+/** Horizontal bars, one per band. */
+function barChart(spec, progress = 1) {
+  const rows = spec.bars || [];
+  const max = Math.max(...rows.map((b) => Math.abs(b.value)), 1);
+  const gap = 22, h = Math.min(52, (H - gap * (rows.length - 1)) / rows.length);
+  const trackW = W - 150;
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}">${rows.map((b, i) => {
+    const y = i * (h + gap);
+    const w = trackW * (Math.abs(b.value) / max) * progress;
+    return `<rect class="bar-track" x="0" y="${y}" width="${trackW}" height="${h}" rx="5"/>
+            <rect class="bar" x="0" y="${y}" width="${w.toFixed(1)}" height="${h}" rx="5"
+                  ${i === 0 ? "" : 'opacity="0.55"'}/>
+            <text class="value" x="${trackW + 20}" y="${y + h * 0.7}">${esc(b.label)}</text>`;
+  }).join("")}</svg>`;
+}
+
+/** A flat dot row — the shape of "no trend", which is itself a finding. */
+function dotChart(spec, progress = 1) {
+  const dots = spec.dots || [];
+  const s = scaler(dots.map((d, i) => [i, d.value]),
+                   { l: 60, r: 90, t: 24, b: 56 }, FLAT_SERIES_MIN_SPREAD);
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}">
+    ${spec.note ? `<text class="caption" x="0" y="14">${esc(spec.note)}</text>` : ""}
+    <line class="grid" x1="0" y1="${(H / 2).toFixed(1)}" x2="${W - 120}" y2="${(H / 2).toFixed(1)}"/>
+    ${dots.map((d, i) => {
+      if ((i + 1) / dots.length > progress + 1e-9) return "";
+      const x = s.x(i), y = s.y(d.value);
+      return `<circle class="marker" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="14"/>
+              <text x="${x.toFixed(1)}" y="${H - 12}" text-anchor="middle">${esc(d.label)}</text>`;
+    }).join("")}
+  </svg>`;
+}
+
+/** A highlighted range on an axis — "the payoff sits here". */
+function bandChart(spec, progress = 1) {
+  const s = scaler([[spec.min, 0], [spec.max, 1]], { l: 8, r: 60, t: 18, b: 46 });
+  const x1 = s.x(spec.from), x2 = s.x(spec.to);
+  const y = 70, h = 62;
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}">
+    ${spec.note ? `<text class="caption" x="0" y="14">${esc(spec.note)}</text>` : ""}
+    <rect class="bar-track" x="0" y="${y}" width="${(W - 68).toFixed(1)}" height="${h}" rx="6"/>
+    <rect class="bar" x="${x1.toFixed(1)}" y="${y}"
+          width="${Math.max(0, (x2 - x1) * progress).toFixed(1)}" height="${h}" rx="6"/>
+    ${axisTicks(spec.ticks, s)}
+  </svg>`;
+}
+
+const CHARTS = { line: lineChart, bar: barChart, dot: dotChart, band: bandChart };
+
+function renderChart(chart, progress = 1) {
+  if (!chart) return "";
+  const draw = CHARTS[chart.type];
+  if (!draw) return "";
+  return `<div class="chart-wrap">
+    ${chart.label ? `<div class="chart-label">${esc(chart.label)}</div>` : ""}
+    ${draw(chart, progress)}
+  </div>`;
+}
+
+/** Headline emphasis is marked with *asterisks* rather than raw HTML, so copy
+    can never smuggle markup onto the canvas. */
+function headline(text) {
+  return esc(text).replace(/\*(.+?)\*/g, "<em>$1</em>");
+}
+
+function sourceLine(src) {
+  if (!src) return "";
+  const parts = [src.authors, src.journal, src.sample].filter(Boolean);
+  const joined = parts.map(esc).join(' <span class="sep">·</span> ');
+  const tier = src.tier ? `<span class="sep">·</span><span class="tier">${esc(src.tier)}</span>` : "";
+  return `<div class="source">${joined} ${tier}</div>`;
+}
+
+function slideHTML(slide, i, total) {
+  const figure = slide.figure
+    ? `<div class="figure">${esc(slide.figure.value)}
+         <span class="unit">${esc(slide.figure.unit || "")}</span></div>`
+    : "";
+  return `<div class="slide">
+    <div class="head">
+      <div class="kicker">${esc(slide.kicker || "")}</div>
+      <div class="index">${i + 1}/${total}</div>
+    </div>
+    <h1 class="headline">${headline(slide.headline || "")}</h1>
+    ${figure}
+    ${slide.body ? `<p class="body">${esc(slide.body)}</p>` : ""}
+    ${renderChart(slide.chart)}
+    <div class="foot">
+      ${sourceLine(slide.source)}
+      <div class="wordmark">SYNQOLOGY</div>
+    </div>
+  </div>`;
+}
+
+window.setSlides = function (payload) {
+  const slides = payload.slides || [];
+  document.getElementById("deck").innerHTML =
+    slides.map((s, i) => slideHTML(s, i, slides.length)).join("");
+  return slides.length;
+};
+
+/* Dummy content, replaced at render time. Marked so it is obvious in review. */
+window.DEMO = {
+  slides: [
+    {
+      kicker: "New evidence · Cardio",
+      headline: "Steps buy you years — and it *plateaus early*",
+      body: "51,650 adults, tracked for a decade. Risk of dying fell steeply up to about 7,000 steps a day, then flattened.",
+      chart: {
+        type: "line", label: "Risk of death vs. daily steps", note: "Relative risk",
+        series: [{
+          label: "−51%",
+          points: [[2000, 1.0], [4000, .78], [6000, .62], [7000, .55], [9000, .51], [12000, .49]],
+        }],
+        ticks: [{ at: 2000, label: "2,000" }, { at: 7000, label: "7,000" }, { at: 12000, label: "12,000" }],
+      },
+      source: { authors: "Xu et al., 2025", journal: "Ann Intern Med", sample: "n=51,650", tier: "Cohort" },
+    },
+    {
+      kicker: "The size of it",
+      headline: "Each extra 1,000 steps cut mortality risk by",
+      figure: { value: "15%", unit: "per 1,000 steps" },
+      chart: {
+        type: "bar", label: "Risk reduction by step band",
+        bars: [
+          { label: "4→5k", value: 15 }, { label: "5→6k", value: 13 },
+          { label: "6→7k", value: 11 }, { label: "7→8k", value: 6 },
+        ],
+      },
+      source: { authors: "Xu et al., 2025", journal: "Ann Intern Med", sample: "n=51,650", tier: "Cohort" },
+    },
+    {
+      kicker: "The part that surprised them",
+      headline: "Pace didn't matter. *Volume did.*",
+      body: "Once total steps were accounted for, walking faster added nothing measurable. A slow walk counts the same as a brisk one.",
+      chart: {
+        type: "dot", label: "Risk by walking pace, at matched step counts", note: "Relative risk · no trend",
+        dots: [
+          { label: "Slowest", value: .98 }, { label: "Slow", value: 1.01 },
+          { label: "Brisk", value: .99 }, { label: "Fastest", value: 1.0 },
+        ],
+      },
+      source: { authors: "Xu et al., 2025", journal: "Ann Intern Med", sample: "n=51,650", tier: "Cohort" },
+    },
+    {
+      kicker: "What to do with it",
+      headline: "If you're under 4,000 — add *2,000*",
+      body: "That's about 20 minutes of walking, at any pace. Watch your weekly average, not today's number: single days are noise.",
+      chart: {
+        type: "band", label: "Where the payoff sits", note: "Steps per day · highest-return band",
+        min: 2000, max: 12000, from: 4000, to: 7000,
+        ticks: [{ at: 4000, label: "4,000" }, { at: 7000, label: "7,000" }, { at: 12000, label: "12,000" }],
+      },
+      source: { authors: "Xu et al., 2025", journal: "Ann Intern Med", sample: "n=51,650", tier: "Cohort" },
+    },
+  ],
+};
+
+if (!window.__RENDERING__) window.setSlides(window.DEMO);
+</script>
