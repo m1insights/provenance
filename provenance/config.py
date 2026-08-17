@@ -74,10 +74,10 @@ SYNQOLOGY = SubjectApp(
     key="synqology",
     name="synqology",
     repo_path=_SYNQ,
-    github_repo=os.getenv("SYNQOLOGY_GITHUB_REPO", "m1insights/synq"),
+    github_repo=os.getenv("SYNQOLOGY_GITHUB_REPO") or "m1insights/synq",
     # The active trunk, not `main`. Branching from the wrong ref produces a
     # pull request whose diff includes everyone else's work.
-    base_branch=os.getenv("SYNQOLOGY_BASE_BRANCH", "launch"),
+    base_branch=os.getenv("SYNQOLOGY_BASE_BRANCH") or "launch",
     algorithm_doc=_SYNQ / "LONGEVITY_FEATURE_STACK.md",
     algorithm_source=_SYNQ / "tapntrack/Services/VitalityIndexCalculator.swift",
     companion_files=(
@@ -128,17 +128,17 @@ class Settings:
 def settings() -> Settings:
     use_vertex = os.getenv("GOOGLE_GENAI_USE_VERTEXAI", "").lower() in {"1", "true", "yes"}
     return Settings(
-        gcp_project=os.getenv("GOOGLE_CLOUD_PROJECT", "sentinel-505814"),
-        gcp_region=os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1"),
-        gemini_location=os.getenv("GEMINI_LOCATION", "global"),
-        firestore_database=os.getenv("FIRESTORE_DATABASE", "(default)"),
+        gcp_project=os.getenv("GOOGLE_CLOUD_PROJECT") or "sentinel-505814",
+        gcp_region=os.getenv("GOOGLE_CLOUD_LOCATION") or "us-central1",
+        gemini_location=os.getenv("GEMINI_LOCATION") or "global",
+        firestore_database=os.getenv("FIRESTORE_DATABASE") or "(default)",
         use_vertex=use_vertex,
         google_api_key=os.getenv("GOOGLE_API_KEY", ""),
         # NCBI raises the rate limit from 3/s to 10/s once a key is present, and
         # asks every automated client to identify itself by email.
         pubmed_api_key=os.getenv("PUBMED_API_KEY", ""),
-        pubmed_email=os.getenv("PUBMED_EMAIL", "info@m1labs.io"),
+        pubmed_email=os.getenv("PUBMED_EMAIL") or "info@m1labs.io",
         github_token=os.getenv("GITHUB_TOKEN", ""),
-        creative_bucket=os.getenv("CREATIVE_BUCKET", "sentinel-505814-provenance-creatives"),
+        creative_bucket=os.getenv("CREATIVE_BUCKET") or "sentinel-505814-provenance-creatives",
         dry_run=os.getenv("PROVENANCE_DRY_RUN", "").lower() in {"1", "true", "yes"},
     )

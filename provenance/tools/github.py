@@ -15,12 +15,15 @@ refuses anything that is not a draft on a ``provenance/*`` branch.
 from __future__ import annotations
 
 import logging
+import re
 import shutil
 import subprocess
 import tempfile
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
+
+import httpx
 
 from ..config import SubjectApp, settings
 
@@ -89,29 +92,76 @@ def isolated_branch(subject: SubjectApp, branch: str, base: str):
     tree = workdir / "tree"
     try:
         _git(repo, "worktree", "add", "--detach", str(tree), base)
-        _git(tree, "checkout", "-b", branch)
+        # -B rather than -b: a previous run that failed after creating the
+        # branch but before pushing leaves it behind, and every subsequent
+        # attempt would then die on "a branch named ... already exists". This
+        # namespace belongs to the system, so resetting it is safe.
+        _git(tree, "checkout", "-B", branch)
         yield tree
     finally:
         _git(repo, "worktree", "remove", "--force", str(tree), check=False)
         _git(repo, "worktree", "prune", check=False)
+        # Leave no local branch behind either; the pushed remote branch is the
+        # durable artefact, and a stale local one only confuses the next run.
+        _git(repo, "branch", "-D", branch, check=False)
         shutil.rmtree(workdir, ignore_errors=True)
 
 
-def _gh(*args: str, cwd: Path | None = None) -> str:
+#: gRPC prints fork-safety chatter to stderr once a Firestore client exists in
+#: the parent process. It is harmless and it is not the error message.
+_GRPC_NOISE = re.compile(r"^[IWE]\d{4} .*(ev_poll_posix|fork|grpc)", re.IGNORECASE)
+
+
+def _clean_stderr(text: str) -> str:
+    return "\n".join(
+        line for line in text.splitlines() if line.strip() and not _GRPC_NOISE.match(line)
+    ).strip()
+
+
+def _token() -> str:
+    """A GitHub token, from the environment or from the CLI's keyring."""
+    token = settings().github_token
+    if token:
+        return token
     executable = shutil.which("gh")
-    if executable is None:
-        raise RuntimeError("the GitHub CLI (gh) is not installed")
-    result = subprocess.run(
-        [executable, *args],
-        capture_output=True,
-        text=True,
-        timeout=300,
-        cwd=str(cwd) if cwd else None,
-        check=False,
+    if executable is not None:
+        result = subprocess.run(
+            [executable, "auth", "token"],
+            capture_output=True, text=True, timeout=60, check=False,
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            return result.stdout.strip()
+    raise RuntimeError("no GitHub token; set GITHUB_TOKEN or run `gh auth login`")
+
+
+def _api(method: str, path: str, payload: dict | None = None) -> dict:
+    """Call the GitHub REST API.
+
+    Deliberately REST rather than the `gh` CLI. `gh issue create` and
+    `gh pr create` go through GraphQL, and during a GitHub partial outage
+    GraphQL returned 503 while REST stayed healthy -- with `gh` reporting the
+    failure as the badly misleading "no git remotes found". Fewer moving parts
+    and a truthful error message are both worth having here.
+    """
+    response = httpx.request(
+        method,
+        f"https://api.github.com{path}",
+        json=payload,
+        headers={
+            "Authorization": f"Bearer {_token()}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+            "User-Agent": "provenance/0.1",
+        },
+        timeout=60.0,
     )
-    if result.returncode != 0:
-        raise RuntimeError(f"gh {args[0]} failed: {result.stderr.strip()}")
-    return result.stdout.strip()
+    if response.status_code >= 400:
+        detail = response.json().get("message", response.text[:300]) if response.content else ""
+        errors = response.json().get("errors", []) if response.content else []
+        raise RuntimeError(
+            f"GitHub {method} {path} -> {response.status_code}: {detail} {errors}".strip()
+        )
+    return response.json()
 
 
 def open_issue(repo: str, title: str, body: str, labels: list[str] | None = None) -> str:
@@ -130,10 +180,11 @@ def open_issue(repo: str, title: str, body: str, labels: list[str] | None = None
         log.info("dry run: would open issue %r on %s", title, repo)
         return f"DRY-RUN issue on {repo}: {title}"
 
-    args = ["issue", "create", "--repo", repo, "--title", title, "--body", body]
-    for label in labels or []:
-        args += ["--label", label]
-    return _gh(*args)
+    payload: dict = {"title": title, "body": body}
+    if labels:
+        payload["labels"] = labels
+    created = _api("POST", f"/repos/{repo}/issues", payload)
+    return created["html_url"]
 
 
 def open_pull_request(
@@ -192,13 +243,15 @@ def open_pull_request(
              "commit", "-m", commit_message)
         _git(tree, "push", "-u", "origin", branch)
 
-        return _gh(
-            "pr", "create",
-            "--repo", repo,
-            "--head", branch,
-            "--base", base.split("/")[-1],
-            "--title", title,
-            "--body", body,
-            "--draft",
-            cwd=tree,
+        created = _api(
+            "POST",
+            f"/repos/{repo}/pulls",
+            {
+                "title": title,
+                "body": body,
+                "head": branch,
+                "base": base.split("/")[-1],
+                "draft": True,
+            },
         )
+        return created["html_url"]
