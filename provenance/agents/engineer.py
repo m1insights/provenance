@@ -190,6 +190,89 @@ def _tools(reader: RepoReader) -> list[FunctionTool]:
     return [FunctionTool(f) for f in (find_symbol, read_source_file, search_source, companion_files)]
 
 
+#: Cohorts large enough that many "independent" papers are in fact re-analyses
+#: of the same participants. Detected by literal mention in the abstract, so
+#: this is a string search and not an inference.
+_SHARED_COHORTS = ("UK Biobank", "NHANES", "National Health and Nutrition Examination")
+
+
+def _cohort_overlap(rows: list[tuple[Appraisal, Paper]]) -> str:
+    """Warn when the supporting studies are not as independent as they look.
+
+    Twenty papers drawn from one accelerometer cohort are twenty analyses, not
+    twenty replications. The convergence gate checks DOI registrants, which
+    does not catch this, so it is stated plainly for the reviewer instead of
+    being quietly absent.
+    """
+    counts: dict[str, int] = {}
+    for _, paper in rows:
+        haystack = f"{paper.title} {paper.abstract}"
+        for cohort in _SHARED_COHORTS:
+            if cohort.lower() in haystack.lower():
+                key = "NHANES" if "NHANES" in cohort or "Nutrition" in cohort else cohort
+                counts[key] = counts.get(key, 0) + 1
+                break
+    shared = {name: n for name, n in counts.items() if n >= 3}
+    if not shared:
+        return ""
+    listed = ", ".join(f"**{n} of {len(rows)}** cite {name}" for name, n in sorted(shared.items()))
+    return (
+        f"\n> **Independence caveat.** {listed}. Papers re-analysing one cohort are "
+        f"repeated analyses rather than independent replications, and the convergence "
+        f"gate (which checks DOI registrants) does not detect this. Weigh accordingly.\n"
+    )
+
+
+def _evidence_markdown(
+    finding: Finding, appraisals: dict[str, Appraisal], papers: dict[str, Paper]
+) -> str:
+    """The full evidence base, rendered from stored records.
+
+    Written by code rather than by the model. Every figure here -- sample
+    sizes, follow-up, journal, link -- is copied from the appraisal that
+    survived grounding, so nothing in this section can drift from what was
+    actually verified.
+    """
+    rows = [
+        (appraisals[pid], papers[pid])
+        for pid in finding.supporting_paper_ids
+        if pid in appraisals and pid in papers
+    ]
+    if not rows:
+        return ""
+    rows.sort(key=lambda r: (r[0].tier.value, -(r[0].sample_size or 0)))
+
+    tiers = ", ".join(f"{n}×{tier}" for tier, n in sorted(finding.tier_counts.items()))
+    out = [
+        "## Evidence",
+        "",
+        f"{len(rows)} appraised studies ({tiers}). Every quoted sentence below was "
+        "verified to appear verbatim in the source abstract; any claim whose quote "
+        "or figure could not be matched was discarded before this point.",
+        _cohort_overlap(rows),
+        "",
+        "| Tier | Study | Design | n | Follow-up |",
+        "|:--:|---|---|--:|---|",
+    ]
+    for appraisal, paper in rows:
+        title = paper.title.replace("|", "\\|").rstrip(".")
+        link = f"[{title}]({paper.url})" if paper.url else title
+        size = f"{appraisal.sample_size:,}" if appraisal.sample_size else "—"
+        out.append(
+            f"| {appraisal.tier.value} | {link}<br><sub>{paper.citation()}</sub> "
+            f"| {appraisal.design} | {size} | {appraisal.follow_up or '—'} |"
+        )
+
+    out += ["", "<details>", "<summary>Verified quotes</summary>", ""]
+    for appraisal, paper in rows:
+        out.append(f"**{paper.citation()}** — [{paper.pmid or paper.doi or 'source'}]({paper.url})")
+        for claim in appraisal.claims:
+            out.append(f"> {claim.quote}")
+            out.append("")
+    out += ["</details>", ""]
+    return "\n".join(out)
+
+
 def _evidence_block(finding: Finding, appraisals: dict[str, Appraisal], papers: dict[str, Paper]) -> str:
     rows = []
     for paper_id in finding.supporting_paper_ids[:12]:
@@ -307,6 +390,8 @@ def execute(
     subject: SubjectApp,
     finding: Finding,
     engineering: EngineeringPlan,
+    appraisals: dict[str, Appraisal],
+    papers: dict[str, Paper],
     *,
     repo: str,
     base: str,
@@ -330,9 +415,23 @@ def execute(
                     raise RuntimeError(f"edit does not apply: {failure}")
             outcome = backtest.run_scoring_tests(tree)
 
+    cross_repo = ""
+    if subject.cross_repo_companions:
+        listed = "\n".join(
+            f"- [`{c.path}`](https://github.com/{c.github_repo}) in **{c.github_repo}** — {c.why}"
+            for c in subject.cross_repo_companions
+        )
+        cross_repo = (
+            "\n## Also needs updating (different repository)\n\n"
+            "A pull request cannot span repositories, so these are not included here "
+            f"and must be changed separately:\n\n{listed}\n"
+        )
+
     body = (
         f"{engineering.pr_body}\n\n"
-        f"## Backtest\n\n{outcome.as_markdown()}\n\n"
+        f"{_evidence_markdown(finding, appraisals, papers)}\n"
+        f"## Backtest\n\n{outcome.as_markdown()}\n"
+        f"{cross_repo}\n"
         f"## Argument against this change\n\n{engineering.dissent}\n\n"
         f"---\n"
         f"Opened by **Provenance** from {len(finding.supporting_paper_ids)} appraised papers "
@@ -344,7 +443,9 @@ def execute(
     issue_url = github.open_issue(
         repo=repo,
         title=engineering.issue_title,
-        body=engineering.issue_body,
+        body=engineering.issue_body
+        + "\n\n"
+        + _evidence_markdown(finding, appraisals, papers),
     )
     pr_url = github.open_pull_request(
         subject,

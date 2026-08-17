@@ -255,3 +255,29 @@ def open_pull_request(
             },
         )
         return created["html_url"]
+
+
+def update_pull_request(repo: str, number: int, *, body: str, title: str | None = None) -> str:
+    """Rewrite an existing draft pull request's body.
+
+    Regenerating the body is preferable to opening a replacement: the review
+    conversation, and any comments already left on it, stay attached.
+    """
+    if settings().dry_run:
+        log.info("dry run: would update %s#%d", repo, number)
+        return f"DRY-RUN update {repo}#{number}"
+    payload: dict = {"body": body}
+    if title:
+        payload["title"] = title
+    return _api("PATCH", f"/repos/{repo}/pulls/{number}", payload)["html_url"]
+
+
+def update_issue(repo: str, number: int, *, body: str, title: str | None = None) -> str:
+    """Rewrite an existing issue's body."""
+    if settings().dry_run:
+        log.info("dry run: would update %s#%d", repo, number)
+        return f"DRY-RUN update {repo}#{number}"
+    payload: dict = {"body": body}
+    if title:
+        payload["title"] = title
+    return _api("PATCH", f"/repos/{repo}/issues/{number}", payload)["html_url"]

@@ -206,6 +206,8 @@ def cmd_engineer(args: argparse.Namespace) -> int:
             subject,
             finding,
             engineering,
+            appraisals,
+            papers,
             repo=subject.github_repo,
             base=subject.base_branch,
             run_tests=not args.skip_tests,
@@ -225,6 +227,70 @@ def settings_dry_run() -> bool:
     from .config import settings
 
     return settings().dry_run
+
+
+def cmd_evidence(args: argparse.Namespace) -> int:
+    """Show what a finding is actually based on, down to the quoted sentence."""
+    from .models import Appraisal, Finding, Paper
+    from .store import firestore as store
+
+    db = store.client()
+    findings = [
+        finding
+        for doc in db.collection(store.FINDINGS).stream()
+        if (finding := Finding.model_validate(doc.to_dict()))
+        and (args.finding_id is None or finding.finding_id == args.finding_id)
+        and (args.component is None or finding.component_id == args.component)
+    ]
+    if not findings:
+        print("no findings match")
+        return 0
+
+    appraisals = {
+        appraisal.paper_id: appraisal
+        for doc in db.collection(store.APPRAISALS).stream()
+        if (appraisal := Appraisal.model_validate(doc.to_dict()))
+    }
+    papers = {
+        paper.doc_id: paper
+        for doc in db.collection(store.PAPERS).stream()
+        if (paper := Paper.model_validate(doc.to_dict()))
+    }
+
+    for finding in findings:
+        print(f"\n{'=' * 92}")
+        print(f"{finding.component_id}  ·  confidence {finding.confidence:.2f}  ·  "
+              f"tiers {finding.tier_counts}  ·  {finding.status.value}")
+        print(f"{'=' * 92}")
+        print(textwrap.fill(finding.statement, 92))
+        if finding.pr_url:
+            print(f"\nPR    {finding.pr_url}")
+        if finding.issue_url:
+            print(f"Issue {finding.issue_url}")
+
+        for change in finding.proposed_changes:
+            print(f"\nPROPOSED  {change.symbol}: {change.current_value} -> {change.proposed_value}")
+
+        rows = [
+            (appraisals[pid], papers[pid])
+            for pid in finding.supporting_paper_ids
+            if pid in appraisals and pid in papers
+        ]
+        rows.sort(key=lambda r: (r[0].tier.value, -(r[0].sample_size or 0)))
+
+        print(f"\n{len(rows)} SUPPORTING STUDIES\n")
+        for appraisal, paper in rows:
+            size = f"n={appraisal.sample_size:,}" if appraisal.sample_size else ""
+            print(f"[{appraisal.tier.value}] {paper.title}")
+            print(f"    {paper.citation()}  ·  {appraisal.design}"
+                  f"{'  ·  ' + size if size else ''}"
+                  f"{'  ·  ' + appraisal.follow_up if appraisal.follow_up else ''}")
+            print(f"    {paper.url}")
+            if args.quotes:
+                for claim in appraisal.claims:
+                    print(textwrap.indent(textwrap.fill(f'"{claim.quote}"', 84), "      "))
+            print()
+    return 0
 
 
 def cmd_status(args: argparse.Namespace) -> int:
@@ -273,6 +339,12 @@ def main(argv: list[str] | None = None) -> int:
     eng.add_argument("--redo", action="store_true", help="re-engineer already-drafted findings")
     eng.add_argument("--skip-tests", action="store_true", help="skip the xcodebuild backtest")
     eng.set_defaults(func=cmd_engineer)
+
+    ev = sub.add_parser("evidence", help="show the studies a finding rests on")
+    ev.add_argument("--finding-id", default=None)
+    ev.add_argument("--component", default=None, help="e.g. mvpa")
+    ev.add_argument("--quotes", action="store_true", help="include the verified quote per claim")
+    ev.set_defaults(func=cmd_evidence)
 
     status = sub.add_parser("status", help="counts by collection")
     status.set_defaults(func=cmd_status)
