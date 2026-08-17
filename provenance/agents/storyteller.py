@@ -26,6 +26,7 @@ from ..creative import (
     _is_observational,
     check_copy,
     check_language,
+    check_structure,
     resolve,
 )
 from ..llm import model as llm_model
@@ -86,14 +87,21 @@ Write the way a careful clinician talks to a patient who asked a good question.
 Mark the payoff phrase of a headline with *asterisks* to set it in the accent \
 colour. One emphasis per headline at most.
 
-Body copy is two to four lines. If it needs more, the slide is doing too much.
+Body copy is two to three lines, under 150 characters. The canvas is fixed: \
+longer copy crowds the slide and squeezes the chart into whatever is left.
 
 ## Charts
 
 - `bar` -- comparing effect sizes across claims.
 - `dot` -- showing that something did NOT vary. A null result is a finding.
 - `band` -- a range on an axis, from two claims.
-- `none` -- when the point is a sentence, not a shape.
+- `none` -- when the point is a sentence, not a shape. Use this SPARINGLY: at \
+least three of the four slides must carry a chart, because the charts are why \
+anyone stops to look.
+
+A chart needs at least TWO claims. One dot on an axis is not a chart -- it \
+conveys nothing a sentence would not convey better, and it implies a \
+comparison the reader then goes hunting for.
 
 `point_labels` are words, not figures: "4 to 5k", "slowest", "brisk". Give one \
 per claim, in the same order as `claim_ids`.
@@ -204,8 +212,10 @@ async def tell(
             prompt = base_prompt
             continue
 
-        failures = check_copy(plan, claims) + check_language(
-            plan, observational=observational
+        failures = (
+            check_copy(plan, claims)
+            + check_language(plan, observational=observational)
+            + check_structure(plan)
         )
         if not failures:
             log.info(

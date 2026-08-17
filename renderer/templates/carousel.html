@@ -110,6 +110,12 @@ html, body {
   letter-spacing: -.01em;
 }
 
+.slide.no-chart .headline { font-size: 96px; }
+.slide.no-chart .body { font-size: 42px; margin-top: 44px; max-width: 900px; }
+/* With no chart to anchor the middle, the copy block centres itself rather
+   than sitting under a void. */
+.slide.no-chart .copy { margin: auto 0; }
+
 .body {
   margin-top: 30px;
   color: var(--ink-2);
@@ -297,9 +303,15 @@ function lineChart(spec, progress = 1) {
 function barChart(spec, progress = 1) {
   const rows = spec.bars || [];
   const max = Math.max(...rows.map((b) => Math.abs(b.value)), 1);
-  const gap = 22, h = Math.min(52, (H - gap * (rows.length - 1)) / rows.length);
+  // Bars get a generous fixed height and the canvas follows them. Reserving a
+  // constant 320px meant a two-bar chart left ~190px of dead space beneath it,
+  // which reads as a missing visual rather than as breathing room.
+  const gap = 26;
+  const h = rows.length <= 2 ? 74 : rows.length <= 4 ? 58 : 44;
+  const contentH = rows.length * h + Math.max(0, rows.length - 1) * gap;
   const trackW = W - 150;
-  return `<svg class="chart" viewBox="0 0 ${W} ${H}">${rows.map((b, i) => {
+  return `<svg class="chart" viewBox="0 0 ${W} ${contentH}"
+               style="height:${contentH}px">${rows.map((b, i) => {
     const y = i * (h + gap);
     const w = trackW * (Math.abs(b.value) / max) * progress;
     return `<rect class="bar-track" x="0" y="${y}" width="${trackW}" height="${h}" rx="5"/>
@@ -312,31 +324,41 @@ function barChart(spec, progress = 1) {
 /** A flat dot row — the shape of "no trend", which is itself a finding. */
 function dotChart(spec, progress = 1) {
   const dots = spec.dots || [];
+  // Few dots need less vertical room; a tall canvas around two points reads as
+  // a chart with something missing from it.
+  const contentH = dots.length <= 3 ? 208 : H;
   const s = scaler(dots.map((d, i) => [i, d.value]),
                    { l: 60, r: 90, t: 24, b: 56 }, FLAT_SERIES_MIN_SPREAD);
-  return `<svg class="chart" viewBox="0 0 ${W} ${H}">
+  const scaleY = contentH / H;
+  return `<svg class="chart" viewBox="0 0 ${W} ${contentH}" style="height:${contentH}px">
     ${spec.note ? `<text class="caption" x="0" y="14">${esc(spec.note)}</text>` : ""}
-    <line class="grid" x1="0" y1="${(H / 2).toFixed(1)}" x2="${W - 120}" y2="${(H / 2).toFixed(1)}"/>
+    <line class="grid" x1="0" y1="${(contentH / 2).toFixed(1)}"
+          x2="${W - 120}" y2="${(contentH / 2).toFixed(1)}"/>
     ${dots.map((d, i) => {
       if ((i + 1) / dots.length > progress + 1e-9) return "";
-      const x = s.x(i), y = s.y(d.value);
+      const x = s.x(i), y = s.y(d.value) * scaleY;
       return `<circle class="marker" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="14"/>
-              <text x="${x.toFixed(1)}" y="${H - 12}" text-anchor="middle">${esc(d.label)}</text>`;
+              <text x="${x.toFixed(1)}" y="${contentH - 12}"
+                    text-anchor="middle">${esc(d.label)}</text>`;
     }).join("")}
   </svg>`;
 }
 
 /** A highlighted range on an axis — "the payoff sits here". */
 function bandChart(spec, progress = 1) {
+  const contentH = 186;
   const s = scaler([[spec.min, 0], [spec.max, 1]], { l: 8, r: 60, t: 56, b: 46 });
   const x1 = s.x(spec.from), x2 = s.x(spec.to);
-  const y = 70, h = 62;
-  return `<svg class="chart" viewBox="0 0 ${W} ${H}">
+  const y = 58, h = 68;
+  return `<svg class="chart" viewBox="0 0 ${W} ${contentH}" style="height:${contentH}px">
     ${spec.note ? `<text class="caption" x="0" y="14">${esc(spec.note)}</text>` : ""}
     <rect class="bar-track" x="0" y="${y}" width="${(W - 68).toFixed(1)}" height="${h}" rx="6"/>
     <rect class="bar" x="${x1.toFixed(1)}" y="${y}"
           width="${Math.max(0, (x2 - x1) * progress).toFixed(1)}" height="${h}" rx="6"/>
-    ${axisTicks(spec.ticks, s)}
+    ${(spec.ticks || []).map((t) =>
+      `<text x="${s.x(t.at).toFixed(1)}" y="${contentH - 10}"
+             text-anchor="middle">${esc(t.label)}</text>`
+    ).join("")}
   </svg>`;
 }
 
@@ -371,14 +393,17 @@ function slideHTML(slide, i, total) {
     ? `<div class="figure">${esc(slide.figure.value)}
          <span class="unit">${esc(slide.figure.unit || "")}</span></div>`
     : "";
-  return `<div class="slide">
+  const hasChart = Boolean(slide.chart && slide.chart.type);
+  return `<div class="slide${hasChart ? "" : " no-chart"}">
     <div class="head">
       <div class="kicker">${esc(slide.kicker || "")}</div>
       <div class="index">${i + 1}/${total}</div>
     </div>
-    <h1 class="headline">${headline(slide.headline || "")}</h1>
-    ${figure}
-    ${slide.body ? `<p class="body">${esc(slide.body)}</p>` : ""}
+    <div class="copy">
+      <h1 class="headline">${headline(slide.headline || "")}</h1>
+      ${figure}
+      ${slide.body ? `<p class="body">${esc(slide.body)}</p>` : ""}
+    </div>
     ${renderChart(slide.chart)}
     <div class="foot">
       ${sourceLine(slide.source)}
