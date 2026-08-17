@@ -252,6 +252,62 @@ def check_language(
     return failures
 
 
+#: A carousel of text cards is not what this format is for. The charts are the
+#: reason to look, so most slides must carry one.
+MIN_SLIDES_WITH_CHART = 3
+
+#: Points below which a "chart" is a decoration. One dot on an axis conveys
+#: nothing a sentence would not convey better, and it implies a comparison the
+#: reader then goes looking for.
+MIN_CHART_POINTS = 2
+
+#: Body copy long enough to wrap past three lines crowds the slide and, on a
+#: fixed canvas, pushes the chart into whatever space is left.
+MAX_BODY_CHARS = 150
+
+
+def check_structure(plan: StoryPlan) -> list[GateFailure]:
+    """Refuse layouts that will render as empty or misleading."""
+    failures: list[GateFailure] = []
+    with_chart = 0
+
+    for index, slide in enumerate(plan.slides, start=1):
+        chart = slide.chart
+        if chart.type is not ChartType.NONE:
+            points = len(chart.claim_ids)
+            if points < MIN_CHART_POINTS:
+                failures.append(GateFailure(
+                    slide=index, field="chart",
+                    detail=(
+                        f"a {chart.type.value} chart with {points} point(s) is not a "
+                        f"chart. Reference at least {MIN_CHART_POINTS} claims, or set "
+                        f"the chart type to 'none' and let the copy carry the slide."
+                    ),
+                ))
+            else:
+                with_chart += 1
+
+        if len(slide.body or "") > MAX_BODY_CHARS:
+            failures.append(GateFailure(
+                slide=index, field="body",
+                detail=(
+                    f"body is {len(slide.body)} characters; keep it under "
+                    f"{MAX_BODY_CHARS} so it reads as two or three lines."
+                ),
+            ))
+
+    if plan.slides and with_chart < MIN_SLIDES_WITH_CHART:
+        failures.append(GateFailure(
+            slide=0, field="slides",
+            detail=(
+                f"only {with_chart} of {len(plan.slides)} slides carry a usable chart; "
+                f"at least {MIN_SLIDES_WITH_CHART} must. The charts are the reason "
+                f"this format exists."
+            ),
+        ))
+    return failures
+
+
 _RATIO_UNITS = {"", "hr", "rr", "or", "hazard ratio", "risk ratio", "odds ratio"}
 
 #: How a study design should read on a creative. The full phrase ("prospective

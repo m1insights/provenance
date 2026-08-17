@@ -224,3 +224,55 @@ class TestCausalLanguage:
         cohort = Appraisal(paper_id="a", tier=EvidenceTier.B, design="prospective cohort study")
         trial = Appraisal(paper_id="b", tier=EvidenceTier.A, design="randomised controlled trial")
         assert _is_observational({"a": cohort, "b": trial}, ["a", "b"]) is False
+
+
+class TestStructure:
+    """A carousel of text cards is not this format. The charts are the point."""
+
+    def _slide(self, chart=None, body="", **kw):
+        base = {"kicker": "K", "headline": "H", "body": body}
+        if chart is not None:
+            base["chart"] = chart
+        return SlidePlan(**(base | kw))
+
+    def _bar(self, n):
+        return ChartPlan(type=ChartType.BAR, claim_ids=[f"c{i}" for i in range(n)])
+
+    def test_single_point_chart_is_refused(self):
+        """One dot on an axis implies a comparison that is not there."""
+        from provenance.creative import check_structure
+        plan = StoryPlan(slides=[self._slide(chart=self._bar(1))] + [
+            self._slide(chart=self._bar(2)) for _ in range(3)
+        ])
+        failures = check_structure(plan)
+        assert failures and "is not a" in failures[0].detail
+
+    def test_too_few_charts_is_refused(self):
+        from provenance.creative import check_structure
+        plan = StoryPlan(slides=[
+            self._slide(chart=self._bar(2)),
+            self._slide(), self._slide(), self._slide(),
+        ])
+        failures = check_structure(plan)
+        assert any("slides carry a usable chart" in f.detail for f in failures)
+
+    def test_three_charts_of_four_passes(self):
+        from provenance.creative import check_structure
+        plan = StoryPlan(slides=[self._slide(chart=self._bar(2)) for _ in range(3)]
+                                + [self._slide()])
+        assert check_structure(plan) == []
+
+    def test_overlong_body_is_refused(self):
+        from provenance.creative import MAX_BODY_CHARS, check_structure
+        plan = StoryPlan(slides=[
+            self._slide(chart=self._bar(2), body="x" * (MAX_BODY_CHARS + 1))
+        ] + [self._slide(chart=self._bar(2)) for _ in range(3)])
+        failures = check_structure(plan)
+        assert any(f.field == "body" for f in failures)
+
+    def test_a_single_point_chart_does_not_count_toward_the_minimum(self):
+        """Otherwise a deck of one-dot charts would satisfy the rule."""
+        from provenance.creative import check_structure
+        plan = StoryPlan(slides=[self._slide(chart=self._bar(1)) for _ in range(4)])
+        failures = check_structure(plan)
+        assert any("slides carry a usable chart" in f.detail for f in failures)
