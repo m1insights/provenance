@@ -1,0 +1,370 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>synqology · research reel</title>
+<style>
+/* ---------------------------------------------------------------------------
+   1080x1920 vertical reel.
+
+   The mechanic is a swept axis: the chart is revealed left to right while a
+   large counter drives the sweep, so there is always an unresolved visual on
+   screen and the viewer stays to see where it lands. Labels sit inside the
+   bands rather than in a legend, and short annotations fire at thresholds.
+
+   Brand constraint that shapes everything below: hue never carries meaning in
+   this system. A stacked composition normally encodes category by colour, so
+   categories are separated by LIGHTNESS along a single accent ramp, with a
+   stage-coloured hairline between bands and the label set inside each one.
+--------------------------------------------------------------------------- */
+:root {
+  --stage:  #0A0C0E;
+  --ink:    #F5F7F9;
+  --accent: #5AC8E8;
+  --line:   rgba(245, 247, 249, .10);
+
+  --ink-2:  rgba(245, 247, 249, .72);
+  --ink-3:  rgba(245, 247, 249, .60);
+  --ink-4:  rgba(245, 247, 249, .46);
+
+  --display: -apple-system, BlinkMacSystemFont, "SF Pro Display",
+             "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+
+  /* One ramp, six steps. Adjacent bands differ enough in lightness to read
+     apart at thumbnail size without a second hue entering the system. */
+  --band-1: #A8E8F7;
+  --band-2: #5AC8E8;
+  --band-3: #2E9FC4;
+  --band-4: #3C7A8C;
+  --band-5: #4A5F6B;
+  --band-6: #2B3740;
+
+  --axis: rgba(245, 247, 249, .26);
+  --grid: rgba(245, 247, 249, .07);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  width: 1080px; height: 1920px;
+  background: var(--stage);
+  font-family: var(--display);
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+/* Instagram overlays roughly the top 250px and the bottom 420px. Nothing that
+   must be read may enter those bands. */
+.stage {
+  position: absolute; inset: 0;
+  padding: 258px 76px 430px;
+  display: flex; flex-direction: column;
+}
+
+.title {
+  font-size: 54px; font-weight: 700; letter-spacing: -.02em;
+  color: var(--ink); line-height: 1.06;
+}
+.subtitle {
+  margin-top: 14px; font-size: 28px; font-weight: 400;
+  color: var(--ink-3); font-style: italic;
+}
+
+/* Annotations fire at thresholds and fade. They are the only moving text. */
+.annotation {
+  margin-top: 30px; min-height: 92px;
+  opacity: 0; transition: none;
+}
+.annotation .flag {
+  color: var(--accent); font-size: 26px; font-weight: 700;
+  letter-spacing: .16em; text-transform: uppercase;
+}
+.annotation .detail {
+  margin-top: 8px; color: var(--ink-3); font-size: 27px; font-weight: 400;
+}
+
+.plot { margin-top: 18px; position: relative; }
+svg.chart { display: block; width: 928px; height: 780px; overflow: visible; }
+
+svg.chart .band       { stroke: var(--stage); stroke-width: 2px; }
+svg.chart .edge       { stroke: var(--ink); stroke-width: 3px; fill: none; opacity: .9; }
+svg.chart .axis       { stroke: var(--axis); stroke-width: 1.5px; fill: none; }
+svg.chart .grid       { stroke: var(--grid); stroke-width: 1px; fill: none; }
+svg.chart text        { font-family: var(--display); fill: var(--ink-4); font-size: 24px; }
+svg.chart text.inband {
+  font-family: var(--display); font-size: 27px; font-weight: 700;
+  letter-spacing: .08em; text-transform: uppercase;
+  paint-order: stroke; stroke: rgba(10, 12, 14, .18); stroke-width: 1.5px;
+}
+
+/* The counter is the clock the sweep runs on. Tabular figures so the digits
+   do not jitter as the value changes, which is the single most distracting
+   thing a running number can do. */
+.counter {
+  margin-top: 22px;
+  display: flex; align-items: baseline; justify-content: flex-end; gap: 16px;
+  font-family: var(--mono);
+  font-size: 86px; font-weight: 700; color: var(--ink);
+  font-variant-numeric: tabular-nums; letter-spacing: -.02em;
+}
+.counter .caption {
+  font-family: var(--display); font-size: 30px; font-weight: 600;
+  color: var(--ink-3); letter-spacing: .04em;
+}
+
+.foot { margin-top: auto; }
+.source {
+  display: flex; align-items: center; gap: 13px;
+  color: var(--ink-2); font-size: 25px; font-variant-numeric: tabular-nums;
+  border-top: 1px solid var(--line); padding-top: 24px;
+}
+.source .sep { color: var(--ink-4); }
+.tier {
+  border: 1px solid var(--line); border-radius: 5px; padding: 5px 12px;
+  color: var(--ink-3); font-size: 18px; font-weight: 700;
+  letter-spacing: .15em; text-transform: uppercase;
+}
+
+/* Brand arrives last. A wordmark sitting on screen throughout competes with
+   the animation that is doing the work. */
+.wordmark {
+  margin-top: 20px; color: var(--ink-4);
+  font-size: 25px; font-weight: 700; letter-spacing: .34em;
+  opacity: 0;
+}
+</style>
+
+<body>
+<div class="stage">
+  <div class="title" id="title"></div>
+  <div class="subtitle" id="subtitle"></div>
+  <div class="annotation" id="annotation">
+    <div class="flag" id="annotation-flag"></div>
+    <div class="detail" id="annotation-detail"></div>
+  </div>
+  <div class="plot" id="plot"></div>
+  <div class="counter"><span id="counter-value"></span><span class="caption" id="counter-caption"></span></div>
+  <div class="foot">
+    <div class="source" id="source"></div>
+    <div class="wordmark" id="wordmark">SYNQOLOGY</div>
+  </div>
+</div>
+
+<script>
+const W = 928, H = 780;
+const PAD = { l: 74, r: 34, t: 26, b: 58 };
+
+const esc = (s) => String(s ?? "").replace(/[&<>]/g, (c) => (
+  { "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]
+));
+
+const BANDS = ["--band-1", "--band-2", "--band-3", "--band-4", "--band-5", "--band-6"];
+
+let SPEC = null;
+
+const lerp = (a, b, t) => a + (b - a) * t;
+/** Ease so the sweep starts and ends calmly but crosses the middle briskly. */
+const easeInOut = (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
+
+function xScale(spec) {
+  const [x0, x1] = spec.domain;
+  return (v) => PAD.l + ((v - x0) / ((x1 - x0) || 1)) * (W - PAD.l - PAD.r);
+}
+function yScale() {
+  // Composition charts are always 0-100%: rescaling them to the data would
+  // misrepresent a share as a magnitude.
+  return (v) => H - PAD.b - (v / 100) * (H - PAD.t - PAD.b);
+}
+
+/** Value of a series at an arbitrary x, linearly interpolated between stops. */
+function valueAt(points, x) {
+  if (!points.length) return 0;
+  if (x <= points[0][0]) return points[0][1];
+  if (x >= points[points.length - 1][0]) return points[points.length - 1][1];
+  for (let i = 1; i < points.length; i += 1) {
+    const [x0, y0] = points[i - 1], [x1, y1] = points[i];
+    if (x <= x1) return lerp(y0, y1, (x - x0) / ((x1 - x0) || 1));
+  }
+  return points[points.length - 1][1];
+}
+
+/** Sample every series into cumulative bands across the revealed range. */
+function stackAt(series, x) {
+  let total = 0;
+  const stops = series.map((s) => {
+    const value = Math.max(0, valueAt(s.points, x));
+    const base = total;
+    total += value;
+    return { base, top: total, series: s };
+  });
+  // Normalise to a share of 100 so bands always fill the plot.
+  const scale = total > 0 ? 100 / total : 0;
+  return stops.map((s) => ({ ...s, base: s.base * scale, top: s.top * scale }));
+}
+
+function renderChart(spec, progress) {
+  const x = xScale(spec), y = yScale();
+  const [x0, x1] = spec.domain;
+  const head = lerp(x0, x1, progress);
+
+  // Sample densely enough that a curved boundary reads as a curve.
+  const steps = 96;
+  const xs = [];
+  for (let i = 0; i <= steps; i += 1) {
+    const v = lerp(x0, head, i / steps);
+    xs.push(v);
+    if (v >= head) break;
+  }
+
+  const stacksByX = xs.map((v) => stackAt(spec.series, v));
+
+  const bands = spec.series.map((s, index) => {
+    const top = xs.map((v, i) => `${x(v).toFixed(1)},${y(stacksByX[i][index].top).toFixed(1)}`);
+    const bottom = xs.map((v, i) => `${x(v).toFixed(1)},${y(stacksByX[i][index].base).toFixed(1)}`).reverse();
+    const fill = `var(${BANDS[index % BANDS.length]})`;
+    return `<polygon class="band" fill="${fill}" points="${top.concat(bottom).join(" ")}"/>`;
+  }).join("");
+
+  // Labels sit inside their band, at the widest revealed point, so the viewer
+  // never has to map a colour back to a legend.
+  const labels = spec.series.map((s, index) => {
+    if (!s.label || progress < 0.18) return "";
+    const at = Math.floor(xs.length * 0.55);
+    const slice = stacksByX[at] && stacksByX[at][index];
+    if (!slice) return "";
+    const height = Math.abs(y(slice.base) - y(slice.top));
+    if (height < 34) return "";  // too thin to hold a word honestly
+    const cx = x(xs[at]);
+    const cy = (y(slice.base) + y(slice.top)) / 2 + 9;
+    // Bands 1-3 are light enough to need dark type; 4-6 are dark enough to
+    // need white. Anything in between reads as washed at thumbnail size.
+    // Bands 1-3 are light enough to need dark type; 4-6 need white.
+    //
+    // Set through `style`, not the `fill` attribute. A presentation attribute
+    // loses to any CSS rule, so `svg.chart text { fill: ... }` was silently
+    // overriding every per-band colour and painting all four labels the same
+    // washed grey — which looks like a contrast problem rather than a
+    // specificity one.
+    const light = index < 3;
+    return `<text class="inband" x="${cx.toFixed(1)}" y="${cy.toFixed(1)}"
+                  text-anchor="middle"
+                  style="fill:${light ? "#04181F" : "#FFFFFF"}">${esc(s.label)}</text>`;
+  }).join("");
+
+  // The leading edge: a bright rule at the sweep head, so the eye has a place
+  // to be and the reveal reads as motion rather than as a growing blob.
+  const headX = x(head);
+  const edge = progress > 0.005 && progress < 0.999
+    ? `<line class="edge" x1="${headX.toFixed(1)}" y1="${y(100).toFixed(1)}"
+             x2="${headX.toFixed(1)}" y2="${y(0).toFixed(1)}"/>`
+    : "";
+
+  const ticks = (spec.ticks || []).map((t) =>
+    `<text x="${x(t.at).toFixed(1)}" y="${H - 16}" text-anchor="middle">${esc(t.label)}</text>`
+  ).join("");
+
+  const gridlines = [0, 25, 50, 75, 100].map((v) =>
+    `<line class="grid" x1="${PAD.l}" y1="${y(v).toFixed(1)}" x2="${W - PAD.r}" y2="${y(v).toFixed(1)}"/>
+     <text x="${PAD.l - 16}" y="${(y(v) + 8).toFixed(1)}" text-anchor="end">${v}%</text>`
+  ).join("");
+
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}">
+    ${gridlines}${bands}${labels}${edge}
+    <line class="axis" x1="${PAD.l}" y1="${y(0).toFixed(1)}" x2="${W - PAD.r}" y2="${y(0).toFixed(1)}"/>
+    ${ticks}
+  </svg>`;
+}
+
+function activeAnnotation(spec, value) {
+  const hits = (spec.annotations || []).filter((a) => value >= a.at);
+  return hits.length ? hits[hits.length - 1] : null;
+}
+
+function sourceHTML(src) {
+  if (!src) return "";
+  const parts = [src.authors, src.journal, src.sample].filter(Boolean);
+  const joined = parts.map(esc).join(' <span class="sep">·</span> ');
+  const tier = src.tier ? `<span class="sep">·</span><span class="tier">${esc(src.tier)}</span>` : "";
+  return `${joined} ${tier}`;
+}
+
+window.setSpec = function (spec) {
+  SPEC = spec;
+  document.getElementById("title").textContent = spec.title || "";
+  document.getElementById("subtitle").textContent = spec.subtitle || "";
+  document.getElementById("source").innerHTML = sourceHTML(spec.source);
+  document.getElementById("counter-caption").textContent = spec.counter_caption || "";
+  window.setFrame(0);
+};
+
+/**
+ * The only animation entry point. p = 0..1 fully determines the frame, so a
+ * capture at any p is reproducible and frames never drift relative to each
+ * other the way CSS-timed animation does.
+ */
+window.setFrame = function (p) {
+  if (!SPEC) return;
+  const clamped = Math.max(0, Math.min(1, p));
+
+  // Hold briefly at the start so the title is readable, and at the end so the
+  // finished chart lands before the clip loops.
+  const sweep = easeInOut(Math.max(0, Math.min(1, (clamped - 0.08) / 0.74)));
+
+  document.getElementById("plot").innerHTML = renderChart(SPEC, sweep);
+
+  const [x0, x1] = SPEC.domain;
+  const value = lerp(x0, x1, sweep);
+  const digits = SPEC.counter_decimals ?? 0;
+  const step = SPEC.counter_step || 0;
+  const stepped = step > 0 ? Math.round(value / step) * step : value;
+  const shown = stepped.toLocaleString("en-US", {
+    minimumFractionDigits: digits, maximumFractionDigits: digits,
+  });
+  document.getElementById("counter-value").textContent =
+    `${SPEC.counter_prefix || ""}${shown}`;
+
+  const annotation = activeAnnotation(SPEC, value);
+  const box = document.getElementById("annotation");
+  if (annotation) {
+    document.getElementById("annotation-flag").textContent = annotation.flag || "";
+    document.getElementById("annotation-detail").textContent = annotation.detail || "";
+    // Fade in over the first slice of the annotation's life.
+    const age = (value - annotation.at) / Math.max(1, (x1 - x0) * 0.04);
+    box.style.opacity = String(Math.max(0, Math.min(1, age)));
+  } else {
+    box.style.opacity = "0";
+  }
+
+  // Brand arrives at 86%, once the chart has finished saying what it says.
+  document.getElementById("wordmark").style.opacity =
+    String(Math.max(0, Math.min(1, (clamped - 0.86) / 0.09)));
+};
+
+window.DEMO = {
+  title: "Where the risk actually sits",
+  subtitle: "Share of mortality risk by daily step count",
+  counter_prefix: "",
+  counter_caption: "steps / day",
+  counter_step: 100,
+  domain: [2000, 12000],
+  ticks: [
+    { at: 2000, label: "2,000" }, { at: 7000, label: "7,000" },
+    { at: 12000, label: "12,000" },
+  ],
+  annotations: [
+    { at: 4000, flag: "The steep part", detail: "Most of the benefit arrives early" },
+    { at: 7500, flag: "It flattens", detail: "Past here, more steps add little" },
+  ],
+  series: [
+    { label: "Cardiovascular", points: [[2000, 38], [6000, 26], [12000, 21]] },
+    { label: "Metabolic", points: [[2000, 24], [6000, 22], [12000, 19]] },
+    { label: "Cancer", points: [[2000, 18], [6000, 20], [12000, 22]] },
+    { label: "Other", points: [[2000, 20], [6000, 32], [12000, 38]] },
+  ],
+  source: {
+    authors: "Xu et al.", journal: "Ann Intern Med",
+    sample: "n=51,650", tier: "Cohort",
+  },
+};
+
+if (!window.__RENDERING__) window.setSpec(window.DEMO);
+</script>
