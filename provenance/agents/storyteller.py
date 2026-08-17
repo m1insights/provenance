@@ -71,6 +71,26 @@ Any digit you type into `kicker`, `headline`, `body` or an axis label is \
 checked against the appraised claims. Unsupported figures are rejected and you \
 will be asked to rewrite.
 
+## The first headline has one job
+
+Someone is scrolling. You get about a second. The headline has to make them \
+stop, and the only honest way to do that is to lead with the part that is \
+genuinely surprising or that contradicts what they already believe.
+
+The reference standard for this format is "What kills you at each age" -- \
+blunt, concrete, second person, and entirely true. That is the register. Not \
+hype: hype is rejected by a separate gate and you will only waste an attempt.
+
+Techniques that work here:
+- Name the belief you are overturning: "You do not need to train every day."
+- Make it personal: "you", "your week", not "participants".
+- State the surprise flat, without softening: "Pace did not matter."
+- A number, referenced through `feature_claim_id`, when the number IS the hook.
+
+Techniques that fail: a topic instead of a claim ("Exercise and longevity"), \
+a hedge in the first six words, or a headline that only makes sense after \
+reading the body.
+
 ## Structure
 
 Four slides:
