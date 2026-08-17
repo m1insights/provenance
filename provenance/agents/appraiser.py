@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 import logging
 
 from google.adk.agents import LlmAgent
@@ -169,11 +170,44 @@ async def _run(agent: LlmAgent, prompt: str) -> dict | None:
 
     if not final:
         return None
+    return _parse_json(final)
+
+
+def _parse_json(text: str) -> dict | None:
+    """Parse a model response that should be JSON.
+
+    Agents constrained by ``output_schema`` return bare JSON. Agents with tools
+    cannot use ``output_schema`` -- ADK forbids the combination -- so they are
+    asked for JSON in the prompt instead and routinely wrap it in a fenced
+    block. Both shapes have to parse.
+    """
+    candidate = text.strip()
+    fenced = re.search(r"```(?:json)?\s*(.+?)\s*```", candidate, re.DOTALL)
+    if fenced:
+        candidate = fenced.group(1).strip()
+
     try:
-        return json.loads(final)
+        return json.loads(candidate)
     except json.JSONDecodeError:
-        log.warning("appraiser: non-JSON response: %s", final[:200])
-        return None
+        pass
+
+    # Last resort: the outermost brace-balanced span, for responses that carry
+    # a sentence of preamble before the object.
+    start = candidate.find("{")
+    if start != -1:
+        depth = 0
+        for index in range(start, len(candidate)):
+            if candidate[index] == "{":
+                depth += 1
+            elif candidate[index] == "}":
+                depth -= 1
+                if depth == 0:
+                    try:
+                        return json.loads(candidate[start : index + 1])
+                    except json.JSONDecodeError:
+                        break
+    log.warning("could not parse model response as JSON: %s", text[:200])
+    return None
 
 
 async def triage(

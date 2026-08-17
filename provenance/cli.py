@@ -161,6 +161,72 @@ def cmd_synthesise(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_engineer(args: argparse.Namespace) -> int:
+    from .agents.engineer import execute, plan
+    from .models import Appraisal, Finding, FindingStatus, Paper
+    from .store import firestore as store
+
+    subject = _subject(args.subject)
+    db = store.client()
+
+    findings = [
+        finding
+        for doc in db.collection(store.FINDINGS).stream()
+        if (finding := Finding.model_validate(doc.to_dict())).subject_key == subject.key
+        and (args.finding_id is None or finding.finding_id == args.finding_id)
+        and (args.redo or finding.status == FindingStatus.OPEN)
+    ]
+    if not findings:
+        print("no open findings to engineer")
+        return 0
+
+    appraisals = {
+        appraisal.paper_id: appraisal
+        for doc in db.collection(store.APPRAISALS).stream()
+        if (appraisal := Appraisal.model_validate(doc.to_dict()))
+    }
+    papers = {
+        paper.doc_id: paper
+        for doc in db.collection(store.PAPERS).stream()
+        if (paper := Paper.model_validate(doc.to_dict()))
+    }
+
+    for finding in findings:
+        print(f"\n=== {finding.finding_id} ===")
+        engineering = asyncio.run(plan(subject, finding, appraisals, papers))
+        if engineering is None:
+            print("  no plan produced")
+            continue
+
+        print(f"  resolved  {engineering.resolved_symbol} @ {engineering.symbol_location}")
+        print(f"  edits     {len(engineering.edits)} across "
+              f"{len({e.path for e in engineering.edits})} files")
+
+        result = execute(
+            subject,
+            finding,
+            engineering,
+            repo=subject.github_repo,
+            base=subject.base_branch,
+            run_tests=not args.skip_tests,
+        )
+        for label, value in result.items():
+            print(f"  {label:<13} {value.splitlines()[0][:96]}")
+
+        if not settings_dry_run():
+            finding.status = FindingStatus.PR_DRAFTED
+            finding.issue_url = result.get("issue", "")
+            finding.pr_url = result.get("pull_request", "")
+            store.save_finding(finding, db=db)
+    return 0
+
+
+def settings_dry_run() -> bool:
+    from .config import settings
+
+    return settings().dry_run
+
+
 def cmd_status(args: argparse.Namespace) -> int:
     from .store import firestore as store
 
@@ -201,6 +267,12 @@ def main(argv: list[str] | None = None) -> int:
     synth = sub.add_parser("synthesise", help="open findings where evidence converges")
     synth.add_argument("--show-gated", action="store_true", help="show why components were gated")
     synth.set_defaults(func=cmd_synthesise)
+
+    eng = sub.add_parser("engineer", help="turn findings into issues and draft PRs")
+    eng.add_argument("--finding-id", default=None)
+    eng.add_argument("--redo", action="store_true", help="re-engineer already-drafted findings")
+    eng.add_argument("--skip-tests", action="store_true", help="skip the xcodebuild backtest")
+    eng.set_defaults(func=cmd_engineer)
 
     status = sub.add_parser("status", help="counts by collection")
     status.set_defaults(func=cmd_status)
