@@ -14,9 +14,9 @@
   --accent: #5AC8E8;
   --line:   rgba(245, 247, 249, .10);
 
-  --ink-2:  rgba(245, 247, 249, .68);   /* body copy */
-  --ink-3:  rgba(245, 247, 249, .42);   /* labels */
-  --ink-4:  rgba(245, 247, 249, .26);   /* axis furniture */
+  --ink-2:  rgba(245, 247, 249, .72);   /* body copy */
+  --ink-3:  rgba(245, 247, 249, .60);   /* labels */
+  --ink-4:  rgba(245, 247, 249, .46);   /* axis furniture */
 
   --display: -apple-system, BlinkMacSystemFont, "SF Pro Display",
              "Helvetica Neue", Helvetica, Arial, sans-serif;
@@ -37,7 +37,7 @@
   --series-4-width: 2px;
   --series-4-dash:  4 8;
 
-  --axis:      rgba(245, 247, 249, .18);
+  --axis:      rgba(245, 247, 249, .26);
   --gridline:  rgba(245, 247, 249, .06);
   --marker:    var(--accent);
   --marker-r:  9px;
@@ -120,7 +120,7 @@ html, body {
 }
 
 /* --- chart --------------------------------------------------------------- */
-.chart-wrap { margin-top: 54px; }
+.chart-wrap { margin: auto 0; padding-top: 40px; }
 
 .chart-label {
   color: var(--ink-3);
@@ -150,14 +150,14 @@ svg.chart .bar      { fill: var(--bar-fill); }
 svg.chart .bar-track{ fill: var(--bar-track); }
 svg.chart .dot      { fill: var(--series-2); }
 
-svg.chart text            { font-family: var(--display); fill: var(--ink-4); font-size: 20px; }
+svg.chart text            { font-family: var(--display); fill: var(--ink-4); font-size: 23px; }
 svg.chart text.value      { fill: var(--ink-2); font-size: 24px; font-weight: 700;
                             font-variant-numeric: tabular-nums; }
 svg.chart text.value-lead { fill: var(--accent); }
-svg.chart text.caption    { fill: var(--ink-3); font-size: 21px; }
+svg.chart text.caption    { fill: var(--ink-3); font-size: 22px; }
 
 /* --- foot ---------------------------------------------------------------- */
-.foot { margin-top: auto; border-top: 1px solid var(--line); padding-top: 30px; }
+.foot { border-top: 1px solid var(--line); padding-top: 30px; }
 
 .source {
   display: flex;
@@ -218,7 +218,7 @@ const esc = (s) => String(s ?? "").replace(/[&<>]/g, (c) => (
  * domain is widened so that flat data looks flat. A chart may understate a
  * difference; it may never manufacture one.
  */
-function scaler(points, pad = { l: 8, r: 132, t: 18, b: 46 }, minSpread = 0) {
+function scaler(points, pad = { l: 8, r: 132, t: 56, b: 46 }, minSpread = 0) {
   const xs = points.map((p) => p[0]), ys = points.map((p) => p[1]);
   const x0 = Math.min(...xs), x1 = Math.max(...xs);
   let y0 = Math.min(...ys), y1 = Math.max(...ys);
@@ -328,7 +328,7 @@ function dotChart(spec, progress = 1) {
 
 /** A highlighted range on an axis — "the payoff sits here". */
 function bandChart(spec, progress = 1) {
-  const s = scaler([[spec.min, 0], [spec.max, 1]], { l: 8, r: 60, t: 18, b: 46 });
+  const s = scaler([[spec.min, 0], [spec.max, 1]], { l: 8, r: 60, t: 56, b: 46 });
   const x1 = s.x(spec.from), x2 = s.x(spec.to);
   const y = 70, h = 62;
   return `<svg class="chart" viewBox="0 0 ${W} ${H}">
