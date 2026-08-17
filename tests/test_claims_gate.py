@@ -276,3 +276,80 @@ class TestStructure:
         plan = StoryPlan(slides=[self._slide(chart=self._bar(1)) for _ in range(4)])
         failures = check_structure(plan)
         assert any("slides carry a usable chart" in f.detail for f in failures)
+
+
+class TestReadability:
+    """Clinical vocabulary is precise, and it is where a reader stops reading."""
+
+    def test_jargon_in_headline_is_refused_with_a_replacement(self):
+        from provenance.creative import check_readability
+        failures = check_readability(_plan(headline="Lower cardiovascular risk"))
+        assert failures and "'heart'" in failures[0].detail
+
+    def test_mortality_is_refused(self):
+        from provenance.creative import check_readability
+        failures = check_readability(_plan(body="Linked to lower mortality."))
+        assert failures and "dying" in failures[0].detail
+
+    def test_plain_language_passes(self):
+        from provenance.creative import check_readability
+        assert check_readability(_plan(headline="Weekend workouts worked just as well")) == []
+
+    def test_overlong_headline_is_refused(self):
+        from provenance.creative import MAX_HEADLINE_WORDS, check_readability
+        long = " ".join(["word"] * (MAX_HEADLINE_WORDS + 1))
+        failures = check_readability(_plan(headline=long))
+        assert any("at a glance" in f.detail for f in failures)
+
+    def test_jargon_in_a_chart_label_is_refused(self):
+        from provenance.creative import check_readability
+        plan = _plan(chart=ChartPlan(type=ChartType.BAR, claim_ids=["c1", "c2"],
+                                     point_labels=["cardiovascular", "cancer"]))
+        failures = check_readability(plan)
+        assert any(f.field == "chart.point_labels" for f in failures)
+
+    def test_overlong_label_is_refused(self):
+        from provenance.creative import check_readability
+        plan = _plan(chart=ChartPlan(type=ChartType.BAR, claim_ids=["c1"],
+                                     point_labels=["risk of dying from any cause"]))
+        failures = check_readability(plan)
+        assert any("read in passing" in f.detail for f in failures)
+
+    def test_short_plain_labels_pass(self):
+        from provenance.creative import check_readability
+        plan = _plan(chart=ChartPlan(type=ChartType.BAR, claim_ids=["c1", "c2"],
+                                     point_labels=["heart", "cancer"]))
+        assert check_readability(plan) == []
+
+    def test_one_weak_trial_does_not_license_causation(self):
+        """An n=315 trial among twenty-one cohorts is not what carries
+        'cuts your risk of dying'."""
+        from provenance.creative import _is_observational
+        from provenance.models import Appraisal, EvidenceTier
+        weak_trial = Appraisal(paper_id="t", tier=EvidenceTier.C,
+                               design="randomised controlled trial", sample_size=315)
+        cohort = Appraisal(paper_id="c", tier=EvidenceTier.B, design="prospective cohort study")
+        assert _is_observational({"t": weak_trial, "c": cohort}, ["t", "c"]) is True
+
+    def test_bare_infinitive_causal_verbs_are_caught(self):
+        from provenance.creative import check_language
+        for verb in ("protect", "prevent", "reduce", "boost"):
+            plan = _plan(body=f"Long sessions still {verb} your body.")
+            assert check_language(plan, observational=True), verb
+
+    def test_lower_as_an_adjective_is_not_flagged(self):
+        """'linked to lower risk' is the phrasing this gate wants to encourage;
+        flagging it would push writers back toward the causal wording."""
+        from provenance.creative import check_language
+        plan = _plan(headline="Linked to lower risk of early death")
+        assert check_language(plan, observational=True) == []
+
+    def test_lowers_as_a_verb_is_still_flagged(self):
+        from provenance.creative import check_language
+        plan = _plan(headline="Walking lowers your risk")
+        assert check_language(plan, observational=True)
+
+    def test_word_boundaries_prevent_false_positives(self):
+        """'cut' must not fire inside 'haircuts'."""
+        from provenance.creative import check_language
+        assert check_language(_plan(body="Not about haircuts."), observational=True) == []

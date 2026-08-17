@@ -23,7 +23,7 @@ from enum import Enum
 
 from pydantic import BaseModel, Field
 
-from .models import Appraisal, Claim, Finding, Paper
+from .models import Appraisal, Claim, EvidenceTier, Finding, Paper
 
 log = logging.getLogger(__name__)
 
@@ -175,11 +175,22 @@ def check_copy(
 #: cannot support them however large its cohort, and this is the single most
 #: common way health copy overstates its evidence -- far more common, and far
 #: harder to spot, than an invented figure.
+#: Bare "cause", "cut" and "lower" are deliberately absent. Each is also a noun
+#: or an adjective in exactly the phrasing this gate is trying to ENCOURAGE --
+#: "linked to lower risk" is the correct way to report an association, and
+#: flagging it would push writers back toward the causal wording. Only the
+#: inflected forms, which are unambiguously verbs, are refused.
 _CAUSAL_VERBS = (
-    "causes", "caused", "cuts", "cut ", "reduces", "reduced", "prevents",
-    "prevented", "boosts", "boosted", "improves", "improved", "protects",
-    "protected", "lowers", "lowered", "increases your", "leads to", "makes you",
-    "adds years", "buys you", "gives you",
+    "causes", "caused", "causing",
+    "cuts", "cutting",
+    "reduce", "reduces", "reduced", "reducing",
+    "prevent", "prevents", "prevented", "preventing",
+    "boost", "boosts", "boosted", "boosting",
+    "improve", "improves", "improved", "improving",
+    "protect", "protects", "protected", "protecting",
+    "lowers", "lowered", "lowering",
+    "slash", "slashes", "halve", "halves",
+    "leads to", "makes you", "adds years", "buys you", "gives you",
 )
 
 #: Intensifiers a study result does not license. "Substantial" belongs to the
@@ -201,15 +212,23 @@ _EXPERIMENTAL = ("randomis", "randomiz", "controlled trial", "crossover trial")
 
 
 def _is_observational(appraisals: dict[str, Appraisal], paper_ids: list[str]) -> bool:
-    """True when nothing in the evidence base is experimental."""
-    designs = [
-        (appraisals[pid].design or "").lower()
+    """True unless a STRONG experimental study supports the finding.
+
+    "Any randomised study anywhere in the evidence base" is too low a bar. A
+    single n=315 trial of an intermediate outcome, sitting among twenty-one
+    cohort studies of mortality, is not what licenses "cuts your risk of dying"
+    -- and that is exactly the shape of evidence this system keeps
+    encountering. The trial has to be strong enough to carry the claim on its
+    own, which is what tier A or B means.
+    """
+    strong_experimental = [
+        appraisals[pid]
         for pid in paper_ids
         if pid in appraisals
+        and appraisals[pid].tier in {EvidenceTier.A, EvidenceTier.B}
+        and any(k in (appraisals[pid].design or "").lower() for k in _EXPERIMENTAL)
     ]
-    if not designs:
-        return True
-    return not any(any(k in d for k in _EXPERIMENTAL) for d in designs)
+    return not strong_experimental
 
 
 def check_language(
@@ -228,7 +247,7 @@ def check_language(
             text = (getattr(slide, field, "") or "").lower()
 
             for word in _INTENSIFIERS:
-                if word in text:
+                if re.search(rf"\b{re.escape(word)}\b", text):
                     failures.append(GateFailure(
                         slide=index, field=field,
                         detail=(
@@ -240,7 +259,7 @@ def check_language(
             if not observational:
                 continue
             for verb in _CAUSAL_VERBS:
-                if verb in text:
+                if re.search(rf"\b{re.escape(verb)}\b", text):
                     failures.append(GateFailure(
                         slide=index, field=field,
                         detail=(
@@ -305,6 +324,109 @@ def check_structure(plan: StoryPlan) -> list[GateFailure]:
                 f"this format exists."
             ),
         ))
+    return failures
+
+
+#: Words that carry precise meaning in a paper and none at all on a phone.
+#: The value is the plain replacement, so a rejection teaches rather than
+#: merely refuses.
+_JARGON = {
+    "cardiovascular": "heart",
+    "cardiometabolic": "heart and blood sugar",
+    "cerebrovascular": "stroke",
+    "myocardial": "heart",
+    "mortality": "dying",
+    "all-cause mortality": "dying from anything",
+    "morbidity": "illness",
+    "incidence": "new cases",
+    "prevalence": "how common it is",
+    "adiposity": "body fat",
+    "metabolic": "blood sugar",
+    "glycaemic": "blood sugar",
+    "glycemic": "blood sugar",
+    "cognition": "thinking",
+    "cognitive": "thinking",
+    "adherence": "sticking with it",
+    "biomarker": "blood marker",
+    "longitudinal": "over time",
+    "hazard ratio": "risk",
+    "relative risk": "risk",
+    "confidence interval": "range",
+    "statistically significant": "real, not chance",
+    "dose-response": "more gives more",
+    "sedentary": "sitting",
+    "mvpa": "moderate exercise",
+    "vo2 max": "fitness",
+    "cardiorespiratory fitness": "fitness",
+    "anthropometric": "body size",
+    "attenuated": "weakened",
+    "confounding": "other explanations",
+    "covariate": "other factor",
+    "aetiology": "cause",
+    "etiology": "cause",
+    "comorbidity": "other conditions",
+}
+
+#: The headline has to land before anyone decides to keep watching.
+MAX_HEADLINE_WORDS = 12
+
+#: A band or axis label is read in passing. One or two everyday words.
+MAX_LABEL_WORDS = 3
+
+
+def check_readability(plan: StoryPlan) -> list[GateFailure]:
+    """Refuse copy a reader would have to decode.
+
+    The reference format this borrows from titles itself "What kills you at
+    each age" and demotes "share of deaths by cause, by age" to a small
+    caption underneath. The plain sentence is the headline; the precise one is
+    the footnote. Getting that the wrong way round is the difference between
+    content that travels and content that is technically correct.
+    """
+    failures: list[GateFailure] = []
+
+    for index, slide in enumerate(plan.slides, start=1):
+        for field in ("kicker", "headline", "body"):
+            text = (getattr(slide, field, "") or "")
+            lowered = text.lower()
+            for term, plain in _JARGON.items():
+                if term in lowered:
+                    failures.append(GateFailure(
+                        slide=index, field=field,
+                        detail=(
+                            f"{term!r} is clinical vocabulary. Say {plain!r}. "
+                            f"The precise term belongs in the source line, not "
+                            f"where someone decides whether to keep reading."
+                        ),
+                    ))
+
+        words = len((slide.headline or "").split())
+        if words > MAX_HEADLINE_WORDS:
+            failures.append(GateFailure(
+                slide=index, field="headline",
+                detail=(
+                    f"{words} words. Keep the headline under "
+                    f"{MAX_HEADLINE_WORDS} so it reads at a glance."
+                ),
+            ))
+
+        for label in slide.chart.point_labels:
+            lowered = label.lower()
+            for term, plain in _JARGON.items():
+                if term in lowered:
+                    failures.append(GateFailure(
+                        slide=index, field="chart.point_labels",
+                        detail=f"label {label!r} uses {term!r}; say {plain!r}.",
+                    ))
+            if len(label.split()) > MAX_LABEL_WORDS:
+                failures.append(GateFailure(
+                    slide=index, field="chart.point_labels",
+                    detail=(
+                        f"label {label!r} is too long to read in passing; "
+                        f"{MAX_LABEL_WORDS} words at most."
+                    ),
+                ))
+
     return failures
 
 

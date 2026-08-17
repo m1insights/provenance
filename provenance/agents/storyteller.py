@@ -26,6 +26,7 @@ from ..creative import (
     _is_observational,
     check_copy,
     check_language,
+    check_readability,
     check_structure,
     resolve,
 )
@@ -78,6 +79,23 @@ Four slides:
 3. **The caveat or the twist** -- what people get wrong, or what the study \
 found that contradicts the common belief.
 4. **What to do with it** -- the practical consequence. Concrete and small.
+
+## Write for someone who has never read a paper
+
+This is the constraint most health content fails. Your reader is scrolling on a \
+phone and has about a second to decide whether this is for them. Clinical \
+vocabulary is precise and it is also where they stop reading.
+
+Say "heart" not "cardiovascular". "dying" not "mortality". "blood sugar" not \
+"metabolic". "fitness" not "VO2 max". "sitting" not "sedentary". "risk" not \
+"hazard ratio".
+
+The precise term still exists -- it lives in the source line at the bottom, \
+where someone who wants it will find it. The headline is where somebody decides \
+whether to keep reading, so it gets the plain sentence.
+
+Chart labels are read in passing: one or two everyday words. "heart", "cancer", \
+"accidents". Never "cardiovascular disease incidence".
 
 ## Voice
 
@@ -216,6 +234,7 @@ async def tell(
             check_copy(plan, claims)
             + check_language(plan, observational=observational)
             + check_structure(plan)
+            + check_readability(plan)
         )
         if not failures:
             log.info(
