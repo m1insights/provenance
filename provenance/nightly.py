@@ -23,6 +23,7 @@ from datetime import datetime, timezone
 from .agenda import build_agenda
 from .agents.appraiser import appraise, triage
 from .agents.scout import sweep
+from . import health as pr_health
 from .agents.synthesist import synthesise
 from .config import SUBJECTS, SubjectApp
 from .models import Appraisal, Finding, FindingStatus, Paper
@@ -143,6 +144,17 @@ async def run(
             store.save_finding(finding, db=db, decision=True)
             opened.append(finding.pr_url)
         summary["pull_requests"] = opened
+
+    # --- health -----------------------------------------------------------
+    # Everything above verifies once, before a proposal exists. This is the
+    # only part that keeps checking afterwards, which is where the failures
+    # this project actually hit have lived: things true when written that
+    # quietly stopped being true.
+    try:
+        summary["health"] = pr_health.sweep(subject, prior + fresh)
+    except Exception as exc:
+        log.warning("nightly: health sweep failed: %s", exc)
+        summary["health"] = {"error": str(exc)}
 
     summary["finished_at"] = datetime.now(timezone.utc).isoformat()
     summary["seconds"] = round(

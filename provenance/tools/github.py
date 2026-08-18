@@ -134,7 +134,7 @@ def _token() -> str:
     raise RuntimeError("no GitHub token; set GITHUB_TOKEN or run `gh auth login`")
 
 
-def _api(method: str, path: str, payload: dict | None = None) -> dict:
+def _api(method: str, path: str, payload: dict | None = None):
     """Call the GitHub REST API.
 
     Deliberately REST rather than the `gh` CLI. `gh issue create` and
@@ -356,3 +356,14 @@ def pull_request_number(url: str) -> int | None:
     """Extract the number from a pull request URL."""
     match = re.search(r"/pull/(\d+)", url or "")
     return int(match.group(1)) if match else None
+
+
+def pull_request(repo: str, number: int) -> dict:
+    """Fetch a pull request's current state."""
+    return _api("GET", f"/repos/{repo}/pulls/{number}")
+
+
+def open_pull_requests(repo: str) -> list[dict]:
+    """Every open pull request on a repository."""
+    result = _api("GET", f"/repos/{repo}/pulls?state=open&per_page=100")
+    return result if isinstance(result, list) else []
