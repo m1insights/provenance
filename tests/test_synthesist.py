@@ -113,3 +113,61 @@ class TestGateOrdering:
     def test_empty_input_reports_zero(self):
         _, blocked = gate("mvpa", [])
         assert blocked is not None and "0 challenging paper" in blocked.reason
+
+
+class TestReviewerDecisionsHold:
+    """A rejection must survive the arrival of one more paper.
+
+    Findings are keyed by a hash of their supporting set, so without this a
+    single new study reopens a question the reviewer already answered — and a
+    system that re-asks nightly teaches its reviewer to stop reading it.
+    """
+
+    def _rejected(self, component: str, n: int) -> Appraisal:
+        from provenance.models import Finding, FindingStatus
+        return Finding(
+            finding_id=f"synqology__{component}__abc",
+            subject_key="synqology",
+            component_id=component,
+            statement="s", current_behavior="c",
+            supporting_paper_ids=[f"doi:10.{1000+i}_p{i}" for i in range(n)],
+            status=FindingStatus.REJECTED,
+        )
+
+    def test_rejected_component_is_suppressed(self):
+        from provenance.agents.synthesist import _settled_components, _suppressed
+        settled = _settled_components([self._rejected("mvpa", 22)])
+        blocked = _suppressed("mvpa", _distinct(23), settled)
+        assert blocked is not None
+        assert blocked.reason_code == "settled_by_reviewer"
+
+    def test_materially_more_evidence_reopens_it(self):
+        from provenance.agents.synthesist import (
+            REPROPOSE_AFTER_NEW_PAPERS, _settled_components, _suppressed,
+        )
+        settled = _settled_components([self._rejected("mvpa", 22)])
+        grown = _distinct(22 + REPROPOSE_AFTER_NEW_PAPERS)
+        assert _suppressed("mvpa", grown, settled) is None
+
+    def test_untouched_components_are_unaffected(self):
+        from provenance.agents.synthesist import _settled_components, _suppressed
+        settled = _settled_components([self._rejected("mvpa", 22)])
+        assert _suppressed("sleepBehavior", _distinct(5), settled) is None
+
+    def test_approved_findings_do_not_suppress(self):
+        """Approval is not a reason to stop looking at a component."""
+        from provenance.models import Finding, FindingStatus
+        from provenance.agents.synthesist import _settled_components
+        approved = Finding(
+            finding_id="f", subject_key="synqology", component_id="mvpa",
+            statement="s", current_behavior="c",
+            supporting_paper_ids=["doi:10.1_a"], status=FindingStatus.APPROVED,
+        )
+        assert _settled_components([approved]) == {}
+
+    def test_growth_is_measured_against_the_strongest_rejection(self):
+        from provenance.agents.synthesist import _settled_components
+        settled = _settled_components([
+            self._rejected("mvpa", 8), self._rejected("mvpa", 22),
+        ])
+        assert settled["mvpa"] == 22

@@ -125,7 +125,7 @@ def cmd_synthesise(args: argparse.Namespace) -> int:
     import collections
 
     from .agents.synthesist import synthesise
-    from .models import Appraisal, Paper
+    from .models import Appraisal, Finding, Paper
     from .store import firestore as store
 
     subject = _subject(args.subject)
@@ -144,7 +144,13 @@ def cmd_synthesise(args: argparse.Namespace) -> int:
     print(f"{len(appraisals)} appraisals across {len(papers)} papers")
     print(f"  alignment {dict(collections.Counter(a.alignment.value for a in appraisals))}")
 
-    findings, gated = asyncio.run(synthesise(subject, agenda, appraisals, papers))
+    prior = [
+        Finding.model_validate(doc.to_dict())
+        for doc in db.collection(store.FINDINGS).stream()
+    ]
+    findings, gated = asyncio.run(
+        synthesise(subject, agenda, appraisals, papers, prior_findings=prior)
+    )
     for finding in findings:
         store.save_finding(finding, db=db)
     store.save_rejections(gated, db=db)
