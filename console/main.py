@@ -19,7 +19,9 @@ from __future__ import annotations
 import os
 from datetime import datetime, timezone
 
-from fastapi import FastAPI, Form, HTTPException
+import hmac
+
+from fastapi import Cookie, FastAPI, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from google.cloud import firestore
 
@@ -35,6 +37,23 @@ from provenance.models import (
 from provenance.store import firestore as store
 
 app = FastAPI(title="Provenance console")
+
+#: Reading is public so the work can be inspected; deciding is not.
+#:
+#: The decision endpoint does not touch GitHub -- there is no merge path
+#: anywhere in this system and a pull request stays a draft regardless. But an
+#: unauthenticated POST could still flip a finding status and, worse, write
+#: into the rejection log, which is fed back to the Synthesist as guidance on
+#: the next run. That is an open channel into what the fleet learns.
+#:
+#: Unset locally, so development is unhindered; set on Cloud Run.
+WRITE_TOKEN = os.getenv("CONSOLE_WRITE_TOKEN", "")
+
+
+def _may_write(supplied: str | None) -> bool:
+    if not WRITE_TOKEN:
+        return True
+    return bool(supplied) and hmac.compare_digest(supplied, WRITE_TOKEN)
 
 #: Rejection reasons feed back into the next run as guidance, so they are a
 #: fixed vocabulary rather than free text -- an agent can act on "the evidence
@@ -105,6 +124,7 @@ button.approve{background:var(--accent);color:#062730;border-color:var(--accent)
 button.reject{background:transparent;color:var(--ink2)}
 select{font:inherit;font-size:14px;background:var(--stage);color:var(--ink2);
 border:1px solid var(--line);border-radius:8px;padding:9px 12px}
+.divider{color:var(--ink4);font-size:13px;margin:0 4px}
 .empty{color:var(--ink4);padding:40px 0;text-align:center}
 .warn{color:var(--ink3);font-size:13px;border-left:2px solid var(--line);
 padding-left:12px;margin:12px 0}
@@ -148,7 +168,7 @@ def _evidence_table(finding: Finding, appraisals, papers) -> str:
     )
 
 
-def _finding_card(finding: Finding, appraisals, papers) -> str:
+def _finding_card(finding: Finding, appraisals, papers, *, can_write: bool = True) -> str:
     changes = "".join(
         f"<div class='change'>{_esc(c.file_path)}<br>"
         f"{_esc(c.symbol)}: {_esc(c.current_value)} → {_esc(c.proposed_value)}</div>"
@@ -168,12 +188,31 @@ def _finding_card(finding: Finding, appraisals, papers) -> str:
     tiers = ", ".join(f"{n}×{t}" for t, n in sorted(finding.tier_counts.items()))
     decided = finding.status in {FindingStatus.APPROVED, FindingStatus.REJECTED}
 
+    if not can_write:
+        actions = (
+            f"<div class='status'>{finding.status.value.replace('_', ' ')}"
+            f" · read only</div>"
+        )
+        return f"""
+    <div class="card">
+      <div class="meta">{_esc(finding.component_id)} · confidence
+        {finding.confidence:.2f} · {_esc(tiers)}</div>
+      <h2>{_esc(finding.statement[:160])}</h2>
+      <div class="stmt"><b>Currently:</b> {_esc(finding.current_behavior[:300])}</div>
+      {changes}
+      <div class="links">{" ".join(links)}</div>
+      {_evidence_table(finding, appraisals, papers)}
+      {actions}
+    </div>
+    """
+
     actions = (
         f"<div class='status'>{finding.status.value.replace('_', ' ')}</div>"
         if decided else
         f"<form method='post' action='/decide'>"
         f"<input type='hidden' name='finding_id' value='{_esc(finding.finding_id)}'>"
         f"<button class='approve' name='decision' value='approve'>Approve</button>"
+        f"<span class='divider'>or</span>"
         f"<select name='reason'>{options}</select>"
         f"<button class='reject' name='decision' value='reject'>Reject</button>"
         f"</form>"
@@ -194,7 +233,8 @@ def _finding_card(finding: Finding, appraisals, papers) -> str:
 
 
 @app.get("/", response_class=HTMLResponse)
-def index() -> str:
+def index(provenance_write: str | None = Cookie(default=None)) -> str:
+    can_write = _may_write(provenance_write)
     client = db()
 
     findings = sorted(
@@ -216,7 +256,9 @@ def index() -> str:
     }
     rejections = sum(1 for _ in client.collection(store.REJECTIONS).select([]).stream())
 
-    cards = "".join(_finding_card(f, appraisals, papers) for f in findings) or (
+    cards = "".join(
+        _finding_card(f, appraisals, papers, can_write=can_write) for f in findings
+    ) or (
         "<div class='empty'>No findings yet. The fleet opens one only when at "
         "least three independent papers challenge the same component.</div>"
     )
@@ -225,7 +267,10 @@ def index() -> str:
 <title>Provenance · review</title><style>{STYLE}</style>
 <div class="wrap">
   <h1>Provenance</h1>
-  <div class="sub">Nothing merges and nothing posts without a decision here.</div>
+  <div class="sub">Nothing merges and nothing posts without a decision here.
+    {"" if can_write else
+     "<br><span style='color:var(--ink4)'>Read-only view. Decisions require the write token; "
+     "no action here can reach GitHub in any case.</span>"}</div>
   <div class="counts">
     <div class="count"><b>{len(papers):,}</b><span>Papers read</span></div>
     <div class="count"><b>{len(appraisals):,}</b><span>Appraised</span></div>
@@ -236,13 +281,33 @@ def index() -> str:
 </div>"""
 
 
+@app.post("/unlock")
+def unlock(token: str = Form(...)) -> RedirectResponse:
+    """Exchange the write token for a cookie, so it is typed once."""
+    if not _may_write(token):
+        raise HTTPException(status_code=403, detail="wrong token")
+    response = RedirectResponse(url="/", status_code=303)
+    response.set_cookie(
+        "provenance_write", token, httponly=True, secure=True,
+        samesite="strict", max_age=60 * 60 * 12,
+    )
+    return response
+
+
 @app.post("/decide")
 def decide(
     finding_id: str = Form(...),
     decision: str = Form(...),
     reason: str = Form(default=""),
+    provenance_write: str | None = Cookie(default=None),
 ) -> RedirectResponse:
     """Record a human decision, and keep the reason where agents will read it."""
+    if not _may_write(provenance_write):
+        raise HTTPException(
+            status_code=403,
+            detail="This console is readable by anyone and decidable by nobody "
+                   "without the write token.",
+        )
     if decision not in {"approve", "reject"}:
         raise HTTPException(status_code=400, detail="unknown decision")
 
@@ -253,19 +318,24 @@ def decide(
         raise HTTPException(status_code=404, detail="no such finding")
 
     finding = Finding.model_validate(snapshot.to_dict())
-    finding.status = (
-        FindingStatus.APPROVED if decision == "approve" else FindingStatus.REJECTED
-    )
+    approved = decision == "approve"
+    finding.status = FindingStatus.APPROVED if approved else FindingStatus.REJECTED
     store.save_finding(finding, db=client)
 
+    # The reason selector shares a form with both buttons, so the browser sends
+    # whatever it happens to be showing even when Approve was pressed. Storing
+    # that verbatim produces an audit trail reading "approved because the
+    # evidence is too weak", which is worse than no reason at all: the decision
+    # log is the record of WHY a change to a health algorithm was accepted.
+    reason_code = "" if approved else reason
     client.collection("provenance_decisions").document(
         f"{finding_id}__{decision}"
     ).set({
         "finding_id": finding_id,
         "component_id": finding.component_id,
         "decision": decision,
-        "reason_code": reason,
-        "reason": REJECTION_REASONS.get(reason, ""),
+        "reason_code": reason_code,
+        "reason": REJECTION_REASONS.get(reason_code, ""),
         "decided_at": datetime.now(timezone.utc).isoformat(),
     })
 
