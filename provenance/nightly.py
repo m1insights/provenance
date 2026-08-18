@@ -24,6 +24,7 @@ from .agenda import build_agenda
 from .agents.appraiser import appraise, triage
 from .agents.scout import sweep
 from . import health as pr_health
+from . import notify
 from .agents.synthesist import synthesise
 from .config import SUBJECTS, SubjectApp
 from .models import Appraisal, Finding, FindingStatus, Paper
@@ -156,6 +157,16 @@ async def run(
         log.warning("nightly: health sweep failed: %s", exc)
         summary["health"] = {"error": str(exc)}
 
+    # --- notify -----------------------------------------------------------
+    # Silent unless a proposal is waiting, plus one weekly note. A daily
+    # "nothing to report" is how a system teaches its reader to swipe past the
+    # message that mattered.
+    try:
+        summary["notified"] = _notify(db, subject, fresh, prior)
+    except Exception as exc:
+        log.warning("nightly: notification failed: %s", exc)
+        summary["notified"] = {"error": str(exc)}
+
     summary["finished_at"] = datetime.now(timezone.utc).isoformat()
     summary["seconds"] = round(
         (datetime.now(timezone.utc) - started).total_seconds(), 1
@@ -168,6 +179,58 @@ async def run(
     ).set(summary)
     log.info("nightly: done in %.1fs — %s", summary["seconds"], summary)
     return summary
+
+
+#: Sunday. Python's weekday() is Monday-zero, so 6.
+DIGEST_WEEKDAY = 6
+
+
+def _notify(db, subject: SubjectApp, fresh: list[Finding], prior: list[Finding]) -> dict:
+    """One email per new proposal; a digest on Sundays. Nothing otherwise."""
+    config = notify.mail_config()
+    if not config.configured:
+        return {"skipped": "email not configured"}
+
+    sent = []
+
+    appraisals = {}
+    papers = {}
+    if fresh:
+        appraisals = {
+            a.paper_id: a
+            for doc in db.collection(store.APPRAISALS).stream()
+            if (a := Appraisal.model_validate(doc.to_dict()))
+        }
+        papers = {
+            p.doc_id: p
+            for doc in db.collection(store.PAPERS).stream()
+            if (p := Paper.model_validate(doc.to_dict()))
+        }
+
+    for finding in fresh:
+        subject_line, html = notify.decision_email(finding, appraisals, papers, config)
+        if notify.send(subject_line, html, config):
+            sent.append(f"decision:{finding.component_id}")
+
+    if datetime.now(timezone.utc).weekday() == DIGEST_WEEKDAY:
+        pending = [
+            f for f in prior + fresh
+            if f.status is FindingStatus.OPEN or f.status is FindingStatus.PR_DRAFTED
+        ]
+        reasons = Counter(
+            (doc.to_dict() or {}).get("reason_code", "unknown")
+            for doc in db.collection(store.REJECTIONS).stream()
+        )
+        digest = {
+            "papers_read": sum(1 for _ in db.collection(store.PAPERS).select([]).stream()),
+            "rejected_total": sum(reasons.values()),
+            "reasons": dict(reasons),
+        }
+        subject_line, html = notify.digest_email(digest, pending, config)
+        if notify.send(subject_line, html, config):
+            sent.append("digest")
+
+    return {"sent": sent}
 
 
 def main() -> int:

@@ -36,6 +36,7 @@ from provenance.models import (
     Rejection,
 )
 from provenance.config import SUBJECTS
+from provenance import notify
 from provenance.store import firestore as store
 from provenance.tools import github
 
@@ -178,7 +179,9 @@ def _evidence_table(finding: Finding, appraisals, papers) -> str:
     )
 
 
-def _finding_card(finding: Finding, appraisals, papers, *, can_write: bool = True) -> str:
+def _finding_card(
+    finding: Finding, appraisals, papers, *, can_write: bool = True, link_token: str = ""
+) -> str:
     changes = "".join(
         f"<div class='change'>{_esc(c.file_path)}<br>"
         f"{_esc(c.symbol)}: {_esc(c.current_value)} → {_esc(c.proposed_value)}</div>"
@@ -221,6 +224,7 @@ def _finding_card(finding: Finding, appraisals, papers, *, can_write: bool = Tru
         if decided else
         f"<form method='post' action='/decide'>"
         f"<input type='hidden' name='finding_id' value='{_esc(finding.finding_id)}'>"
+        f"<input type='hidden' name='link_token' value='{_esc(link_token)}'>"
         f"<button class='approve' name='decision' value='approve'>Approve</button>"
         f"<span class='divider'>or</span>"
         f"<select name='reason'>{options}</select>"
@@ -332,15 +336,65 @@ def unlock(token: str = Form(...)) -> RedirectResponse:
     return response
 
 
+@app.get("/review/{token}", response_class=HTMLResponse)
+def review(token: str) -> str:
+    """A proposal, opened from an email link that is already authenticated.
+
+    The link authenticates; it does not act. Mail scanners, link previewers and
+    spam filters follow every URL in a message, so a one-click approve link is
+    clicked by software before a person ever sees it. Deciding still needs a
+    button pressed on this page.
+
+    The token is scoped to one finding, so a forwarded email cannot decide
+    anything else.
+    """
+    finding_id = notify.verify(token, WRITE_TOKEN)
+    if finding_id is None:
+        raise HTTPException(
+            status_code=403,
+            detail="This link has expired or is not valid. Open the console directly.",
+        )
+
+    client = db()
+    snapshot = client.collection(store.FINDINGS).document(finding_id).get()
+    if not snapshot.exists:
+        raise HTTPException(status_code=404, detail="no such finding")
+
+    finding = Finding.model_validate(snapshot.to_dict())
+    appraisals = {
+        a.paper_id: a
+        for doc in client.collection(store.APPRAISALS).stream()
+        if (a := Appraisal.model_validate(doc.to_dict()))
+    }
+    papers = {
+        p.doc_id: p
+        for doc in client.collection(store.PAPERS).stream()
+        if (p := Paper.model_validate(doc.to_dict()))
+    }
+
+    card = _finding_card(finding, appraisals, papers, can_write=True, link_token=token)
+    return f"""<!doctype html><meta charset="utf-8">
+<title>Provenance · review</title><style>{STYLE}</style>
+<div class="wrap">
+  <h1>One decision</h1>
+  <div class="sub">Opened from your email. Nothing has been decided yet.</div>
+  {card}
+</div>"""
+
+
 @app.post("/decide")
 def decide(
     finding_id: str = Form(...),
     decision: str = Form(...),
     reason: str = Form(default=""),
+    link_token: str = Form(default=""),
     provenance_write: str | None = Cookie(default=None),
 ) -> RedirectResponse:
     """Record a human decision, and keep the reason where agents will read it."""
-    if not _may_write(provenance_write):
+    # A link token authorises exactly the finding it was minted for. Checking
+    # the id here is what stops a leaked email deciding anything else.
+    from_link = bool(link_token) and notify.verify(link_token, WRITE_TOKEN) == finding_id
+    if not from_link and not _may_write(provenance_write):
         raise HTTPException(
             status_code=403,
             detail="This console is readable by anyone and decidable by nobody "
