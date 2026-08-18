@@ -59,7 +59,12 @@ Every night, Provenance:
    contributing rules require, and running the project's scoring test suite
    against the change.
 7. **Writes the social content** from the same evidence, through four gates.
-8. **Waits for a human.** Nothing merges. Nothing posts.
+8. **Has a second model audit the diff.** Claude Opus reviews every
+   Gemini-authored change before a human is asked to approve it, from a
+   `/provenance` command that a `SessionStart` hook fires automatically. The
+   verdict travels in the email, so nobody approves code no independent model
+   has read.
+9. **Waits for a human.** Nothing merges. Nothing posts.
 
 Steps 1–5 run unattended on Cloud Scheduler at 03:00. Step 6 — opening a pull
 request — is deliberately manual: a draft PR is cheap to close and still a
@@ -69,7 +74,9 @@ overnight is a record rather than an inference.
 
 ## How I built it
 
-**Gemini 3.7 Flash** appraises, synthesises, engineers and writes.
+**Claude Opus** audits every Gemini-authored diff before a human sees it, via
+the Claude Code CLI in headless mode. **Gemini 3.7 Flash** appraises,
+synthesises, engineers and writes.
 **Gemini 3.5 Flash-Lite** does first-pass relevance triage, where volume is
 high and the question is cheap.
 
@@ -139,6 +146,36 @@ rejected component now stays quiet until five more challenging papers exist.
 "meta-analysis" as experimental, so two systematic reviews among twenty-one
 cohort studies silently licensed causal language. A meta-analysis inherits the
 design of what it pools; pooling buys precision, not causal warrant.
+
+## The cross-model audit, and what it caught
+
+Gemini writing changes to a production health app with only me as the check is
+not a position I was comfortable with. So Claude Opus reviews every diff before
+I see it — Gemini proposes, Claude audits, I decide. Three judgements, and the
+two automated ones come from different vendors, so a failure mode particular to
+one model's training is unlikely to survive both.
+
+On its first run it found something in a diff that had already passed 51 tests
+and my own read:
+
+```swift
+guard let schedule = schedule, schedule.isEnabled, schedule.isShiftWorker else { return 2.0 }
+return 2.0
+```
+
+Both branches identical. The guard was dead and shift workers had silently lost
+an accommodation the comment still described. Every test passed, and deleting
+the guard entirely would also have passed.
+
+The obvious fix was worse. Restoring the old leniency ratio meant a denominator
+of 1.33 — and both consumers evaluate `min(creditDays, Int(d)) / d`, where the
+numerator truncates and the divisor does not. Every shift worker would have
+been capped at 0.75 of the Cardio score they earned, permanently, silently.
+
+Fixed at 1.0 with a **relational** test asserting the shift bar stays strictly
+easier than the default, because pinning each value separately is exactly what
+let them converge. Reintroducing the original bug now turns three tests red —
+verified by mutation, not assumed.
 
 ## Accomplishments
 

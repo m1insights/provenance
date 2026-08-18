@@ -205,6 +205,61 @@ already holds. That is why the window is 18 months rather than 24 hours —
 PubMed indexes papers days to weeks after publication, irregularly, and a
 narrow window silently misses most of them.
 
+## The second model
+
+Gemini does everything on the code path: reads the algorithm, appraises the
+literature, decides a constant is wrong, writes the Swift. One model, and a
+human as the only check.
+
+So a **Claude Opus audit** sits between the diff and the human. It runs from a
+`/provenance` command in the founder's terminal, triggered automatically by a
+`SessionStart` hook, with the reasoning visible as it happens — a hidden
+verdict would be the same opacity the rest of this system exists to avoid.
+
+The ordering is the point:
+
+```
+nightly (cloud)   finds evidence, opens a Finding, stays silent
+      ↓
+/provenance       opens the draft PR
+      ↓           Opus audits the diff
+      ↓           audit posted as a PR comment
+      ↓
+one email         carrying the verdict
+      ↓
+human approves    already knowing what the audit found
+```
+
+The obvious design — email as soon as the nightly run finds something — asks
+for approval of code that has not been written, let alone reviewed. The cloud
+job cannot run the auditing model, so the email waits.
+
+**It earned its place on the first run.** Reviewing `synq#2` — a
+Gemini-authored diff that had passed 51 tests and a human read — it found:
+
+```swift
+static func mvpaDayFactorDenominator(schedule: WorkSchedule?) -> Double {
+    guard let schedule = schedule, schedule.isEnabled, schedule.isShiftWorker else { return 2.0 }
+    return 2.0
+}
+```
+
+Both branches return the same value. The guard was dead, and the shift-worker
+accommodation it expressed was gone while the code still read as though it
+implemented one. No test caught it: both assertions had been updated to `2.0`,
+so deleting the whole guard left the suite green.
+
+The obvious repair — restore the old 1.5 leniency ratio with a denominator of
+1.33 — would have been silently worse. Both consumers evaluate
+`min(creditDays, Int(d)) / d`: the numerator truncates and the divisor does
+not, so every shift worker would have been capped at 0.75 of the score they
+earned, permanently, with no test failing.
+
+Fixed at 1.0, with three tests including a **relational** one asserting the
+shift bar stays strictly easier than the default — pinning each value
+separately is precisely what let the two converge. Reintroducing the original
+bug now turns three tests red.
+
 ## Data flow for one night
 
 ```
