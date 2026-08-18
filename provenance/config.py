@@ -62,6 +62,10 @@ class SubjectApp:
     companion_files: tuple[Path, ...] = field(default_factory=tuple)
     #: Obligations in other repositories. Reported, never edited.
     cross_repo_companions: tuple[CrossRepoCompanion, ...] = field(default_factory=tuple)
+    #: App Store bundle id. A companion change deploys instantly while the code
+    #: it describes waits on review, so the companion is held until a build
+    #: carrying the change is actually live.
+    bundle_id: str = ""
     branch_prefix: str = "provenance/"
 
     def exists(self) -> bool:
@@ -78,6 +82,7 @@ SYNQOLOGY = SubjectApp(
     # The active trunk, not `main`. Branching from the wrong ref produces a
     # pull request whose diff includes everyone else's work.
     base_branch=os.getenv("SYNQOLOGY_BASE_BRANCH") or "launch",
+    bundle_id=os.getenv("SYNQOLOGY_BUNDLE_ID") or "com.m1insights.tapntrack",
     algorithm_doc=_SYNQ / "LONGEVITY_FEATURE_STACK.md",
     algorithm_source=_SYNQ / "tapntrack/Services/VitalityIndexCalculator.swift",
     companion_files=(

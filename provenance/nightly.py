@@ -153,6 +153,12 @@ async def run(
     # quietly stopped being true.
     try:
         summary["health"] = pr_health.sweep(subject, prior + fresh)
+        # A companion released from its hold is the one thing the founder
+        # cannot discover any other way -- the App Store shipped, and nothing
+        # in GitHub knows that happened.
+        released = [c for c in summary["health"].get("companions", []) if c.get("action")]
+        if released:
+            summary["companions_released"] = released
     except Exception as exc:
         log.warning("nightly: health sweep failed: %s", exc)
         summary["health"] = {"error": str(exc)}
