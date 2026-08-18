@@ -291,6 +291,34 @@ def index(provenance_write: str | None = Cookie(default=None)) -> str:
 </div>"""
 
 
+def _open_companions(finding: Finding) -> list[str]:
+    """Carry an approved change into the other repositories it touches."""
+    import asyncio
+
+    from provenance.agents.companion import propose
+
+    subject = SUBJECTS[os.getenv("PROVENANCE_SUBJECT", "synqology")]
+    if not subject.cross_repo_companions:
+        return []
+
+    changes = "\n".join(
+        f"- {c.symbol}: {c.current_value} -> {c.proposed_value} ({c.rationale})"
+        for c in finding.proposed_changes
+    )
+    urls = []
+    for companion in subject.cross_repo_companions:
+        try:
+            result = asyncio.run(
+                propose(subject, companion, finding, approved_changes=changes)
+            )
+        except Exception as exc:
+            log.warning("companion %s failed: %s", companion.github_repo, exc)
+            continue
+        if result and result.get("pull_request"):
+            urls.append(result["pull_request"])
+    return urls
+
+
 @app.post("/unlock")
 def unlock(token: str = Form(...)) -> RedirectResponse:
     """Exchange the write token for a cookie, so it is typed once."""
@@ -371,6 +399,14 @@ def decide(
                 f"either; a person did.",
             )
             github_effect = "marked ready for review"
+
+            # A pull request cannot span repositories, so the companion change
+            # is a second pull request in the other repo. Opening it here means
+            # approval carries the WHOLE change rather than the half that
+            # happens to live in this repository.
+            companion_urls = _open_companions(finding)
+            if companion_urls:
+                github_effect += f"; companion opened: {', '.join(companion_urls)}"
         except Exception as exc:  # GitHub being down must not lose the decision
             log.warning("could not update %s: %s", finding.pr_url, exc)
             github_effect = f"GitHub update failed: {exc}"

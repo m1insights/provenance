@@ -357,6 +357,28 @@ def cmd_storyteller(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_health(args: argparse.Namespace) -> int:
+    from . import health as pr_health
+    from .models import Finding
+    from .store import firestore as store
+
+    subject = _subject(args.subject)
+    db = store.client()
+    findings = [
+        Finding.model_validate(doc.to_dict())
+        for doc in db.collection(store.FINDINGS).stream()
+    ]
+    result = pr_health.sweep(subject, findings, comment=args.comment)
+    print(f"\n{result['checked']} checked · {result['unhealthy']} with problems\n")
+    for entry in result["report"]:
+        print(f"  {entry['pr']}")
+        for problem in entry["problems"]:
+            print(f"    PROBLEM  {problem}")
+        for note in entry["notes"]:
+            print(f"    note     {note}")
+    return 0
+
+
 def cmd_status(args: argparse.Namespace) -> int:
     from .store import firestore as store
 
@@ -415,6 +437,10 @@ def main(argv: list[str] | None = None) -> int:
     story.add_argument("--out", default="renderer/out-real")
     story.add_argument("--render", action="store_true", help="also run the renderer")
     story.set_defaults(func=cmd_storyteller)
+
+    hc = sub.add_parser("health", help="check proposals already opened")
+    hc.add_argument("--comment", action="store_true", help="comment on unhealthy PRs")
+    hc.set_defaults(func=cmd_health)
 
     status = sub.add_parser("status", help="counts by collection")
     status.set_defaults(func=cmd_status)
