@@ -86,7 +86,45 @@ table and the backtest.
 
 ---
 
-## 2:30 – 3:15 · The gate refuses its own output
+## 2:30 – 3:05 · A second model audits the first
+
+**On screen:** a fresh terminal in `apps/synqology/`. The session-start hook
+fires and names the un-audited pull request. Then type `/provenance`.
+
+> "I don't trust one model writing changes to a health app that people use. So
+> Gemini proposes, and Claude Opus audits before I'm asked to approve anything.
+>
+> This runs on its own when I open the project. Watch what it found."
+
+**Scroll to the audit comment on the PR.** Read the finding aloud:
+
+```swift
+guard let schedule = schedule, schedule.isEnabled, schedule.isShiftWorker else { return 2.0 }
+return 2.0
+```
+
+> "Both branches return the same number. The guard does nothing. And shift
+> workers — people on disrupted schedules — quietly lost an accommodation the
+> comment still says they have.
+>
+> Fifty-one tests passed on this. I read it myself. Neither caught it, because
+> both assertions had been updated to the new value — you could delete the
+> whole thing and the suite stays green."
+
+**Then the trap, which is the best 15 seconds in the video:**
+
+> "The obvious fix is to restore the old ratio, which means a denominator of
+> 1.33. That would have been worse. The code divides by it *and* truncates it
+> to an integer — so every shift worker gets capped at 75% of the score they
+> earned. Permanently. No test fails.
+>
+> It's 1.0 now, with a test that asserts the shift bar stays strictly easier
+> than the default — because pinning each number separately is exactly what let
+> them collide in the first place."
+
+**Show the mutation test.** Put the bug back, run the suite, three tests go red.
+
+## 3:05 – 3:20 · The gate refuses its own output
 
 **On screen:** run the Storyteller live.
 
@@ -113,7 +151,7 @@ and a causal verb on cohort evidence.
 
 ---
 
-## 3:15 – 3:45 · The human decides
+## 3:20 – 3:45 · The human decides
 
 **On screen:** the console, approving the finding.
 
@@ -131,10 +169,12 @@ and a causal verb on cohort evidence.
 **On screen:** the architecture diagram.
 
 > "Gemini 3.7 Flash for appraisal, 3.5 Flash-Lite for triage. ADK for the
-> fleet. Firestore, Cloud Run, Pub/Sub, Cloud Scheduler, Cloud Storage.
+> fleet. Firestore, Cloud Run, Pub/Sub, Cloud Scheduler, Cloud Storage. And
+> Claude Opus auditing what Gemini writes, because one model checking its own
+> work isn't a check.
 >
-> It reads the literature so the algorithm doesn't fall behind it. And it shows
-> its working, every time."
+> It reads the literature so the algorithm doesn't fall behind it. It shows its
+> working every time. And the most useful thing it does is refuse."
 
 ---
 
@@ -145,3 +185,5 @@ and a causal verb on cohort evidence.
 3. Terminal in `agent-hackathon`, venv active
 4. github.com/m1insights/synq — issue #1 and PR #2
 5. The console, unlocked with the write token
+6. A second terminal in `~/Dev/apps/synqology/`, not yet started — the
+   session-start hook has to fire on camera, so open it during the take
