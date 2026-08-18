@@ -71,6 +71,13 @@ These have shipped here before. Check for them specifically:
   `HealthSyncCoordinator` only.
 - **Division by a value that can be zero**, especially newly parameterised
   denominators.
+- **A parameterised divisor that is also truncated.** The scoring code
+  evaluates `min(creditDays, Int(denominator)) / denominator` — the numerator
+  truncates and the divisor does not. Any non-integer denominator therefore
+  caps the result below 1.0 permanently and silently: `1.33` would have held
+  every shift worker at 0.75 of the Cardio score they earned, forever. When a
+  constant is used both as an `Int` bound and a `Double` divisor, check that
+  every value it can take is a whole number, and that a test pins it.
 
 ### 4. Repository conventions
 
@@ -96,6 +103,11 @@ one is not. The diffs look almost identical — check which happened.
 If every assertion moved to the new value, ask whether the behaviour is now
 untested by construction. In the example above, both assertions became `2.0`,
 so deleting the entire guard would leave the suite green. That is a finding.
+
+The fix for that class is a **relational** test, not another value pin: assert
+that the special case is strictly more lenient than the default, so the two can
+never silently converge again. Pinning each value separately is what let it
+through the first time.
 
 ## Verdict
 
