@@ -216,3 +216,56 @@ class TestHumanDecisionsSurviveTheFleet:
             if prior.get(field):
                 payload[field] = prior[field]
         assert payload["status"] == "open"
+
+
+class TestOneRunDoesNotFloodTheReviewer:
+    """Eleven proposals on a Tuesday is not eleven times the value of one.
+
+    It is zero: nobody reviews eleven changes to a health algorithm, and the
+    twelfth gets skimmed along with them.
+    """
+
+    def _finding(self, component: str, confidence: float):
+        from provenance.models import Finding
+        return Finding(
+            finding_id=f"f-{component}", subject_key="synqology",
+            component_id=component, statement="s", current_behavior="c",
+            confidence=confidence,
+        )
+
+    def test_only_one_change_per_pillar(self):
+        """mvpa and strength both feed the behavior score."""
+        from provenance.agents.synthesist import _separate_colliding
+        kept, deferred = _separate_colliding([
+            self._finding("mvpa", 0.8), self._finding("strength", 0.7),
+        ])
+        assert [f.component_id for f in kept] == ["mvpa"]
+        assert len(deferred) == 1
+        assert deferred[0].reason_code == "pillar_collision"
+        assert "behavior" in deferred[0].reason
+
+    def test_different_pillars_both_proceed(self):
+        from provenance.agents.synthesist import _separate_colliding
+        kept, deferred = _separate_colliding([
+            self._finding("mvpa", 0.8), self._finding("autonomic", 0.7),
+        ])
+        assert len(kept) == 2 and deferred == []
+
+    def test_the_stronger_finding_is_the_one_kept(self):
+        from provenance.agents.synthesist import _separate_colliding
+        kept, _ = _separate_colliding([
+            self._finding("mvpa", 0.9), self._finding("steps", 0.4),
+        ])
+        assert kept[0].component_id == "mvpa"
+
+    def test_deferral_names_what_it_is_waiting_on(self):
+        """A held proposal has to say what would unblock it."""
+        from provenance.agents.synthesist import _separate_colliding
+        _, deferred = _separate_colliding([
+            self._finding("mvpa", 0.8), self._finding("steps", 0.5),
+        ])
+        assert "mvpa" in deferred[0].reason
+
+    def test_the_cap_is_small_enough_to_be_read(self):
+        from provenance.agents.synthesist import MAX_FINDINGS_PER_RUN
+        assert 1 <= MAX_FINDINGS_PER_RUN <= 3
