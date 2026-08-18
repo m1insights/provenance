@@ -64,6 +64,15 @@ MIN_INDEPENDENT_SOURCES = 2
 #: ignore it.
 REPROPOSE_AFTER_NEW_PAPERS = 5
 
+#: Findings a single run may open, strongest first.
+#:
+#: There is no technical reason this could not be eleven. The reason is human:
+#: eleven proposals arriving on a Tuesday is not eleven times the value of one,
+#: it is zero, because nobody reviews eleven changes to a health algorithm and
+#: the twelfth gets skimmed along with them. The rest are not discarded -- the
+#: evidence stays on file and they surface on later runs as capacity allows.
+MAX_FINDINGS_PER_RUN = 2
+
 _STRONG = {EvidenceTier.A, EvidenceTier.B}
 
 
@@ -207,6 +216,65 @@ def _suppressed(
     )
 
 
+#: Components whose scores are summed into the same pillar. Two changes that
+#: are each defensible can be jointly wrong when they move the same total in
+#: the same direction, and nothing downstream would notice: each pull request
+#: reads fine on its own.
+_PILLARS = {
+    "behavior": {"sleepBehavior", "mvpa", "steps", "strength"},
+    "physiology": {"vo2", "autonomic", "sleepPhysiology", "bodyComp"},
+    "bonus": {"mindfulness", "coldExposure", "hydration"},
+}
+
+
+def _pillar_of(component_id: str) -> str | None:
+    for pillar, members in _PILLARS.items():
+        if component_id in members:
+            return pillar
+    return None
+
+
+def _separate_colliding(
+    findings: list[Finding],
+) -> tuple[list[Finding], list[Rejection]]:
+    """Allow at most one change per scoring pillar in a single run.
+
+    Two components that feed the same total should not both move at once. Each
+    proposal would look sound in isolation, the combined effect on a user's
+    score would be nobody's stated intention, and the reviewer has no obvious
+    place to notice -- they are reading two separate pull requests.
+
+    Sequencing them also makes the second one honest: once the first is merged,
+    its effect is in the baseline the second is measured against.
+    """
+    kept: list[Finding] = []
+    taken: set[str] = set()
+    deferred: list[Rejection] = []
+
+    for finding in findings:
+        pillar = _pillar_of(finding.component_id)
+        if pillar is None or pillar not in taken:
+            if pillar is not None:
+                taken.add(pillar)
+            kept.append(finding)
+            continue
+        held = next(f.component_id for f in kept if _pillar_of(f.component_id) == pillar)
+        deferred.append(Rejection(
+            paper_id=f"component:{finding.component_id}",
+            title=finding.component_id,
+            stage="synthesist",
+            reason_code="pillar_collision",
+            reason=(
+                f"`{finding.component_id}` and `{held}` both feed the {pillar} "
+                f"score, and only one may change per run. Two individually sound "
+                f"changes to the same total can be jointly wrong, and reviewing "
+                f"them as separate pull requests is exactly where that goes "
+                f"unnoticed. Held until `{held}` is decided."
+            ),
+        ))
+    return kept, deferred
+
+
 def _evidence_block(challengers: list[Appraisal], papers: dict[str, Paper]) -> str:
     blocks = []
     for appraisal in sorted(challengers, key=lambda a: a.tier.value):
@@ -281,11 +349,34 @@ async def synthesise(
             continue
         findings.append(finding)
 
+    # Strongest first, so a cap defers the weakest case rather than whichever
+    # component happens to sort first alphabetically.
+    findings.sort(key=lambda f: -f.confidence)
+    findings, collisions = _separate_colliding(findings)
+    rejections.extend(collisions)
+    deferred = findings[MAX_FINDINGS_PER_RUN:]
+    findings = findings[:MAX_FINDINGS_PER_RUN]
+
+    for finding in deferred:
+        rejections.append(Rejection(
+            paper_id=f"component:{finding.component_id}",
+            title=finding.component_id,
+            stage="synthesist",
+            reason_code="deferred_for_capacity",
+            reason=(
+                f"Converged at confidence {finding.confidence:.2f}, but "
+                f"{MAX_FINDINGS_PER_RUN} stronger finding(s) opened this run. "
+                f"Held for a later run; the evidence stays on file and nothing "
+                f"is lost."
+            ),
+        ))
+
     log.info(
-        "synthesise: %d components -> %d findings, %d gated",
+        "synthesise: %d components -> %d findings (%d deferred), %d gated",
         len(agenda.items),
         len(findings),
-        len(rejections),
+        len(deferred),
+        len(rejections) - len(deferred),
     )
     return findings, rejections
 
