@@ -288,8 +288,13 @@ def decide(
     return RedirectResponse(url="/", status_code=303)
 
 
-@app.get("/healthz")
-def healthz() -> dict:
+# Not /healthz. Google's frontend reserves that path and answers it itself
+# with a 404 that never reaches the container -- which looks exactly like a
+# service that is deployed but unroutable, and cost an afternoon of debugging
+# a routing problem that did not exist. /nope returns FastAPI's own JSON 404;
+# /healthz returns Google's HTML one. That difference is the tell.
+@app.get("/health")
+def health() -> dict:
     return {"ok": True}
 
 
