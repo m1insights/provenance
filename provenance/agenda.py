@@ -116,8 +116,22 @@ def build_agenda(subject: SubjectApp, *, refresh: bool = False) -> ResearchAgend
     algorithm change rather than one per nightly run.
     """
     if not subject.exists():
+        # No checkout here. A scheduled run in the cloud reads the agenda the
+        # last local run published rather than failing, because deriving it
+        # requires source that deliberately does not travel to a container.
+        from .store import firestore as store
+
+        stored = store.latest_agenda(subject.key)
+        if stored is not None:
+            log.info(
+                "agenda: no local sources; using published agenda for %s (digest %s)",
+                stored.algorithm_version, stored.source_digest,
+            )
+            return stored
         raise FileNotFoundError(
-            f"{subject.key}: cannot read algorithm sources at {subject.algorithm_source}"
+            f"{subject.key}: cannot read algorithm sources at "
+            f"{subject.algorithm_source}, and no agenda has been published to "
+            f"Firestore. Run `python -m provenance agenda` locally first."
         )
 
     digest = source_digest(subject)
