@@ -1,0 +1,95 @@
+{
+ "slides": [
+  {
+   "kicker": "WEEKLY MOVEMENT",
+   "headline": "You do not need to work out *every day*.",
+   "body": "People who packed their weekly exercise into one or two days had similar health outcomes to those who spread it out.",
+   "source": {
+    "authors": "Lei et al.",
+    "journal": "Obesity (Silver Spring)",
+    "sample": "n=85,934",
+    "tier": "COHORT"
+   },
+   "chart": {
+    "type": "bar",
+    "label": "HEART DISEASE RISK",
+    "bars": [
+     {
+      "label": "weekend",
+      "value": 0.72
+     },
+     {
+      "label": "daily",
+      "value": 0.75
+     }
+    ]
+   }
+  },
+  {
+   "kicker": "THE DATA",
+   "headline": "Risk was lower across *every major condition*.",
+   "body": "Concentrated weekly activity was linked to lower rates of dying from heart conditions and cancer.",
+   "source": {
+    "authors": "Lei et al.",
+    "journal": "Obesity (Silver Spring)",
+    "sample": "n=85,934",
+    "tier": "COHORT"
+   },
+   "chart": {
+    "type": "bar",
+    "label": "DEATH RISK BY CAUSE",
+    "bars": [
+     {
+      "label": "heart",
+      "value": 0.74
+     },
+     {
+      "label": "cancer",
+      "value": 0.81
+     },
+     {
+      "label": "all causes",
+      "value": 0.76
+     }
+    ]
+   }
+  },
+  {
+   "kicker": "THE MECHANISM",
+   "headline": "Total weekly minutes matter *more than frequency*.",
+   "body": "Hitting the recommended movement target was linked to similar long term health, no matter how the days were split.",
+   "source": {
+    "authors": "Lei et al.",
+    "journal": "Obesity (Silver Spring)",
+    "sample": "n=85,934",
+    "tier": "COHORT"
+   },
+   "chart": {
+    "type": "bar",
+    "label": "METABOLIC RISK",
+    "bars": [
+     {
+      "label": "concentrated",
+      "value": 0.83
+     },
+     {
+      "label": "spread out",
+      "value": 0.82
+     }
+    ]
+   }
+  },
+  {
+   "kicker": "THE TAKEAWAY",
+   "headline": "Fit your exercise *around your schedule*.",
+   "body": "If work takes over your week, packing your movement into a couple of days is just as well supported by the evidence.",
+   "source": {
+    "authors": "Lei et al.",
+    "journal": "Obesity (Silver Spring)",
+    "sample": "n=85,934",
+    "tier": "COHORT"
+   }
+  }
+ ],
+ "caption": "Long term health tracking shows that concentrating your workouts into one or two days is linked to the same health outcomes as spreading them across the whole week."
+}

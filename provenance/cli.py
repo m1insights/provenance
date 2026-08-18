@@ -293,6 +293,64 @@ def cmd_evidence(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_storyteller(args: argparse.Namespace) -> int:
+    """Turn a finding into a rendered creative, gates and all."""
+    import json
+    import subprocess
+    from pathlib import Path
+
+    from .agents.storyteller import tell
+    from .models import Appraisal, Finding, Paper
+    from .store import firestore as store
+
+    db = store.client()
+    findings = [
+        finding
+        for doc in db.collection(store.FINDINGS).stream()
+        if (finding := Finding.model_validate(doc.to_dict()))
+        and (args.component is None or finding.component_id == args.component)
+    ]
+    if not findings:
+        print("no findings match")
+        return 0
+
+    appraisals = {
+        a.paper_id: a
+        for doc in db.collection(store.APPRAISALS).stream()
+        if (a := Appraisal.model_validate(doc.to_dict()))
+    }
+    papers = {
+        p.doc_id: p
+        for doc in db.collection(store.PAPERS).stream()
+        if (p := Paper.model_validate(doc.to_dict()))
+    }
+
+    for finding in findings:
+        print(f"\n=== {finding.component_id} ===")
+        result = asyncio.run(tell(finding, appraisals, papers))
+        if result is None:
+            print("  no creative survived the gates")
+            continue
+        payload, plan = result
+
+        out = Path(args.out)
+        out.mkdir(parents=True, exist_ok=True)
+        spec = out / f"{finding.component_id}.json"
+        spec.write_text(json.dumps(payload, indent=1))
+        print(f"  spec  {spec}")
+        for index, slide in enumerate(plan.slides, start=1):
+            print(f"  {index}. {slide.headline}")
+
+        if args.render:
+            renderer = Path(__file__).resolve().parent.parent / "renderer"
+            subprocess.run(
+                ["node", "render.mjs", "carousel", str(spec.resolve()), str(out.resolve())],
+                cwd=renderer, check=False,
+            )
+            print(f"  rendered → {out}")
+    return 0
+
+
 def cmd_status(args: argparse.Namespace) -> int:
     from .store import firestore as store
 
@@ -345,6 +403,12 @@ def main(argv: list[str] | None = None) -> int:
     ev.add_argument("--component", default=None, help="e.g. mvpa")
     ev.add_argument("--quotes", action="store_true", help="include the verified quote per claim")
     ev.set_defaults(func=cmd_evidence)
+
+    story = sub.add_parser("storyteller", help="turn a finding into a creative")
+    story.add_argument("--component", default=None, help="e.g. mvpa")
+    story.add_argument("--out", default="renderer/out-real")
+    story.add_argument("--render", action="store_true", help="also run the renderer")
+    story.set_defaults(func=cmd_storyteller)
 
     status = sub.add_parser("status", help="counts by collection")
     status.set_defaults(func=cmd_status)
