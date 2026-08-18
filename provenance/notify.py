@@ -125,11 +125,24 @@ def _escape(text: str) -> str:
     )
 
 
+#: How an audit verdict reads in the email. The point of showing it is that a
+#: reviewer should never approve without knowing an independent model had
+#: reservations -- so CONCERNS and DEFECT are stated plainly, not softened.
+_VERDICT_COPY = {
+    "clean": ("#1F7F9C", "Independent review found nothing to raise."),
+    "concerns": ("#8A6A1F", "Independent review raised concerns. Read them before deciding."),
+    "defect": ("#8A2F2F", "Independent review found a defect. This should not be merged as written."),
+}
+
+
 def decision_email(
     finding: Finding,
     appraisals: dict[str, Appraisal],
     papers: dict[str, Paper],
     config: MailConfig,
+    *,
+    verdict: str = "",
+    audit_summary: str = "",
 ) -> tuple[str, str]:
     """Subject and HTML for "something needs deciding"."""
     rows = [
@@ -165,6 +178,20 @@ def decision_email(
             f'{_escape(appraisal.design)}{size}</span></p>'
         )
 
+    audit = ""
+    if verdict:
+        colour, headline = _VERDICT_COPY.get(
+            verdict.lower(), ("#46545F", "Independent review completed.")
+        )
+        audit = (
+            f'<div style="margin:0 0 22px;padding:14px 16px;border-radius:8px;'
+            f'background:#EDF1F4;border-left:3px solid {colour};">'
+            f'<p style="margin:0 0 4px;font-size:12px;letter-spacing:.12em;'
+            f'color:{colour};font-weight:700;">OPUS · {_escape(verdict.upper())}</p>'
+            f'<p style="margin:0;font-size:14px;color:#46545F;">{_escape(headline)}'
+            f'{" " + _escape(audit_summary) if audit_summary else ""}</p></div>'
+        )
+
     token = sign(finding.finding_id, config.signing_key)
     review_url = f"{config.console_url}/review/{token}"
 
@@ -174,6 +201,8 @@ def decision_email(
     PROVENANCE · {_escape(finding.component_id.upper())}</p>
   <h1 style="margin:0 0 18px;font-size:23px;line-height:1.3;font-weight:600;">
     {_escape(finding.statement[:180])}</h1>
+
+  {audit}
 
   {change}
 

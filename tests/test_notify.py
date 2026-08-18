@@ -131,3 +131,80 @@ class TestSendingIsOptional:
         from provenance.notify import MailConfig, send
         blank = MailConfig(api_key="", sender="", recipient="", console_url="", signing_key="")
         assert send("subject", "<p>body</p>", blank) is None
+
+
+class TestVerdictReachesTheReader:
+    """The audit exists so nobody approves code no independent model has read.
+
+    That only holds if the verdict is in the email, stated plainly.
+    """
+
+    def _fixtures(self):
+        from provenance.models import (
+            Appraisal, Claim, EvidenceTier, Finding, Paper, ProposedChange, SourceName,
+        )
+        paper = Paper(doc_id="doi:10.1_x", source=SourceName.PUBMED, title="T",
+                      journal="J", authors=["Xu Y"], url="https://example.test/1")
+        appraisal = Appraisal(paper_id="doi:10.1_x", tier=EvidenceTier.B,
+                              design="prospective cohort study", sample_size=1000,
+                              claims=[Claim(claim_id="c1", statement="s",
+                                            quote="a quote long enough to be evidence")])
+        finding = Finding(finding_id="f1", subject_key="synqology", component_id="mvpa",
+                          statement="s", current_behavior="c",
+                          supporting_paper_ids=["doi:10.1_x"], tier_counts={"B": 1},
+                          proposed_changes=[ProposedChange(
+                              file_path="a.swift", symbol="denominator",
+                              current_value="3.0", proposed_value="2.0", rationale="r")])
+        return finding, {"doi:10.1_x": appraisal}, {"doi:10.1_x": paper}
+
+    def _config(self):
+        from provenance.notify import MailConfig
+        return MailConfig(api_key="k", sender="a@b.c", recipient="d@e.f",
+                          console_url="https://c.test", signing_key=KEY)
+
+    def test_defect_is_stated_not_softened(self):
+        from provenance.notify import decision_email
+        f, a, p = self._fixtures()
+        _, html = decision_email(f, a, p, self._config(),
+                                 verdict="defect", audit_summary="Dead branch.")
+        assert "DEFECT" in html
+        assert "should not be merged as written" in html
+        assert "Dead branch." in html
+
+    def test_concerns_tells_the_reader_to_read_them_first(self):
+        from provenance.notify import decision_email
+        f, a, p = self._fixtures()
+        _, html = decision_email(f, a, p, self._config(), verdict="concerns")
+        assert "CONCERNS" in html and "before deciding" in html
+
+    def test_clean_says_so(self):
+        from provenance.notify import decision_email
+        f, a, p = self._fixtures()
+        _, html = decision_email(f, a, p, self._config(), verdict="clean")
+        assert "CLEAN" in html and "nothing to raise" in html
+
+    def test_no_verdict_renders_no_audit_block(self):
+        """An email without an audit must not imply one happened."""
+        from provenance.notify import decision_email
+        f, a, p = self._fixtures()
+        _, html = decision_email(f, a, p, self._config())
+        assert "OPUS" not in html
+
+    def test_the_audit_block_sits_above_the_decision_button(self):
+        """Order on screen is order of reading: verdict before Approve."""
+        from provenance.notify import decision_email
+        f, a, p = self._fixtures()
+        _, html = decision_email(f, a, p, self._config(), verdict="concerns")
+        assert html.index("OPUS") < html.index("Review and decide")
+
+
+class TestNightlyNoLongerAsksForBlindApproval:
+    def test_the_nightly_run_sends_no_decision_email(self):
+        """A finding has converged but no code exists yet, and the cloud job
+        cannot run the auditor. Emailing here asks for approval of code that
+        has not been written."""
+        import inspect
+        from provenance import nightly
+        source = inspect.getsource(nightly)
+        assert "decision_email" not in source
+        assert "digest_email" in source

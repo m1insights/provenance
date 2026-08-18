@@ -379,6 +379,58 @@ def cmd_health(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_notify(args: argparse.Namespace) -> int:
+    """Send the decision email for one audited pull request.
+
+    Called by /provenance AFTER the audit, which is the whole point: the
+    reviewer should never be asked to approve code that has not been reviewed
+    by anything but the model that wrote it.
+    """
+    from . import notify
+    from .models import Appraisal, Finding, Paper
+    from .store import firestore as store
+
+    db = store.client()
+    findings = [
+        finding
+        for doc in db.collection(store.FINDINGS).stream()
+        if (finding := Finding.model_validate(doc.to_dict()))
+        and (
+            (args.pr and f"/pull/{args.pr}" in (finding.pr_url or ""))
+            or (args.finding_id and finding.finding_id == args.finding_id)
+        )
+    ]
+    if not findings:
+        print(f"no finding matches pr={args.pr} finding_id={args.finding_id}")
+        return 1
+
+    appraisals = {
+        a.paper_id: a
+        for doc in db.collection(store.APPRAISALS).stream()
+        if (a := Appraisal.model_validate(doc.to_dict()))
+    }
+    papers = {
+        p.doc_id: p
+        for doc in db.collection(store.PAPERS).stream()
+        if (p := Paper.model_validate(doc.to_dict()))
+    }
+
+    config = notify.mail_config()
+    if not config.configured:
+        print("email not configured (RESEND_API_KEY / NOTIFY_FROM / NOTIFY_TO)")
+        return 1
+
+    for finding in findings:
+        subject, html = notify.decision_email(
+            finding, appraisals, papers, config,
+            verdict=args.verdict, audit_summary=args.summary,
+        )
+        sent = notify.send(subject, html, config)
+        print(f"{'sent' if sent else 'FAILED'}  {finding.component_id}  "
+              f"verdict={args.verdict or '(none)'}  {sent or ''}")
+    return 0
+
+
 def cmd_status(args: argparse.Namespace) -> int:
     from .store import firestore as store
 
@@ -441,6 +493,14 @@ def main(argv: list[str] | None = None) -> int:
     hc = sub.add_parser("health", help="check proposals already opened")
     hc.add_argument("--comment", action="store_true", help="comment on unhealthy PRs")
     hc.set_defaults(func=cmd_health)
+
+    notify_cmd = sub.add_parser("notify", help="send the decision email for an audited PR")
+    notify_cmd.add_argument("--pr", type=int, default=None, help="pull request number")
+    notify_cmd.add_argument("--finding-id", default=None)
+    notify_cmd.add_argument("--repo", default=None, help="accepted for symmetry; unused")
+    notify_cmd.add_argument("--verdict", default="", choices=["", "clean", "concerns", "defect"])
+    notify_cmd.add_argument("--summary", default="", help="one line from the audit")
+    notify_cmd.set_defaults(func=cmd_notify)
 
     status = sub.add_parser("status", help="counts by collection")
     status.set_defaults(func=cmd_status)

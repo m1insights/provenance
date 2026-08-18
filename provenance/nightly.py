@@ -193,24 +193,16 @@ def _notify(db, subject: SubjectApp, fresh: list[Finding], prior: list[Finding])
 
     sent = []
 
-    appraisals = {}
-    papers = {}
-    if fresh:
-        appraisals = {
-            a.paper_id: a
-            for doc in db.collection(store.APPRAISALS).stream()
-            if (a := Appraisal.model_validate(doc.to_dict()))
-        }
-        papers = {
-            p.doc_id: p
-            for doc in db.collection(store.PAPERS).stream()
-            if (p := Paper.model_validate(doc.to_dict()))
-        }
+    appraisals: dict = {}
+    papers: dict = {}
 
-    for finding in fresh:
-        subject_line, html = notify.decision_email(finding, appraisals, papers, config)
-        if notify.send(subject_line, html, config):
-            sent.append(f"decision:{finding.component_id}")
+    # No decision email from here. At this point a Finding has converged but no
+    # pull request exists and nothing has been reviewed -- the nightly job runs
+    # in the cloud, where the auditing model is not available. Emailing now
+    # would ask for approval of code that has not been written, let alone
+    # checked. `/provenance` sends it, after the pull request is open and Opus
+    # has audited the diff.
+    _ = (appraisals, papers, fresh)
 
     if datetime.now(timezone.utc).weekday() == DIGEST_WEEKDAY:
         pending = [
