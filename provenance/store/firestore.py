@@ -112,6 +112,30 @@ def save_agenda(agenda: ResearchAgenda, *, db: firestore.Client | None = None) -
     db.collection(AGENDAS).document(doc_id).set(_serialise(agenda), merge=True)
 
 
+def latest_agenda(
+    subject_key: str, *, db: firestore.Client | None = None
+) -> ResearchAgenda | None:
+    """The most recently published agenda for a subject.
+
+    The agenda is derived from source files that live in a private repository
+    on a developer machine. A scheduled cloud run has no checkout of them and
+    no business cloning one, so it reads the agenda the last local run
+    published instead. That is not a staleness compromise: the agenda only
+    changes when the algorithm changes, and the algorithm changes where the
+    code is.
+    """
+    db = db or client()
+    docs = [
+        doc.to_dict()
+        for doc in db.collection(AGENDAS).stream()
+        if doc.id.startswith(f"{subject_key}__")
+    ]
+    if not docs:
+        return None
+    docs.sort(key=lambda d: d.get("generated_at", ""), reverse=True)
+    return ResearchAgenda.model_validate(docs[0])
+
+
 def known_paper_ids(*, db: firestore.Client | None = None, limit: int | None = None) -> set[str]:
     """Identifiers already retrieved, so a sweep only surfaces what is new.
 
