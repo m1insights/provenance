@@ -34,6 +34,7 @@ from ..models import (
     Appraisal,
     EvidenceTier,
     Finding,
+    FindingStatus,
     Paper,
     ProposedChange,
     Rejection,
@@ -52,6 +53,16 @@ MIN_STRONG_CHALLENGERS = 1
 #: Distinct DOI registrants, as a cheap proxy for independent research groups.
 #: Three papers from one consortium are one finding reported three times.
 MIN_INDEPENDENT_SOURCES = 2
+
+#: After a reviewer rejects a proposal for a component, how much the evidence
+#: must grow before the same component may be proposed again.
+#:
+#: Findings are keyed by a hash of their supporting papers, so a single new
+#: study changes the key and would otherwise open a fresh Finding for a
+#: question a human has already answered. Re-litigating a rejection every time
+#: one more paper lands is how a system like this teaches its reviewer to
+#: ignore it.
+REPROPOSE_AFTER_NEW_PAPERS = 5
 
 _STRONG = {EvidenceTier.A, EvidenceTier.B}
 
@@ -155,6 +166,47 @@ def gate(
     return challengers, None
 
 
+def _settled_components(prior: list[Finding]) -> dict[str, int]:
+    """Components a reviewer has rejected, and how much evidence they saw.
+
+    Keyed on the largest rejected supporting set, so growth is measured against
+    the strongest case already declined rather than the earliest one.
+    """
+    settled: dict[str, int] = {}
+    for finding in prior:
+        if finding.status is not FindingStatus.REJECTED:
+            continue
+        seen = len(finding.supporting_paper_ids)
+        settled[finding.component_id] = max(settled.get(finding.component_id, 0), seen)
+    return settled
+
+
+def _suppressed(
+    component_id: str, challengers: list[Appraisal], settled: dict[str, int]
+) -> Rejection | None:
+    """Hold a component quiet after a rejection, until the evidence moves."""
+    if component_id not in settled:
+        return None
+
+    previously = settled[component_id]
+    growth = len(challengers) - previously
+    if growth >= REPROPOSE_AFTER_NEW_PAPERS:
+        return None
+
+    return Rejection(
+        paper_id=f"component:{component_id}",
+        title=component_id,
+        stage="synthesist",
+        reason_code="settled_by_reviewer",
+        reason=(
+            f"A reviewer rejected this proposal on {previously} papers; there "
+            f"are now {len(challengers)}. {REPROPOSE_AFTER_NEW_PAPERS} new "
+            f"challenging papers are required before re-proposing, so a human "
+            f"decision is not re-litigated every time one more study lands."
+        ),
+    )
+
+
 def _evidence_block(challengers: list[Appraisal], papers: dict[str, Paper]) -> str:
     blocks = []
     for appraisal in sorted(challengers, key=lambda a: a.tier.value):
@@ -179,8 +231,15 @@ async def synthesise(
     agenda: ResearchAgenda,
     appraisals: list[Appraisal],
     papers: dict[str, Paper],
+    prior_findings: list[Finding] | None = None,
 ) -> tuple[list[Finding], list[Rejection]]:
-    """Evaluate every component, open Findings where evidence converges."""
+    """Evaluate every component, open Findings where evidence converges.
+
+    ``prior_findings`` carries what a reviewer has already decided. A component
+    whose proposal was rejected stays quiet until materially more evidence
+    exists, so a human decision holds rather than being re-asked nightly.
+    """
+    settled = _settled_components(prior_findings or [])
     by_component: dict[str, list[Appraisal]] = defaultdict(list)
     for appraisal in appraisals:
         for component in appraisal.component_ids:
@@ -201,6 +260,11 @@ async def synthesise(
         challengers, blocked = gate(item.component_id, by_component.get(item.component_id, []))
         if blocked is not None:
             rejections.append(blocked)
+            continue
+
+        suppressed = _suppressed(item.component_id, challengers, settled)
+        if suppressed is not None:
+            rejections.append(suppressed)
             continue
 
         finding = await _synthesise_one(agent, subject, item, challengers, papers)
