@@ -39,6 +39,9 @@ digest of the source files, so editing the algorithm invalidates it
 automatically. Nobody has to remember to update a topic list, which means it
 cannot go stale.
 
+**System map:** https://claude.ai/code/artifact/80430eb1-ef05-4f9c-8ec9-f858b2db956d
+— the whole loop with real numbers on the arrows, and what each stage refuses.
+
 ---
 
 ## The pipeline

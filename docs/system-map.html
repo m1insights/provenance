@@ -1,0 +1,440 @@
+<title>Provenance System Map</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+
+<style>
+  :root {
+    --ground: #F4F6F8;
+    --surface: #FFFFFF;
+    --surface-2: #EDF1F4;
+    --ink: #101820;
+    --ink-2: #46545F;
+    --ink-3: #77858F;
+    --rule: #DCE3E8;
+    --accent: #1F7F9C;
+    --accent-soft: #E1F0F5;
+    --stop: #4A5A66;
+
+    --display: "Instrument Serif", Georgia, serif;
+    --body: "IBM Plex Sans", system-ui, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, monospace;
+  }
+
+  :root:not([data-theme="light"]) { }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #0B1015;
+      --surface: #131B22;
+      --surface-2: #1A242C;
+      --ink: #E9EFF3;
+      --ink-2: #A5B4BF;
+      --ink-3: #75858F;
+      --rule: #253039;
+      --accent: #63C6E2;
+      --accent-soft: #14303A;
+      --stop: #8496A2;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #0B1015;
+    --surface: #131B22;
+    --surface-2: #1A242C;
+    --ink: #E9EFF3;
+    --ink-2: #A5B4BF;
+    --ink-3: #75858F;
+    --rule: #253039;
+    --accent: #63C6E2;
+    --accent-soft: #14303A;
+    --stop: #8496A2;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: 17px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 860px; margin: 0 auto; padding: 72px 28px 120px; }
+
+  header { margin-bottom: 64px; }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 18px;
+  }
+  h1 {
+    font-family: var(--display);
+    font-weight: 400;
+    font-size: clamp(42px, 7vw, 66px);
+    line-height: 1.02;
+    letter-spacing: -.01em;
+    margin: 0 0 20px;
+    text-wrap: balance;
+  }
+  .standfirst {
+    font-size: 21px;
+    line-height: 1.5;
+    color: var(--ink-2);
+    max-width: 60ch;
+    margin: 0;
+  }
+  .standfirst em { font-style: italic; color: var(--ink); }
+
+  h2 {
+    font-family: var(--display);
+    font-weight: 400;
+    font-size: 34px;
+    line-height: 1.15;
+    margin: 72px 0 8px;
+    letter-spacing: -.005em;
+  }
+  h2 + .lede { color: var(--ink-2); margin: 0 0 28px; max-width: 62ch; }
+
+  h3 {
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: .02em;
+    margin: 0 0 6px;
+  }
+
+  p { max-width: 65ch; }
+
+  figure {
+    margin: 32px 0;
+    padding: 28px 24px 20px;
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    overflow-x: auto;
+  }
+  figure svg { display: block; max-width: 100%; height: auto; margin: 0 auto; }
+  figcaption {
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid var(--rule);
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--ink-3);
+  }
+
+  /* Stage list — the spine, as reading matter */
+  .stages { display: flex; flex-direction: column; gap: 2px; margin: 32px 0; }
+  .stage {
+    display: grid;
+    grid-template-columns: 56px 1fr;
+    gap: 20px;
+    padding: 20px 22px;
+    background: var(--surface);
+    border: 1px solid var(--rule);
+  }
+  .stage:first-child { border-radius: 10px 10px 0 0; }
+  .stage:last-child { border-radius: 0 0 10px 10px; }
+  .stage + .stage { border-top: none; }
+  .stage-n {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--accent);
+    padding-top: 2px;
+  }
+  .stage p { margin: 0; font-size: 15.5px; color: var(--ink-2); }
+  .stage p + p { margin-top: 8px; }
+  .stage code, .inline-code {
+    font-family: var(--mono);
+    font-size: .88em;
+    background: var(--surface-2);
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: var(--ink);
+  }
+  .stage.gate { background: var(--accent-soft); border-color: var(--accent); }
+  .stage.gate .stage-n { color: var(--accent); }
+
+  table { width: 100%; border-collapse: collapse; margin: 28px 0; font-size: 15px; }
+  th, td { text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  th {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    font-weight: 500;
+  }
+  td:first-child { color: var(--ink); font-weight: 500; white-space: nowrap; }
+  td { color: var(--ink-2); }
+  .num { font-family: var(--mono); font-variant-numeric: tabular-nums; text-align: right; }
+
+  .callout {
+    margin: 32px 0;
+    padding: 22px 24px;
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 10px 10px 0;
+  }
+  .callout h3 { color: var(--accent); font-family: var(--mono); font-size: 12px; letter-spacing: .12em; text-transform: uppercase; }
+  .callout p { margin: 8px 0 0; font-size: 15.5px; color: var(--ink-2); }
+
+  pre {
+    font-family: var(--mono);
+    font-size: 13.5px;
+    line-height: 1.65;
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 18px 20px;
+    overflow-x: auto;
+    color: var(--ink-2);
+  }
+  pre .add { color: var(--accent); }
+  pre .del { color: var(--stop); text-decoration: line-through; text-decoration-thickness: 1px; }
+
+  footer {
+    margin-top: 80px;
+    padding-top: 24px;
+    border-top: 1px solid var(--rule);
+    font-size: 14px;
+    color: var(--ink-3);
+  }
+  a { color: var(--accent); }
+</style>
+
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">System map · synqology</div>
+  <h1>What Provenance actually does</h1>
+  <p class="standfirst">Every night it reads your algorithm, goes looking for research that would prove one of its numbers wrong, and — only when several strong studies agree — opens a pull request. <em>You decide. Nothing merges itself.</em></p>
+</header>
+
+<h2>The whole loop</h2>
+<p class="lede">Read top to bottom. The numbers on the arrows are from a real run last night.</p>
+
+<figure>
+<svg viewBox="0 0 700 1010" role="img" aria-label="Vertical flow: your Swift code feeds an agenda of 11 components, which drives a literature sweep of 507 papers, narrowed by triage to 49, appraised and grounded to 70 on file, synthesised into 1 finding, which forks into a draft pull request and social content, both stopping at a human decision that then opens a companion pull request in a second repository.">
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+    </marker>
+    <marker id="ar-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="var(--accent)"/>
+    </marker>
+  </defs>
+
+  <g font-family="IBM Plex Sans, sans-serif" fill="currentColor">
+
+    <!-- 1 source -->
+    <rect x="200" y="8" width="300" height="52" rx="7" fill="var(--surface-2)" stroke="currentColor" stroke-width="1.2"/>
+    <text x="350" y="30" text-anchor="middle" font-size="14" font-weight="600">Your Swift code</text>
+    <text x="350" y="48" text-anchor="middle" font-size="11.5" fill="var(--ink-3)" font-family="IBM Plex Mono, monospace">VitalityIndexCalculator.swift</text>
+
+    <line x1="350" y1="60" x2="350" y2="96" stroke="currentColor" stroke-width="1.3" marker-end="url(#ar)"/>
+    <text x="362" y="82" font-size="11.5" fill="var(--ink-3)">reads the constants</text>
+
+    <!-- 2 agenda -->
+    <rect x="200" y="98" width="300" height="52" rx="7" fill="var(--surface)" stroke="currentColor" stroke-width="1.2"/>
+    <text x="350" y="120" text-anchor="middle" font-size="14" font-weight="600">Agenda · 11 components</text>
+    <text x="350" y="138" text-anchor="middle" font-size="11.5" fill="var(--ink-3)">“cardio credits a day at 20 min, wants 3 days”</text>
+
+    <line x1="350" y1="150" x2="350" y2="186" stroke="currentColor" stroke-width="1.3" marker-end="url(#ar)"/>
+    <text x="362" y="172" font-size="11.5" fill="var(--ink-3)">turns each rule into search terms</text>
+
+    <!-- 3 scout -->
+    <rect x="200" y="188" width="300" height="52" rx="7" fill="var(--surface)" stroke="currentColor" stroke-width="1.2"/>
+    <text x="350" y="210" text-anchor="middle" font-size="14" font-weight="600">Scout</text>
+    <text x="350" y="228" text-anchor="middle" font-size="11.5" fill="var(--ink-3)">PubMed + Europe PMC</text>
+
+    <line x1="350" y1="240" x2="350" y2="276" stroke="currentColor" stroke-width="1.3" marker-end="url(#ar)"/>
+    <text x="362" y="262" font-size="11.5" fill="var(--ink-3)">507 found → 319 it had never seen</text>
+
+    <!-- 4 triage -->
+    <rect x="200" y="278" width="300" height="52" rx="7" fill="var(--surface)" stroke="currentColor" stroke-width="1.2"/>
+    <text x="350" y="300" text-anchor="middle" font-size="14" font-weight="600">Triage</text>
+    <text x="350" y="318" text-anchor="middle" font-size="11.5" fill="var(--ink-3)">cheap model, one question: is this even relevant?</text>
+
+    <line x1="350" y1="330" x2="350" y2="366" stroke="currentColor" stroke-width="1.3" marker-end="url(#ar)"/>
+    <text x="362" y="352" font-size="11.5" fill="var(--ink-3)">49 relevant · the rest logged with a reason</text>
+
+    <!-- 5 appraiser -->
+    <rect x="200" y="368" width="300" height="52" rx="7" fill="var(--surface)" stroke="currentColor" stroke-width="1.2"/>
+    <text x="350" y="390" text-anchor="middle" font-size="14" font-weight="600">Appraiser</text>
+    <text x="350" y="408" text-anchor="middle" font-size="11.5" fill="var(--ink-3)">grades each study A–D, must quote the abstract</text>
+
+    <line x1="350" y1="420" x2="350" y2="456" stroke="currentColor" stroke-width="1.3" marker-end="url(#ar)"/>
+
+    <!-- 6 grounding -->
+    <rect x="200" y="458" width="300" height="52" rx="7" fill="var(--surface-2)" stroke="var(--accent)" stroke-width="1.4"/>
+    <text x="350" y="480" text-anchor="middle" font-size="14" font-weight="600" fill="var(--accent)">Grounding · code, not a model</text>
+    <text x="350" y="498" text-anchor="middle" font-size="11.5" fill="var(--ink-3)">is that quote really in the paper? is that number in the quote?</text>
+
+    <line x1="350" y1="510" x2="350" y2="546" stroke="currentColor" stroke-width="1.3" marker-end="url(#ar)"/>
+    <text x="362" y="532" font-size="11.5" fill="var(--ink-3)">70 on file · 23 disagree with a current number</text>
+
+    <!-- 7 synthesist -->
+    <rect x="200" y="548" width="300" height="60" rx="7" fill="var(--surface-2)" stroke="var(--accent)" stroke-width="1.4"/>
+    <text x="350" y="570" text-anchor="middle" font-size="14" font-weight="600" fill="var(--accent)">Synthesist · the convergence gate</text>
+    <text x="350" y="588" text-anchor="middle" font-size="11.5" fill="var(--ink-3)">needs 3+ papers, 1 strong, 2 research groups</text>
+    <text x="350" y="602" text-anchor="middle" font-size="11.5" fill="var(--ink-3)">arithmetic — runs before any model is asked</text>
+
+    <line x1="350" y1="608" x2="350" y2="646" stroke="var(--accent)" stroke-width="1.6" marker-end="url(#ar-a)"/>
+    <text x="362" y="632" font-size="11.5" fill="var(--accent)" font-weight="600">1 finding · 10 components stayed quiet</text>
+
+    <!-- fork -->
+    <line x1="350" y1="648" x2="350" y2="664" stroke="currentColor" stroke-width="1.3"/>
+    <path d="M350,664 L350,672 Q350,680 340,680 L182,680 Q172,680 172,690 L172,700" fill="none" stroke="currentColor" stroke-width="1.3" marker-end="url(#ar)"/>
+    <path d="M350,664 L350,672 Q350,680 360,680 L518,680 Q528,680 528,690 L528,700" fill="none" stroke="currentColor" stroke-width="1.3" marker-end="url(#ar)"/>
+
+    <rect x="42" y="702" width="260" height="66" rx="7" fill="var(--surface)" stroke="currentColor" stroke-width="1.2"/>
+    <text x="172" y="724" text-anchor="middle" font-size="14" font-weight="600">Engineer</text>
+    <text x="172" y="742" text-anchor="middle" font-size="11.5" fill="var(--ink-3)">finds the real symbol in your repo</text>
+    <text x="172" y="758" text-anchor="middle" font-size="11.5" fill="var(--ink-3)">draft PR · 11 edits · 51/51 tests pass</text>
+
+    <rect x="398" y="702" width="260" height="66" rx="7" fill="var(--surface)" stroke="currentColor" stroke-width="1.2"/>
+    <text x="528" y="724" text-anchor="middle" font-size="14" font-weight="600">Storyteller</text>
+    <text x="528" y="742" text-anchor="middle" font-size="11.5" fill="var(--ink-3)">writes words, never numbers</text>
+    <text x="528" y="758" text-anchor="middle" font-size="11.5" fill="var(--ink-3)">4 gates → slides + reel</text>
+
+    <!-- to human -->
+    <path d="M172,768 L172,796 Q172,806 182,806 L340,806 Q350,806 350,816 L350,834" fill="none" stroke="currentColor" stroke-width="1.3" marker-end="url(#ar)"/>
+    <path d="M528,768 L528,796 Q528,806 518,806 L360,806 Q350,806 350,816 L350,834" fill="none" stroke="currentColor" stroke-width="1.3"/>
+
+    <rect x="170" y="836" width="360" height="58" rx="7" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="2"/>
+    <text x="350" y="859" text-anchor="middle" font-size="15" font-weight="600" fill="var(--accent)">YOU decide</text>
+    <text x="350" y="878" text-anchor="middle" font-size="11.5" fill="var(--ink-2)">there is no merge function anywhere in this system</text>
+
+    <line x1="350" y1="894" x2="350" y2="928" stroke="var(--accent)" stroke-width="1.6" marker-end="url(#ar-a)"/>
+    <text x="362" y="915" font-size="11.5" fill="var(--accent)">on approve</text>
+
+    <rect x="130" y="930" width="440" height="62" rx="7" fill="var(--surface)" stroke="var(--accent)" stroke-width="1.4"/>
+    <text x="350" y="952" text-anchor="middle" font-size="13.5" font-weight="600">PR comes out of draft · companion PR opens</text>
+    <text x="350" y="970" text-anchor="middle" font-size="11.5" fill="var(--ink-3)">the second repo holds the explainer synqIQ reads —</text>
+    <text x="350" y="984" text-anchor="middle" font-size="11.5" fill="var(--ink-3)">merging one without the other makes the chat wrong</text>
+  </g>
+</svg>
+<figcaption><strong>One night, end to end.</strong> The shape that matters is the narrowing: 507 papers in, one proposal out, and a hard stop at a human before anything reaches your codebase.</figcaption>
+</figure>
+
+<h2>Each part, in plain words</h2>
+<p class="lede">Nine components. The two shaded in the diagram are the ones doing the refusing.</p>
+
+<div class="stages">
+  <div class="stage">
+    <div class="stage-n">01</div>
+    <div>
+      <h3>Agenda</h3>
+      <p>Reads your <code>VitalityIndexCalculator.swift</code> and works out what to search for. It's never given a topic list — your code <em>is</em> the topic list. Change a constant and the searches change with it.</p>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="stage-n">02</div>
+    <div>
+      <h3>Scout</h3>
+      <p>Queries PubMed and Europe PMC for all 11 components, every night. It asks about an 18-month window rather than “yesterday”, because PubMed indexes papers weeks late. It knows what's new by remembering every paper's ID, not by date.</p>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="stage-n">03</div>
+    <div>
+      <h3>Triage</h3>
+      <p>A cheap, fast model answers one question per paper: could this possibly bear on any of your scoring components? Roughly 4 in 5 get dropped here, each with a written reason.</p>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="stage-n">04</div>
+    <div>
+      <h3>Appraiser</h3>
+      <p>The careful model grades each survivor: study design, sample size, follow-up, evidence tier A to D. Preprints are capped at C. Animal studies are D. For every claim it makes, it must quote the sentence it came from.</p>
+    </div>
+  </div>
+
+  <div class="stage gate">
+    <div class="stage-n">05</div>
+    <div>
+      <h3>Grounding — the first refusal</h3>
+      <p>Plain code, no model. It checks the quoted sentence really appears in the paper, and that any number attached to it appears <em>inside that sentence</em>.</p>
+      <p>That second check is the important one: a real quote with an invented statistic next to it passes a quote check and fails here.</p>
+    </div>
+  </div>
+
+  <div class="stage gate">
+    <div class="stage-n">06</div>
+    <div>
+      <h3>Synthesist — the second refusal</h3>
+      <p>Arithmetic, run <em>before</em> any model is consulted. A proposal only opens when at least 3 separate papers disagree with the same constant, at least one is high-tier, and they come from more than one research group.</p>
+      <p>And once you reject something, it stays quiet until 5 more challenging papers turn up. Your “no” sticks.</p>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="stage-n">07</div>
+    <div>
+      <h3>Engineer</h3>
+      <p>Searches your live repo for where the value actually lives — the proposal often names a symbol that doesn't exist. Writes the real edit, updates the spec and the pinned tests, bumps the version, and runs your scoring suite against the change.</p>
+      <p>It works in a throwaway copy of your repo, so your 33 uncommitted files are never touched.</p>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="stage-n">08</div>
+    <div>
+      <h3>Storyteller</h3>
+      <p>Turns the same evidence into slides and an animated reel. Its output form has nowhere to write a number — it picks the angle and the words, and code fills in every figure from a verified claim.</p>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="stage-n">09</div>
+    <div>
+      <h3>Health check</h3>
+      <p>Runs nightly over proposals already open. Has your branch moved under the diff? Does GitHub match the decision on record? Is the companion change still missing? Has this been sitting undecided for two weeks?</p>
+    </div>
+  </div>
+</div>
+
+<h2>Why you can trust the numbers</h2>
+<p class="lede">Six checks stand between a language model and something published under your name. Each is code with a test behind it, not an instruction in a prompt.</p>
+
+<table>
+  <tr><th>Check</th><th>What it refuses</th></tr>
+  <tr><td>Grounding</td><td>A quote that isn't in the paper; a number that isn't in the quote</td></tr>
+  <tr><td>Convergence</td><td>Acting on one study, or on three from the same lab</td></tr>
+  <tr><td>Claims</td><td>Any figure in the copy that no appraised study reports</td></tr>
+  <tr><td>Language</td><td>“Reduces” on a cohort study; “dramatically”, “breakthrough”</td></tr>
+  <tr><td>Structure</td><td>A chart with one data point; a deck that's mostly text cards</td></tr>
+  <tr><td>Readability</td><td>“Cardiovascular”, “mortality” — jargon where a reader decides to stop</td></tr>
+</table>
+
+<div class="callout">
+  <h3>The one that surprised me</h3>
+  <p>The language gate's first rejection was <em>“Concentrated training sharply reduces cardiovascular risk.”</em> Every figure in it was grounded and verified. It was still wrong twice: “sharply” is an intensifier the study doesn't license, and “reduces” claims cause from a study that only shows association. A wrong number is easy to catch. Overstating how strong a finding is looks completely fine — and it's how health content actually goes wrong.</p>
+</div>
+
+<h2>The review I'm asking for</h2>
+<p class="lede">Two lines, in a second repository.</p>
+
+<p>Your scoring rules live in two places: the Swift code in <span class="inline-code">synq</span>, and the explainer <span class="inline-code">synqIQ</span> reads when a user asks why their Cardio score is what it is. A pull request can't span two repos, so approving the first one alone would ship an app whose own assistant describes the <em>old</em> algorithm.</p>
+
+<pre><span class="del">-  full credit needs 3+ such days/week (day factor denominator = 3)</span>
+<span class="del">-  TO IMPROVE: Aim for 150+ minutes/week spread across 3+ days</span>
+<span class="add">+  full credit needs 2+ such days/week (day factor denominator = 2)</span>
+<span class="add">+  TO IMPROVE: Aim for 150+ minutes/week spread across 2+ days</span></pre>
+
+<p>That's <a href="https://github.com/m1insights/synq_insights/pull/1">synq_insights#1</a>. Check the wording sounds like you, and that 2 is the number you actually want — then it's the other half of the change you already approved.</p>
+
+<footer>
+  Provenance · <a href="https://github.com/m1insights/provenance">github.com/m1insights/provenance</a> · 123 tests · runs nightly at 03:00 ET
+</footer>
+
+</div>
