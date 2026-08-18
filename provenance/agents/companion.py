@@ -24,6 +24,7 @@ from google.genai import types
 from ..config import REASONING_MODEL, CrossRepoCompanion, SubjectApp
 from ..llm import model as llm_model
 from ..models import Finding
+from .. import release as app_release
 from ..tools import github
 from .engineer import EditPlan, ProposedEdit
 
@@ -131,7 +132,21 @@ async def propose(
         for e in plan.edits
     ]
 
+    # Held from the moment it opens. The code this describes reaches users only
+    # through App Store review, while this deploys the instant it merges --
+    # merging them together has the assistant describing a rule the installed
+    # app does not implement yet.
+    hold = ""
+    if subject.bundle_id:
+        live = app_release.live_release(subject.bundle_id)
+        if live is not None:
+            from datetime import datetime, timezone
+            hold = app_release.hold_notice(
+                datetime.now(timezone.utc), app=subject.name, version_now=live.version
+            ) + "\n---\n\n"
+
     body = (
+        f"{hold}"
         f"Companion to **{finding.pr_url or subject.github_repo}**, which was "
         f"approved by a reviewer.\n\n"
         f"{companion.why}\n\n"

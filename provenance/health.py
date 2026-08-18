@@ -22,6 +22,7 @@ import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
+from . import release as app_release
 from .config import SubjectApp
 from .models import Finding, FindingStatus
 from .tools import github
@@ -159,6 +160,72 @@ def _companion_notes(subject: SubjectApp, finding: Finding) -> list[str]:
     return notes
 
 
+def release_held_companions(subject: SubjectApp, *, act: bool = True) -> list[dict]:
+    """Take companion pull requests out of draft once the app has shipped.
+
+    A companion deploys the instant it merges; the code it describes waits on
+    App Store review. Held companions carry the merge timestamp they are
+    waiting past, so this needs no state beyond the pull request itself.
+
+    Returns one entry per companion still held or just released, so the caller
+    can email about it. Never merges anything -- it only removes the reason the
+    pull request was kept as a draft.
+    """
+    if not subject.bundle_id or not subject.cross_repo_companions:
+        return []
+
+    live = app_release.live_release(subject.bundle_id)
+    results: list[dict] = []
+
+    for companion in subject.cross_repo_companions:
+        try:
+            pulls = github.open_pull_requests(companion.github_repo)
+        except Exception as exc:
+            log.warning("release: could not list %s: %s", companion.github_repo, exc)
+            continue
+
+        for pull in pulls:
+            if not (pull.get("head", {}).get("ref") or "").startswith("provenance/"):
+                continue
+            merged_at = app_release.held_since(pull.get("body") or "")
+            if merged_at is None:
+                continue   # not a held companion
+
+            shipped = app_release.is_released(merged_at, live)
+            entry = {
+                "repo": companion.github_repo,
+                "number": pull["number"],
+                "url": pull.get("html_url", ""),
+                "held_since": merged_at.isoformat(),
+                "live_version": live.version if live else "",
+                "released": shipped,
+            }
+            results.append(entry)
+
+            if not (shipped and act and pull.get("draft")):
+                continue
+
+            try:
+                github.mark_ready_for_review(companion.github_repo, pull["number"])
+                github.comment(
+                    companion.github_repo, pull["number"],
+                    f"**Safe to merge now.**\n\n"
+                    f"{subject.name} **{live.version}** went live on "
+                    f"{live.released_at.date().isoformat()}, after the scoring "
+                    f"change this describes merged on "
+                    f"{merged_at.date().isoformat()}. Users are running a build "
+                    f"that implements the rule below, so the explainer can catch "
+                    f"up.\n\n"
+                    f"Taken out of draft. Still not merged — that is yours.",
+                )
+                entry["action"] = "released from hold"
+                log.info("release: %s#%s taken out of draft", companion.github_repo, pull["number"])
+            except Exception as exc:
+                log.warning("release: could not release %s#%s: %s",
+                            companion.github_repo, pull["number"], exc)
+    return results
+
+
 def sweep(subject: SubjectApp, findings: list[Finding], *, comment: bool = True) -> dict:
     """Check every open proposal, commenting where something has changed."""
     checked = commented = unhealthy = 0
@@ -186,11 +253,14 @@ def sweep(subject: SubjectApp, findings: list[Finding], *, comment: bool = True)
             except Exception as exc:
                 log.warning("health: could not comment on %s: %s", health.pr_url, exc)
 
+    holds = release_held_companions(subject, act=comment)
+
     log.info(
-        "health: %d checked, %d with problems, %d commented",
-        checked, unhealthy, commented,
+        "health: %d checked, %d with problems, %d commented, %d companion(s) held",
+        checked, unhealthy, commented, len(holds),
     )
     return {
+        "companions": holds,
         "checked": checked,
         "unhealthy": unhealthy,
         "commented": commented,
