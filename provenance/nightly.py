@@ -140,7 +140,7 @@ async def run(
             finding.status = FindingStatus.PR_DRAFTED
             finding.issue_url = outcome.get("issue", "")
             finding.pr_url = outcome.get("pull_request", "")
-            store.save_finding(finding, db=db)
+            store.save_finding(finding, db=db, decision=True)
             opened.append(finding.pr_url)
         summary["pull_requests"] = opened
 

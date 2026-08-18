@@ -101,9 +101,39 @@ def save_appraisals(appraisals: list[Appraisal], *, db: firestore.Client | None 
     )
 
 
-def save_finding(finding: Finding, *, db: firestore.Client | None = None) -> None:
+#: Fields a human owns. The fleet may recompute everything about a Finding --
+#: its statement, its confidence, its supporting papers -- but it may not
+#: recompute whether a person accepted it.
+_HUMAN_OWNED = ("status", "issue_url", "pr_url")
+
+
+def save_finding(
+    finding: Finding, *, db: firestore.Client | None = None, decision: bool = False
+) -> None:
+    """Persist a Finding without clobbering what a reviewer decided.
+
+    ``merge=True`` merges the *document*, not the intent: a freshly synthesised
+    Finding carries status=open and empty urls as defaults, and merging those
+    over an existing document silently reverts an approval and drops the pull
+    request link. The nightly run did exactly that -- it erased a decision made
+    an hour earlier, which is the worst possible failure for a system whose
+    entire claim is that a human stays in the loop.
+
+    ``decision=True`` is how the console says it means to write those fields.
+    """
     db = db or client()
-    db.collection(FINDINGS).document(finding.finding_id).set(_serialise(finding), merge=True)
+    ref = db.collection(FINDINGS).document(finding.finding_id)
+    payload = _serialise(finding)
+
+    if not decision:
+        existing = ref.get()
+        if existing.exists:
+            prior = existing.to_dict() or {}
+            for field in _HUMAN_OWNED:
+                if prior.get(field):
+                    payload[field] = prior[field]
+
+    ref.set(payload, merge=True)
 
 
 def save_agenda(agenda: ResearchAgenda, *, db: firestore.Client | None = None) -> None:

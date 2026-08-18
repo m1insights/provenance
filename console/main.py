@@ -20,6 +20,7 @@ import os
 from datetime import datetime, timezone
 
 import hmac
+import logging
 
 from fastapi import Cookie, FastAPI, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -34,7 +35,16 @@ from provenance.models import (
     Paper,
     Rejection,
 )
+from provenance.config import SUBJECTS
 from provenance.store import firestore as store
+from provenance.tools import github
+
+
+def subject_repo() -> str:
+    """The repository proposals are opened against."""
+    return SUBJECTS[os.getenv("PROVENANCE_SUBJECT", "synqology")].github_repo
+
+log = logging.getLogger(__name__)
 
 app = FastAPI(title="Provenance console")
 
@@ -320,7 +330,7 @@ def decide(
     finding = Finding.model_validate(snapshot.to_dict())
     approved = decision == "approve"
     finding.status = FindingStatus.APPROVED if approved else FindingStatus.REJECTED
-    store.save_finding(finding, db=client)
+    store.save_finding(finding, db=client, decision=True)
 
     # The reason selector shares a form with both buttons, so the browser sends
     # whatever it happens to be showing even when Approve was pressed. Storing
@@ -339,9 +349,53 @@ def decide(
         "decided_at": datetime.now(timezone.utc).isoformat(),
     })
 
+    # An approval has to land where the work is. Writing a status to Firestore
+    # and leaving the pull request sitting as a draft means "approved" exists
+    # only in a database nobody reads, and a collaborator looking at GitHub
+    # sees an unreviewed draft from a bot.
+    #
+    # Undrafting is not merging. There is still no merge path in this system.
+    github_effect = ""
+    number = github.pull_request_number(finding.pr_url)
+    if approved and number:
+        try:
+            github.mark_ready_for_review(subject_repo(), number)
+            github.comment(
+                subject_repo(), number,
+                f"Approved in the Provenance console.\n\n"
+                f"Evidence: {sum(finding.tier_counts.values())} appraised papers "
+                f"(tiers {finding.tier_counts}), confidence {finding.confidence:.2f}. "
+                f"Every quoted claim was verified against its source text.\n\n"
+                f"Taken out of draft for human review. **This is not a merge** — "
+                f"no agent in this system can merge, and none marked this ready "
+                f"either; a person did.",
+            )
+            github_effect = "marked ready for review"
+        except Exception as exc:  # GitHub being down must not lose the decision
+            log.warning("could not update %s: %s", finding.pr_url, exc)
+            github_effect = f"GitHub update failed: {exc}"
+
+    if not approved and number:
+        try:
+            github.comment(
+                subject_repo(), number,
+                f"Rejected in the Provenance console: "
+                f"**{REJECTION_REASONS.get(reason, 'no reason given')}**.\n\n"
+                f"Left as a draft. The reason is recorded against the "
+                f"`{finding.component_id}` component, which will stay quiet "
+                f"until materially more evidence exists.",
+            )
+            github_effect = "commented"
+        except Exception as exc:
+            log.warning("could not comment on %s: %s", finding.pr_url, exc)
+
+    client.collection("provenance_decisions").document(
+        f"{finding_id}__{decision}"
+    ).set({"github_effect": github_effect}, merge=True)
+
     # A rejection that teaches nothing produces the same proposal tomorrow, so
     # it is also written to the rejection log the Synthesist consults.
-    if decision == "reject":
+    if not approved:
         store.save_rejections(
             [
                 Rejection(

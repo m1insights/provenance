@@ -281,3 +281,78 @@ def update_issue(repo: str, number: int, *, body: str, title: str | None = None)
     if title:
         payload["title"] = title
     return _api("PATCH", f"/repos/{repo}/issues/{number}", payload)["html_url"]
+
+
+def mark_ready_for_review(repo: str, number: int) -> str:
+    """Take a draft pull request out of draft. NOT a merge.
+
+    This is what a reviewer's approval should actually do. Approving in the
+    console previously wrote a status to Firestore and left the pull request
+    sitting as a draft, so "approved" had no effect anywhere a collaborator
+    would see it -- the decision existed only in a database nobody reads.
+
+    Undrafting is still not merging. It moves the proposal from "an agent
+    thinks this" to "a human agrees this is worth reviewing", and a person
+    still has to press merge on GitHub.
+
+    Draft state lives on the GraphQL API rather than REST, so this uses it --
+    and falls back to a comment if GraphQL is unavailable, which it was during
+    a GitHub partial outage while this system was being built.
+    """
+    if settings().dry_run:
+        log.info("dry run: would mark %s#%d ready for review", repo, number)
+        return f"DRY-RUN ready-for-review {repo}#{number}"
+
+    owner, name = repo.split("/", 1)
+    query = """
+    query($owner:String!, $name:String!, $number:Int!) {
+      repository(owner:$owner, name:$name) {
+        pullRequest(number:$number) { id isDraft }
+      }
+    }"""
+    found = _graphql(query, {"owner": owner, "name": name, "number": number})
+    pull = found["data"]["repository"]["pullRequest"]
+    if not pull["isDraft"]:
+        return f"{repo}#{number} was already out of draft"
+
+    mutation = """
+    mutation($id:ID!) {
+      markPullRequestReadyForReview(input:{pullRequestId:$id}) {
+        pullRequest { url isDraft }
+      }
+    }"""
+    result = _graphql(mutation, {"id": pull["id"]})
+    return result["data"]["markPullRequestReadyForReview"]["pullRequest"]["url"]
+
+
+def comment(repo: str, number: int, body: str) -> str:
+    """Leave a comment on an issue or pull request."""
+    if settings().dry_run:
+        log.info("dry run: would comment on %s#%d", repo, number)
+        return f"DRY-RUN comment {repo}#{number}"
+    created = _api("POST", f"/repos/{repo}/issues/{number}/comments", {"body": body})
+    return created["html_url"]
+
+
+def _graphql(query: str, variables: dict) -> dict:
+    response = httpx.post(
+        "https://api.github.com/graphql",
+        json={"query": query, "variables": variables},
+        headers={
+            "Authorization": f"Bearer {_token()}",
+            "User-Agent": "provenance/0.1",
+        },
+        timeout=60.0,
+    )
+    if response.status_code >= 400:
+        raise RuntimeError(f"GitHub GraphQL -> {response.status_code}: {response.text[:300]}")
+    payload = response.json()
+    if payload.get("errors"):
+        raise RuntimeError(f"GitHub GraphQL errors: {payload['errors']}")
+    return payload
+
+
+def pull_request_number(url: str) -> int | None:
+    """Extract the number from a pull request URL."""
+    match = re.search(r"/pull/(\d+)", url or "")
+    return int(match.group(1)) if match else None

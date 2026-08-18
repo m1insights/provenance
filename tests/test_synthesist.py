@@ -171,3 +171,48 @@ class TestReviewerDecisionsHold:
             self._rejected("mvpa", 8), self._rejected("mvpa", 22),
         ])
         assert settled["mvpa"] == 22
+
+
+class TestHumanDecisionsSurviveTheFleet:
+    """The nightly run may recompute a Finding. It may not un-decide it.
+
+    A freshly synthesised Finding carries status=open and empty urls as
+    defaults. Merging those over an existing document reverts an approval and
+    drops the pull request link — which is the worst available failure for a
+    system whose whole claim is that a human stays in the loop. It happened in
+    production: a run erased an approval made an hour earlier.
+    """
+
+    def test_human_owned_fields_are_listed(self):
+        from provenance.store.firestore import _HUMAN_OWNED
+        assert set(_HUMAN_OWNED) == {"status", "issue_url", "pr_url"}
+
+    def test_fleet_write_preserves_a_decision(self):
+        from provenance.models import FindingStatus
+        from provenance.store.firestore import _HUMAN_OWNED
+
+        prior = {
+            "status": FindingStatus.APPROVED.value,
+            "pr_url": "https://github.com/o/r/pull/2",
+            "issue_url": "https://github.com/o/r/issues/1",
+            "confidence": 0.7,
+        }
+        payload = {"status": "open", "pr_url": "", "issue_url": "", "confidence": 0.8}
+
+        for field in _HUMAN_OWNED:
+            if prior.get(field):
+                payload[field] = prior[field]
+
+        assert payload["status"] == "approved"
+        assert payload["pr_url"].endswith("/pull/2")
+        # Everything the fleet legitimately owns still updates.
+        assert payload["confidence"] == 0.8
+
+    def test_empty_prior_does_not_block_a_first_write(self):
+        from provenance.store.firestore import _HUMAN_OWNED
+        prior = {"status": "", "pr_url": "", "issue_url": ""}
+        payload = {"status": "open", "pr_url": "", "issue_url": ""}
+        for field in _HUMAN_OWNED:
+            if prior.get(field):
+                payload[field] = prior[field]
+        assert payload["status"] == "open"
