@@ -1,0 +1,241 @@
+<title>Recording Runbook</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+
+<style>
+  :root {
+    --ground: #F5F6F4;
+    --surface: #FFFFFF;
+    --sunk: #EBEEEA;
+    --ink: #14180F;
+    --ink-2: #4A5142;
+    --ink-3: #79806F;
+    --rule: #DDE1D8;
+    --live: #2F6B3C;
+    --say: #1C4E7A;
+    --warn: #8A5A1E;
+
+    --display: "Newsreader", Georgia, serif;
+    --body: "IBM Plex Sans", system-ui, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #10130D;
+      --surface: #191D15;
+      --sunk: #23281D;
+      --ink: #EDF0E8;
+      --ink-2: #B3BAA8;
+      --ink-3: #7E8676;
+      --rule: #2C3226;
+      --live: #7FC98D;
+      --say: #7FB6E2;
+      --warn: #D6A45C;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #10130D; --surface: #191D15; --sunk: #23281D;
+    --ink: #EDF0E8; --ink-2: #B3BAA8; --ink-3: #7E8676; --rule: #2C3226;
+    --live: #7FC98D; --say: #7FB6E2; --warn: #D6A45C;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--ground); color: var(--ink);
+    font-family: var(--body); font-size: 17px; line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 780px; margin: 0 auto; padding: 64px 24px 120px; }
+
+  header { margin-bottom: 52px; }
+  .kicker {
+    font-family: var(--mono); font-size: 12px; letter-spacing: .16em;
+    text-transform: uppercase; color: var(--ink-3); margin-bottom: 14px;
+  }
+  h1 {
+    font-family: var(--display); font-weight: 600;
+    font-size: clamp(40px, 7vw, 60px); line-height: 1.02;
+    margin: 0 0 16px; letter-spacing: -.015em; text-wrap: balance;
+  }
+  .standfirst { font-size: 19px; color: var(--ink-2); max-width: 58ch; margin: 0; }
+
+  h2 {
+    font-family: var(--display); font-weight: 600; font-size: 30px;
+    margin: 60px 0 6px; letter-spacing: -.01em;
+  }
+  h2 + .lede { color: var(--ink-2); margin: 0 0 24px; max-width: 60ch; }
+
+  /* Pre-flight: real checkboxes, because this is used while doing something else */
+  .prep { display: flex; flex-direction: column; gap: 2px; margin: 26px 0; }
+  .prep label {
+    display: grid; grid-template-columns: 30px 1fr; gap: 12px; align-items: start;
+    padding: 15px 18px; background: var(--surface);
+    border: 1px solid var(--rule); cursor: pointer;
+  }
+  .prep label:first-of-type { border-radius: 9px 9px 0 0; }
+  .prep label:last-of-type { border-radius: 0 0 9px 9px; }
+  .prep label + label { border-top: none; }
+  .prep input { width: 18px; height: 18px; margin: 3px 0 0; accent-color: var(--live); }
+  .prep b { display: block; font-weight: 600; font-size: 15.5px; }
+  .prep span { color: var(--ink-2); font-size: 14.5px; }
+  .prep input:checked ~ div b { text-decoration: line-through; color: var(--ink-3); }
+
+  /* Beats */
+  .beat {
+    background: var(--surface); border: 1px solid var(--rule);
+    border-radius: 11px; padding: 26px 26px 22px; margin: 0 0 18px;
+  }
+  .beat-head {
+    display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+    margin-bottom: 16px; padding-bottom: 14px; border-bottom: 1px solid var(--rule);
+  }
+  .tc {
+    font-family: var(--mono); font-size: 15px; font-weight: 600;
+    color: var(--ink); font-variant-numeric: tabular-nums;
+  }
+  .beat-head .what { font-size: 15px; color: var(--ink-2); }
+
+  .row { display: grid; grid-template-columns: 74px 1fr; gap: 14px; margin: 0 0 14px; }
+  .row:last-child { margin-bottom: 0; }
+  .tag {
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: .1em;
+    text-transform: uppercase; padding-top: 4px; font-weight: 600;
+  }
+  .tag.screen { color: var(--ink-3); }
+  .tag.do { color: var(--live); }
+  .tag.say { color: var(--say); }
+  .tag.note { color: var(--warn); }
+
+  .row p { margin: 0; font-size: 15.5px; color: var(--ink-2); }
+  .say-text {
+    font-family: var(--display); font-size: 19px; line-height: 1.5;
+    color: var(--ink); margin: 0;
+  }
+  .say-text em { font-style: italic; color: var(--say); }
+
+  code, .cmd {
+    font-family: var(--mono); font-size: 14px;
+    background: var(--sunk); border-radius: 5px;
+  }
+  code { padding: 2px 6px; }
+  .cmd {
+    display: block; padding: 11px 14px; border-radius: 7px;
+    color: var(--ink); overflow-x: auto; white-space: pre;
+  }
+
+  .warn-box {
+    background: var(--sunk); border-left: 3px solid var(--warn);
+    border-radius: 0 9px 9px 0; padding: 18px 20px; margin: 26px 0;
+  }
+  .warn-box b { color: var(--warn); display: block; margin-bottom: 5px;
+    font-family: var(--mono); font-size: 11.5px; letter-spacing: .1em;
+    text-transform: uppercase; }
+  .warn-box p { margin: 0; font-size: 15.5px; color: var(--ink-2); }
+
+  footer {
+    margin-top: 70px; padding-top: 22px; border-top: 1px solid var(--rule);
+    font-size: 14px; color: var(--ink-3);
+  }
+  a { color: var(--say); }
+</style>
+
+<div class="wrap">
+
+<header>
+  <div class="kicker">Provenance · 4-minute demo</div>
+  <h1>Recording runbook</h1>
+  <p class="standfirst">Everything open before you hit record, then eight beats in order. Every command runs live — nothing here is a recording of a recording.</p>
+</header>
+
+<div class="warn-box">
+  <b>Read this first</b>
+  <p><code>synq#2</code> is <strong>merged</strong> now, so it can't be shown as an open pull request. That's better for the story, not worse — you say <em>"this is in the app"</em> rather than <em>"this could be."</em> The approve beat uses the console instead, where the finding still reads <strong>approved</strong> with its evidence intact.</p>
+</div>
+
+<h2>Before you record</h2>
+<p class="lede">Windows in this order, left to right. The last one stays closed on purpose.</p>
+
+<div class="prep">
+  <label><input type="checkbox"><div><b>1 · App Store page for synqology</b><span>Safari. First shot of the video.</span></div></label>
+  <label><input type="checkbox"><div><b>2 · <code>LONGEVITY_FEATURE_STACK.md</code></b><span>Scrolled to Section 3, the eleven components.</span></div></label>
+  <label><input type="checkbox"><div><b>3 · Terminal in <code>~/Dev/agent-hackathon</code></b><span>Cleared. You'll run three commands from here.</span></div></label>
+  <label><input type="checkbox"><div><b>4 · The console, unlocked</b><span>provenance-console-vwe3lj6lwq-uc.a.run.app — POST your write token to <code>/unlock</code> first so the buttons are live.</span></div></label>
+  <label><input type="checkbox"><div><b>5 · GitHub: <code>synq#2</code>, on the Files changed tab</b><span>Plus the audit comment in a second tab.</span></div></label>
+  <label><input type="checkbox"><div><b>6 · A terminal in <code>~/Dev/apps/synqology/</code> — NOT started</b><span>The session hook has to fire on camera. Opening it early kills the shot.</span></div></label>
+  <label><input type="checkbox"><div><b>7 · <code>docs/architecture.md</code>, scrolled to the diagram</b><span>Final shot.</span></div></label>
+</div>
+
+<h2>The eight beats</h2>
+
+<div class="beat">
+  <div class="beat-head"><span class="tc">0:00</span><span class="what">The problem, as a fact about one person</span></div>
+  <div class="row"><span class="tag screen">Screen</span><p>App Store page → cut to the feature stack scrolling past the eleven components.</p></div>
+  <div class="row"><span class="tag say">Say</span><p class="say-text">This is a longevity app I built. Its Vitality Index scores you out of a hundred across eleven components. Every threshold in it came from a paper. The literature moves every week — and I maintain the algorithm, the marketing and the app. So the gap between a study being published and the algorithm knowing about it is <em>however long it takes me to notice</em>.</p></div>
+</div>
+
+<div class="beat">
+  <div class="beat-head"><span class="tc">0:30</span><span class="what">It reads your code to decide what to research</span></div>
+  <div class="row"><span class="tag do">Run</span><code class="cmd">.venv/bin/python -m provenance agenda --detail</code></div>
+  <div class="row"><span class="tag say">Say</span><p class="say-text">Provenance is never told what to research. It reads the algorithm's own source and works out what literature would bear on it. Cardio credits a day at twenty minutes and wants three days a week — so it goes hunting for bout-duration and weekend-warrior studies. Not <em>exercise is good for you</em>. The literature that could prove <em>that specific number</em> wrong.</p></div>
+  <div class="row"><span class="tag note">Beat</span><p>Pause on the mvpa block. Let them read the search terms.</p></div>
+</div>
+
+<div class="beat">
+  <div class="beat-head"><span class="tc">1:00</span><span class="what">The filter — the trust surface</span></div>
+  <div class="row"><span class="tag screen">Screen</span><p>Console counters: <strong>571 papers · 112 appraised · 515 rejected</strong>. Scroll the rejection reasons.</p></div>
+  <div class="row"><span class="tag say">Say</span><p class="say-text">It read five hundred and seventy-one papers. A hundred and twelve survived appraisal. Everything else is on file with a reason — not relevant, no quantitative result, ungrounded claim. A system that discards silently is <em>indistinguishable from one that never looked</em>.</p></div>
+</div>
+
+<div class="beat">
+  <div class="beat-head"><span class="tc">1:30</span><span class="what">It changed the app</span></div>
+  <div class="row"><span class="tag screen">Screen</span><p><code>synq#2</code>, Files changed tab. Scroll the evidence table, then the backtest line.</p></div>
+  <div class="row"><span class="tag say">Say</span><p class="say-text">Twenty-two papers converged: hitting your weekly exercise across one or two days tracks with the same mortality outcomes as spreading it out. That contradicts a constant in my code. So it opened this — eleven edits across five files, and it ran my scoring suite against the change. Fifty-one of fifty-one. That number is from xcodebuild, <em>not from a model</em>.</p></div>
+  <div class="row"><span class="tag say">Say</span><p class="say-text">And it worked out on its own that nine of the twenty-two studies are UK Biobank re-analyses. So twenty-two papers is not twenty-two replications. It put that in the pull request <em>instead of leaving me to find it</em>.</p></div>
+</div>
+
+<div class="beat">
+  <div class="beat-head"><span class="tc">2:15</span><span class="what">A second model audits the first ← the one that lands</span></div>
+  <div class="row"><span class="tag do">Do</span><p>Open the synqology terminal <strong>now</strong>, on camera. The hook fires and names the un-audited work.</p></div>
+  <div class="row"><span class="tag say">Say</span><p class="say-text">I don't trust one model writing changes to a health app people actually use. So Gemini proposes, and Claude Opus audits before I'm asked to approve anything. This runs on its own when I open the project.</p></div>
+  <div class="row"><span class="tag screen">Screen</span><p>Scroll to the audit comment on <code>synq#2</code>. Show the two-line function.</p></div>
+  <div class="row"><span class="tag say">Say</span><p class="say-text">Both branches return the same number. The guard does nothing — and shift workers, people on disrupted schedules, quietly lost an accommodation the comment still says they have. Fifty-one tests passed on this. I read it myself. Neither of us caught it, because both assertions had been updated to the new value. You could <em>delete the whole thing</em> and the suite stays green.</p></div>
+</div>
+
+<div class="beat">
+  <div class="beat-head"><span class="tc">2:45</span><span class="what">The trap — best 20 seconds you have</span></div>
+  <div class="row"><span class="tag say">Say</span><p class="say-text">The obvious fix is to restore the old ratio, which means a denominator of one point three three. That would have been <em>worse</em>. The code divides by it and truncates it to an integer — so every shift worker gets capped at seventy-five percent of the score they earned. Permanently. And no test fails.</p></div>
+  <div class="row"><span class="tag say">Say</span><p class="say-text">It's one point zero now, with a test asserting the shift bar stays <em>strictly</em> easier than the default — because pinning each number separately is exactly what let them collide.</p></div>
+  <div class="row"><span class="tag note">Optional</span><p>If you have the time: put the bug back and run the suite. Three tests go red on camera. Cut it if you're over.</p></div>
+</div>
+
+<div class="beat">
+  <div class="beat-head"><span class="tc">3:15</span><span class="what">The gate refuses its own output</span></div>
+  <div class="row"><span class="tag do">Run</span><code class="cmd">.venv/bin/python -m provenance storyteller --component mvpa --render</code></div>
+  <div class="row"><span class="tag say">Say</span><p class="say-text">The same evidence becomes social content. The model writes the words and never a number — every figure is filled in from a verified claim. Watch the log.</p></div>
+  <div class="row"><span class="tag note">If a gate fires</span><p>Read the rejection aloud. They fire on roughly half of runs.</p></div>
+  <div class="row"><span class="tag note">If none fires</span><p>Show the recorded one: <em>"concentrated training sharply reduces cardiovascular risk"</em> — every figure grounded, rejected twice: an intensifier the result doesn't license, and a causal verb on cohort evidence.</p></div>
+  <div class="row"><span class="tag say">Say</span><p class="say-text">This is the part I care about. Getting a number wrong is the easy failure to catch. Overstating how strong a finding is <em>looks completely fine</em> — and it's how health content actually goes wrong.</p></div>
+</div>
+
+<div class="beat">
+  <div class="beat-head"><span class="tc">3:40</span><span class="what">The human, and the close</span></div>
+  <div class="row"><span class="tag screen">Screen</span><p>Console showing the mvpa finding, <strong>approved</strong>. Then the architecture diagram.</p></div>
+  <div class="row"><span class="tag say">Say</span><p class="say-text">Nothing merges. There is no merge function in this codebase — not a rule in a prompt, an <em>absent tool</em>. I approve or I reject, and a rejection goes back to the agents as guidance.</p></div>
+  <div class="row"><span class="tag say">Say</span><p class="say-text">Gemini for appraisal, ADK for the fleet, Firestore, Cloud Run, Pub/Sub, Scheduler. And Claude Opus auditing what Gemini writes — because one model checking its own work isn't a check. It reads the literature so the algorithm doesn't fall behind it. It shows its working every time. And the most useful thing it does is <em>refuse</em>.</p></div>
+</div>
+
+<h2>If a take goes wrong</h2>
+<p class="lede">Three things that could misbehave live, and what to do.</p>
+
+<div class="beat">
+  <div class="row"><span class="tag note">Hook silent</span><p>Both PRs are audited, so it <em>should</em> be silent. To make it speak, delete the audit comment on <code>synq_insights#1</code> before the take — the hook keys on that marker.</p></div>
+  <div class="row"><span class="tag note">Storyteller slow</span><p>It calls Gemini twice; ~40s is normal. Talk over it, or cut to the rendered slides you already have in <code>renderer/out-real/</code>.</p></div>
+  <div class="row"><span class="tag note">Console 403</span><p>Your write cookie expired. POST the token to <code>/unlock</code> again — it's a 12-hour cookie.</p></div>
+</div>
+
+<footer>
+  Full script with alternate takes: <code>docs/video-script.md</code> · Submission text: <code>docs/devpost-submission.md</code> · Deadline 31 Aug, 5pm PDT
+</footer>
+
+</div>
