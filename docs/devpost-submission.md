@@ -61,6 +61,12 @@ Every night, Provenance:
 7. **Writes the social content** from the same evidence, through four gates.
 8. **Waits for a human.** Nothing merges. Nothing posts.
 
+Steps 1–5 run unattended on Cloud Scheduler at 03:00. Step 6 — opening a pull
+request — is deliberately manual: a draft PR is cheap to close and still a
+notification, and one arriving nightly for the same finding trains its reader
+to ignore it. Every run writes a summary to `provenance_runs`, so what happened
+overnight is a record rather than an inference.
+
 ## How I built it
 
 **Gemini 3.7 Flash** appraises, synthesises, engineers and writes.
@@ -121,6 +127,13 @@ A chart may understate a difference; it may never manufacture one.
 first rejection was *"Concentrated training sharply reduces cardiovascular
 risk"* — every figure grounded, and still wrong twice: an intensifier the
 result doesn't license, and a causal verb on cohort evidence.
+
+**It would have re-proposed things I had already rejected.** Findings are keyed
+by a hash of their supporting papers, so a single new study changed the key and
+opened a fresh proposal for a question I had answered — my rejection taught it
+nothing, and it would have re-asked every time one more paper landed. That is
+precisely how a system like this trains its reviewer to stop reading it. A
+rejected component now stays quiet until five more challenging papers exist.
 
 **Which then exposed an epidemiology error in my own rule.** I had listed
 "meta-analysis" as experimental, so two systematic reviews among twenty-one

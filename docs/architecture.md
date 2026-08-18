@@ -154,13 +154,56 @@ The language gate is the one that catches what the others cannot. Its first
 rejection was *"Concentrated training sharply reduces cardiovascular risk"* —
 every figure grounded, and still wrong twice.
 
-**6 · Rejections are recorded with reasons.**
+**6 · A reviewer's decision holds.**
+Findings are keyed by a hash of their supporting papers, so one new study would
+otherwise change the key and reopen a question already answered. After a
+rejection, a component stays quiet until five more challenging papers exist.
+Approval does not suppress — agreeing with a change is not a reason to stop
+reading about the component.
+
+**7 · Rejections are recorded with reasons.**
 A pipeline that silently discards is indistinguishable from one that never
 looked. 515 rejections are on file, each with a code: `not_relevant`,
 `no_quantitative_result`, `ungrounded_claim`, `insufficient_convergence`,
 `single_source`.
 
 ---
+
+## The nightly run
+
+`Cloud Scheduler (0 3 * * * America/New_York)` → OAuth as the fleet service
+account → `Cloud Run Job provenance-nightly` → `python -m provenance.nightly`.
+
+The scheduled path calls the same functions the CLI does, so there is no
+production branch that can drift from the one under test.
+
+Two things about it are deliberate:
+
+**The cloud job does not read the algorithm.** It reads the agenda a local run
+published to Firestore. The subject application lives in a private repository
+and deriving the agenda from source is a developer-machine concern; the source
+does not travel to a container. Since the agenda only changes when the
+algorithm changes, and that happens where the code is, nothing goes stale.
+
+**Opening pull requests is off on the schedule.** A draft PR is cheap to close
+and still a notification to a person. One arriving nightly for the same finding
+trains them to ignore it, which costs more than it saves. The nightly run does
+research and findings; a human opens the proposal when a finding earns it.
+
+Each run writes `provenance_runs/<timestamp>`, so "did it run last night, and
+what did it decide" is answerable without reconstructing it from traces:
+
+```
+2026-08-18T12:48:58Z   new=123  seen=38   appraised=42  findings=1   130.8s
+2026-08-18T12:50:27Z   new=0    seen=147  appraised=0   findings=1    24.9s
+```
+
+The second run is the interesting one. Same eleven queries ninety seconds
+later, nothing new, no model calls spent. Novelty comes from identity, not from
+a date filter: every paper carries a DOI-first id and the sweep drops what it
+already holds. That is why the window is 18 months rather than 24 hours —
+PubMed indexes papers days to weeks after publication, irregularly, and a
+narrow window silently misses most of them.
 
 ## Data flow for one night
 
