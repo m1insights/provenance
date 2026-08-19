@@ -1,0 +1,455 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>synqology · motion clip</title>
+<style>
+/* ---------------------------------------------------------------------------
+   1080x1350 carousel clip -- the four motions that are not the swept axis.
+
+   `reel.html` owns Sweep, which needs a continuous domain to sweep across.
+   Everything else lives here, because the chrome (title, counter, source rule,
+   late wordmark) and the whole typographic contract are identical and must not
+   be allowed to drift into four near-copies.
+
+   Which motion runs is `spec.motion`, and it is chosen by the SHAPE OF THE
+   CLAIM, never for variety:
+
+     grow    2-4 discrete groups        bars rise, value lands as each stops
+     hold    an absence of effect       dots land on a null line and stay put
+     narrow  a range or a threshold     a wide band tightens onto the estimate
+     type    copy only                  words arrive, no chart
+
+   Brand constraint inherited from the reel: hue never carries meaning. Series
+   separate by LIGHTNESS along one accent ramp.
+--------------------------------------------------------------------------- */
+:root {
+  --stage:  #0A0C0E;
+  --ink:    #F5F7F9;
+  --accent: #5AC8E8;
+  --line:   rgba(245, 247, 249, .10);
+
+  --ink-2:  rgba(245, 247, 249, .72);
+  --ink-3:  rgba(245, 247, 249, .60);
+  --ink-4:  rgba(245, 247, 249, .46);
+
+  --display: -apple-system, BlinkMacSystemFont, "SF Pro Display",
+             "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+
+  --band-1: #A8E8F7;
+  --band-2: #5AC8E8;
+  --band-3: #2E9FC4;
+  --band-4: #3C7A8C;
+  --band-5: #4A5F6B;
+  --band-6: #2B3740;
+
+  --axis: rgba(245, 247, 249, .26);
+  --grid: rgba(245, 247, 249, .07);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  width: 1080px; height: 1350px;
+  background: var(--stage);
+  font-family: var(--display);
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+.stage {
+  position: absolute; inset: 0;
+  padding: 88px 76px 76px;
+  display: flex; flex-direction: column;
+}
+
+.title {
+  margin-top: auto;
+  font-size: 60px; font-weight: 700; letter-spacing: -.02em;
+  color: var(--ink); line-height: 1.06;
+}
+/* The one place accent may touch letters: a copy-only slide has no data colour
+   on screen for it to be confused with. */
+.title em { font-style: normal; color: var(--accent); }
+
+.plot { margin-top: 40px; position: relative; }
+svg.chart { display: block; width: 928px; overflow: visible; }
+
+svg.chart .axis  { stroke: var(--axis); stroke-width: 1.5px; fill: none; }
+svg.chart .grid  { stroke: var(--grid); stroke-width: 1px; fill: none; }
+svg.chart text   { font-family: var(--display); fill: var(--ink-4); font-size: 24px; }
+
+svg.chart text.axis-title {
+  fill: var(--ink-4); font-size: 21px; font-weight: 700; letter-spacing: .14em;
+}
+/* Category names are text, so they wear ink. The bar beside them carries
+   identity -- never the colour of the word. */
+svg.chart text.cat {
+  fill: var(--ink-2); font-size: 29px; font-weight: 600;
+}
+/* Values are the payload. Primary ink, tabular so they do not jitter while
+   counting up. */
+svg.chart text.value {
+  fill: var(--ink); font-size: 33px; font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+svg.chart text.note { fill: var(--ink-3); font-size: 25px; }
+
+svg.chart .bar     { rx: 4; }
+svg.chart .track   { fill: rgba(245, 247, 249, .05); rx: 4; }
+svg.chart .nullrule{ stroke: var(--ink-4); stroke-width: 2px; stroke-dasharray: 8 8; }
+svg.chart .dot     { stroke: var(--stage); stroke-width: 2px; }
+svg.chart .bracket { stroke: var(--accent); stroke-width: 3px; fill: none; }
+
+/* The statement line. Sized as a statement, not an eyebrow: it carries the
+   finding, so it is the second-loudest thing in the frame. */
+.statement {
+  margin-top: 34px; min-height: 132px;
+  padding-left: 26px; border-left: 4px solid var(--accent);
+  opacity: 0;
+}
+.statement .flag {
+  color: var(--ink); font-size: 38px; font-weight: 700;
+  letter-spacing: .02em; text-transform: uppercase; line-height: 1.1;
+}
+.statement .detail {
+  margin-top: 10px; color: var(--ink-2); font-size: 30px; line-height: 1.3;
+}
+
+/* Copy-only slides: the body arrives under the headline, line by line. */
+.body { margin-top: 34px; }
+.body .line {
+  color: var(--ink-2); font-size: 36px; line-height: 1.42;
+  opacity: 0;
+}
+
+.foot { margin-top: auto; }
+.source {
+  display: flex; align-items: center; gap: 13px;
+  color: var(--ink-2); font-size: 25px; font-variant-numeric: tabular-nums;
+  border-top: 1px solid var(--line); padding-top: 24px;
+}
+.source .sep { color: var(--ink-4); }
+.tier {
+  border: 1px solid var(--line); border-radius: 5px; padding: 5px 12px;
+  color: var(--ink-3); font-size: 18px; font-weight: 700;
+  letter-spacing: .15em; text-transform: uppercase;
+}
+.wordmark {
+  margin-top: 20px; color: var(--ink-4);
+  font-size: 25px; font-weight: 700; letter-spacing: .34em;
+  opacity: 0;
+}
+</style>
+
+<body>
+<div class="stage">
+  <div class="title" id="title"></div>
+  <div class="plot" id="plot"></div>
+  <div class="statement" id="statement">
+    <div class="flag" id="statement-flag"></div>
+    <div class="detail" id="statement-detail"></div>
+  </div>
+  <div class="body" id="body"></div>
+  <div class="foot">
+    <div class="source" id="source"></div>
+    <div class="wordmark" id="wordmark">SYNQOLOGY</div>
+  </div>
+</div>
+
+<script>
+const W = 928;
+const PAD = { l: 0, r: 34, t: 56, b: 46 };
+
+const esc = (s) => String(s ?? "").replace(/[&<>]/g, (c) => (
+  { "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]
+));
+const BANDS = ["--band-1", "--band-2", "--band-3", "--band-4", "--band-5", "--band-6"];
+
+let SPEC = null;
+
+const clamp01 = (t) => Math.max(0, Math.min(1, t));
+const lerp = (a, b, t) => a + (b - a) * t;
+
+/** Ease OUT everywhere, for the same reason the reel uses it: the largest
+ *  visible change belongs in the first half second, which is the entire window
+ *  in which a feed decides whether to keep watching. */
+const easeOut = (t) => 1 - Math.pow(1 - clamp01(t), 2.2);
+
+/** Stagger n items across [0,1] so they land one after another rather than
+ *  together -- the arrival order IS the motion. `overlap` keeps them from
+ *  reading as a queue. */
+function stagger(index, count, p, overlap = 0.55) {
+  const span = 1 / (1 + (count - 1) * (1 - overlap));
+  const start = index * span * (1 - overlap);
+  return easeOut((p - start) / span);
+}
+
+function fmt(value, spec) {
+  const digits = spec.decimals ?? 0;
+  return `${spec.prefix || ""}${value.toLocaleString("en-US", {
+    minimumFractionDigits: digits, maximumFractionDigits: digits,
+  })}${spec.suffix || ""}`;
+}
+
+/** *asterisks* set the payoff phrase in accent. */
+function markup(text) {
+  return esc(text).replace(/\*([^*]+)\*/g, "<em>$1</em>");
+}
+
+function sourceHTML(src) {
+  if (!src) return "";
+  const parts = [src.authors, src.journal, src.sample].filter(Boolean);
+  const joined = parts.map(esc).join(' <span class="sep">·</span> ');
+  const tier = src.tier ? `<span class="sep">·</span><span class="tier">${esc(src.tier)}</span>` : "";
+  return `${joined} ${tier}`;
+}
+
+/* -------------------------------------------------------------------------
+   GROW -- 2 to 4 discrete groups.
+
+   Bars rise from a common baseline and each value lands as its bar stops, so
+   the number arrives with the length rather than sitting there being read
+   before the bar means anything. Bars are staggered: the arrival ORDER is the
+   motion, and simultaneous bars read as a static chart that faded in.
+
+   Every bar keeps a full-width track behind it, because a bar with no track is
+   a length with no denominator.
+------------------------------------------------------------------------- */
+function renderGrow(spec, p) {
+  const items = spec.items || [];
+  const rowH = 104, barH = 56, gap = rowH - barH;
+  const H = PAD.t + items.length * rowH + PAD.b;
+  const labelW = 250;
+  const x0 = labelW + 24, x1 = W - PAD.r;
+  const max = spec.max ?? ((Math.max(...items.map((i) => i.value), 0) * 1.15) || 1);
+
+  // One placement for every value in the chart. If the LONGEST bar can carry
+  // its value outside the tip, they all do; otherwise they all sit inside.
+  const longest = Math.max(...items.map((i) => i.value), 0);
+  const longestW = (longest / max) * (x1 - x0);
+  const valueW = Math.max(...items.map((i) => fmt(i.value, spec).length)) * 20;
+  const outside = x0 + longestW + valueW + 24 < x1;
+
+  const rows = items.map((item, index) => {
+    const t = stagger(index, items.length, p);
+    const full = (item.value / max) * (x1 - x0);
+    const width = Math.max(0, full * t);
+    const fill = `var(${BANDS[index % BANDS.length]})`;
+    const cy = PAD.t + index * rowH + gap / 2;
+    const mid = cy + barH / 2 + 11;
+
+    // The value lands with the bar: it fades in over the final quarter of that
+    // bar's own travel, never before.
+    const shown = clamp01((t - 0.75) / 0.25);
+    const tip = x0 + width;
+    const vx = outside ? tip + 18 : tip - 18;
+    const anchor = outside ? "start" : "end";
+    // A value set inside its bar takes the band's contrast rule, same as the
+    // reel's in-band labels: bands 1-3 are light enough to need dark type,
+    // 4-6 dark enough to need white. Hard-coding dark ink put near-black text
+    // on a mid-dark bar.
+    const vfill = outside ? "" : ` style="fill:${index < 3 ? "#04181F" : "#FFFFFF"}"`;
+
+    return `
+      <text class="cat" x="0" y="${mid}">${esc(item.label)}</text>
+      <rect class="track" x="${x0}" y="${cy}" width="${x1 - x0}" height="${barH}"/>
+      <rect class="bar" x="${x0}" y="${cy}" width="${width.toFixed(1)}" height="${barH}" fill="${fill}"/>
+      <text class="value" x="${vx.toFixed(1)}" y="${mid}" text-anchor="${anchor}"
+            opacity="${shown.toFixed(3)}"${vfill}>${esc(fmt(item.value, spec))}</text>`;
+  }).join("");
+
+  const title = spec.axis_title
+    ? `<text class="axis-title" x="0" y="${PAD.t - 26}">${esc(spec.axis_title)}</text>` : "";
+  return `<svg class="chart" height="${H}" viewBox="0 0 ${W} ${H}">${title}${rows}</svg>`;
+}
+
+/* -------------------------------------------------------------------------
+   HOLD -- an absence of effect.
+
+   The hardest thing to show honestly. A bar chart of a null result invents
+   differences out of noise, so nothing here grows: the dots drop onto a null
+   line and stop, and the point of the motion is that after it resolves nothing
+   has moved apart. The equivalence band is drawn first so the dots land INTO
+   a stated margin rather than being asserted equal afterwards.
+------------------------------------------------------------------------- */
+function renderHold(spec, p) {
+  const items = spec.items || [];
+  const H = 440;
+  const x0 = 60, x1 = W - PAD.r;
+  const lo = spec.domain?.[0] ?? -1, hi = spec.domain?.[1] ?? 1;
+  const y = (v) => H - PAD.b - ((v - lo) / ((hi - lo) || 1)) * (H - PAD.t - PAD.b);
+  const nullAt = spec.null_at ?? 0;
+
+  const band = spec.band
+    ? `<rect x="${x0}" y="${y(spec.band[1]).toFixed(1)}" width="${x1 - x0}"
+             height="${Math.abs(y(spec.band[0]) - y(spec.band[1])).toFixed(1)}"
+             fill="rgba(245,247,249,.11)"/>` : "";
+
+  // Every label on ONE baseline, below the lowest dot. Hanging each label off
+  // its own dot made them stagger by a few pixels -- which is exactly the
+  // visual noise this motion exists to deny.
+  const labelY = Math.max(...items.map((i) => y(i.value))) + 58;
+
+  const dots = items.map((item, index) => {
+    const t = stagger(index, items.length, p, 0.4);
+    const cx = items.length === 1
+      ? (x0 + x1) / 2
+      : lerp(x0 + 90, x1 - 90, index / (items.length - 1));
+    // Drop in from above and stop. No settle, no bounce -- a bounce would read
+    // as movement in data that did not move.
+    const cy = lerp(y(hi), y(item.value), t);
+    const fill = `var(${BANDS[index % BANDS.length]})`;
+    // The figure rides the dot. Hold was the one motion that printed no
+    // numbers, which on a chart whose entire claim is "these are the same"
+    // leaves the reader taking the sameness on trust.
+    const shown = clamp01((t - 0.7) / 0.3);
+    return `
+      <text class="value" x="${cx.toFixed(1)}" y="${(cy - 30).toFixed(1)}"
+            text-anchor="middle" opacity="${shown.toFixed(3)}">${esc(fmt(item.value, spec))}</text>
+      <circle class="dot" cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="15" fill="${fill}"
+              opacity="${clamp01(t * 2).toFixed(3)}"/>
+      <text class="cat" x="${cx.toFixed(1)}" y="${labelY.toFixed(1)}" text-anchor="middle"
+            opacity="${clamp01((t - 0.5) / 0.5).toFixed(3)}">${esc(item.label)}</text>`;
+  }).join("");
+
+  const title = spec.axis_title
+    ? `<text class="axis-title" x="0" y="${PAD.t - 26}">${esc(spec.axis_title)}</text>` : "";
+  const noteText = spec.null_label || "no difference";
+  return `<svg class="chart" height="${H + 56}" viewBox="0 0 ${W} ${H + 56}">
+    ${title}${band}
+    <line class="nullrule" x1="${x0}" y1="${y(nullAt).toFixed(1)}" x2="${x1}" y2="${y(nullAt).toFixed(1)}"/>
+    <text class="note" x="${x1}" y="${(y(nullAt) - 16).toFixed(1)}" text-anchor="end">${esc(noteText)}</text>
+    ${dots}
+  </svg>`;
+}
+
+/* -------------------------------------------------------------------------
+   NARROW -- a range, or a threshold.
+
+   A wide interval closes onto the estimate. This is the motion for "the
+   evidence puts the constant HERE, and here is how sure that is" -- the width
+   that remains at the end is the uncertainty, and it is the honest part, so
+   the band never closes to zero.
+------------------------------------------------------------------------- */
+function renderNarrow(spec, p) {
+  const H = 340;
+  const x0 = 60, x1 = W - PAD.r;
+  const [lo, hi] = spec.domain || [0, 1];
+  const x = (v) => x0 + ((v - lo) / ((hi - lo) || 1)) * (x1 - x0);
+  const t = easeOut(p);
+
+  const from = spec.from || [lo, hi];
+  const to = spec.to || from;
+  const a = lerp(from[0], to[0], t), b = lerp(from[1], to[1], t);
+  const mid = PAD.t + 96;
+
+  const ticks = (spec.ticks || []).map((tk) =>
+    `<text x="${x(tk.at).toFixed(1)}" y="${mid + 168}" text-anchor="middle">${esc(tk.label)}</text>`
+  ).join("");
+
+  // The current constant, if the finding is arguing against one.
+  const pin = spec.current == null ? "" : `
+    <line class="axis" x1="${x(spec.current).toFixed(1)}" y1="${mid - 54}"
+          x2="${x(spec.current).toFixed(1)}" y2="${mid + 54}"/>
+    <text class="note" x="${x(spec.current).toFixed(1)}" y="${mid - 68}"
+          text-anchor="middle">${esc(spec.current_label || "today")}</text>`;
+
+  const settled = clamp01((t - 0.7) / 0.3);
+  const est = spec.estimate;
+  const estMark = est == null ? "" : `
+    <line class="bracket" x1="${x(est).toFixed(1)}" y1="${mid - 40}"
+          x2="${x(est).toFixed(1)}" y2="${mid + 40}"/>
+    <text class="value" x="${x(est).toFixed(1)}" y="${mid + 122}" text-anchor="middle"
+          opacity="${settled.toFixed(3)}">${esc(fmt(est, spec))}</text>`;
+
+  const title = spec.axis_title
+    ? `<text class="axis-title" x="0" y="${PAD.t - 26}">${esc(spec.axis_title)}</text>` : "";
+  return `<svg class="chart" height="${H}" viewBox="0 0 ${W} ${H}">
+    ${title}
+    <line class="axis" x1="${x0}" y1="${mid + 62}" x2="${x1}" y2="${mid + 62}"/>
+    <rect x="${x(a).toFixed(1)}" y="${mid - 28}" width="${Math.max(2, x(b) - x(a)).toFixed(1)}"
+          height="56" rx="4" fill="var(--band-2)" opacity=".85"/>
+    ${pin}${estMark}${ticks}
+  </svg>`;
+}
+
+/* -------------------------------------------------------------------------
+   TYPE -- copy only.
+
+   Some slides are better without a chart, and a chart drawn to avoid an empty
+   frame is worse than the empty frame. Lines arrive in reading order so the
+   eye has somewhere to be; nothing slides or scales, because motion on type is
+   decoration and decoration on a claim reads as a sales pitch.
+------------------------------------------------------------------------- */
+function renderTypeLines(spec, p) {
+  const lines = spec.lines || [];
+  return lines.map((line, index) => {
+    const t = stagger(index, lines.length, p, 0.45);
+    return `<div class="line" style="opacity:${t.toFixed(3)}">${esc(line)}</div>`;
+  }).join("");
+}
+
+const MOTIONS = { grow: renderGrow, hold: renderHold, narrow: renderNarrow };
+
+window.setSpec = function (spec) {
+  SPEC = spec;
+  document.getElementById("title").innerHTML = markup(spec.title || "");
+  document.getElementById("source").innerHTML = sourceHTML(spec.source);
+  const statement = document.getElementById("statement");
+  if (spec.statement) {
+    document.getElementById("statement-flag").textContent = spec.statement.flag || "";
+    document.getElementById("statement-detail").textContent = spec.statement.detail || "";
+  } else {
+    statement.style.display = "none";
+  }
+  window.setFrame(0);
+};
+
+/**
+ * p = 0..1 fully determines the frame. Same contract as the reel: a capture at
+ * any p is reproducible, and frames cannot drift relative to each other the way
+ * CSS-timed animation does.
+ */
+window.setFrame = function (p) {
+  if (!SPEC) return;
+  const clamped = clamp01(p);
+  // Head-hold of 1.5%, matching the reel. Anything longer opens on what looks
+  // like a still photo.
+  const run = clamp01((clamped - 0.015) / 0.80);
+
+  const draw = MOTIONS[SPEC.motion];
+  document.getElementById("plot").innerHTML = draw ? draw(SPEC, run) : "";
+  document.getElementById("body").innerHTML =
+    SPEC.motion === "type" ? renderTypeLines(SPEC, run) : "";
+
+  // The statement lands after the chart has finished saying what it says --
+  // it is the reading of the chart, and it cannot be read before there is one.
+  if (SPEC.statement) {
+    document.getElementById("statement").style.opacity =
+      clamp01((run - 0.62) / 0.22).toFixed(3);
+  }
+  document.getElementById("wordmark").style.opacity =
+    clamp01((clamped - 0.86) / 0.09).toFixed(3);
+};
+
+window.DEMO = {
+  motion: "grow",
+  title: "You do not need to work out *every day*.",
+  axis_title: "RELATIVE RISK REDUCTION",
+  suffix: "%",
+  max: 40,
+  items: [
+    { label: "Weekend", value: 32 },
+    { label: "Daily",   value: 30 },
+    { label: "Neither", value: 4 },
+  ],
+  statement: {
+    flag: "Same benefit",
+    detail: "Concentrating the week's exercise tracked with the spread-out pattern.",
+  },
+  source: { authors: "Lei et al.", journal: "Obesity (Silver Spring)",
+            sample: "n=85,934", tier: "Cohort" },
+};
+
+if (!window.__RENDERING__) window.setSpec(window.DEMO);
+</script>
