@@ -91,8 +91,28 @@ def pick_motion(appraisal: Appraisal) -> str:
         return "type"
     if any(c.ci_low is not None and c.ci_high is not None for c in numeric) and len(numeric) == 1:
         return "narrow"
-    # Ratios clustered around 1.0 are the signature of a null result, and a bar
-    # chart of noise invents a difference the paper did not report.
+    # Two kinds of null, and the first rule only ever caught the easy one.
+    #
+    # A ratio sitting on 1.0 is a null against no-exposure. But most of this
+    # corpus reports the other kind: two exposures that both work, and work the
+    # SAME -- weekend-warrior 0.76 against regularly-active 0.77. Both are far
+    # from 1.0, so a rule watching for 1.0 sees a strong effect and reaches for
+    # a bar chart, which then draws a difference of one percentage point as a
+    # visible gap. That is the exact lie Hold exists to prevent, and it was
+    # firing on nothing: zero Hold candidates across 74 publishable papers while
+    # the equivalence literature is the largest block in the pool.
+    #
+    # The appraiser already wrote the answer in plain language when it stated
+    # the claim, so read that rather than trying to infer it from the figures.
+    equivalence = (
+        "similar", "comparable", "no significant difference", "no difference",
+        "did not differ", "equivalent", "nearly identical", "approximately equal",
+        "no statistically significant",
+    )
+    text = " ".join(c.statement.lower() for c in appraisal.claims)
+    if any(phrase in text for phrase in equivalence):
+        return "hold"
+
     ratios = [c.value for c in numeric if c.value is not None and 0.5 < c.value < 2.0]
     if len(ratios) >= 3 and all(abs(v - 1.0) <= 0.08 for v in ratios):
         return "hold"
@@ -125,6 +145,12 @@ def score(appraisal: Appraisal, paper: Paper | None, *, posted: set[str]) -> tup
     if any(c.ci_low is not None for c in numeric):
         total += 5.0
         reasons.append("reports its uncertainty")
+
+    if pick_motion(appraisal) == "hold":
+        # "Two things you think differ do not" is the most watchable finding a
+        # cohort study can produce, and the hardest to fake.
+        total += 10.0
+        reasons.append("an equivalence result")
 
     if appraisal.sample_size:
         # Scale, not linearly -- 400k is not forty times more convincing than
