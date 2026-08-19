@@ -1,0 +1,11 @@
+{
+  "artboards": [
+    { "file": "Main.dc.html",  "x": 0,    "y": 0, "w": 1600, "h": 900, "title": "Post 1 — how it works" },
+    { "file": "Stack.dc.html", "x": 1700, "y": 0, "w": 1600, "h": 900, "title": "Post 2 — the stack" }
+  ],
+  "annotations": [
+    { "id": "twitter-sizing", "x": 0, "y": -150, "w": 460,
+      "text": "1600x900 — Twitter's 16:9. Export PNG per artboard from the toolbar.\n\nPost 1 carries the argument on its own. Post 2 is the reply for people who ask what it runs on." }
+  ],
+  "launch": { "view": "focused", "file": "Main.dc.html" }
+}

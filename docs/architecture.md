@@ -33,10 +33,6 @@ flowchart TB
         SCOUT --> TRIAGE --> APPRAISE --> GROUND --> SYNTH
     end
 
-    SCOUT -.->|paper.ingested| PS(("Pub/Sub"))
-    APPRAISE -.->|paper.appraised| PS
-    SYNTH -.->|finding.opened| PS
-
     SYNTH --> ENG
     SYNTH --> STORY
 
@@ -48,12 +44,14 @@ flowchart TB
         STORY --> GATES --> RENDER
     end
 
-    ENG --> GH["GitHub<br/>issue + DRAFT PR<br/>+ backtest output"]
-    RENDER --> GCS[("Cloud Storage<br/>1080×1350 · 1080×1920")]
+    ENG --> AUDIT["**Auditor** — Claude Opus<br/>reviews the diff Gemini wrote<br/>CLEAN · CONCERNS · DEFECT"]
+    AUDIT --> GH["GitHub<br/>issue + DRAFT PR<br/>+ backtest + audit"]
+    RENDER --> CREATIVES[("1080×1350 · 1080×1920")]
 
     GH --> CONSOLE
-    GCS --> CONSOLE
+    CREATIVES --> CONSOLE
     CONSOLE["**Review console** — Cloud Run<br/>a human approves"]
+    CONSOLE -->|"approve"| COMPANION["Companion PR<br/>held until the app ships"]
     CONSOLE -->|"rejection + reason"| FS
 
     FS[("Firestore<br/>papers · appraisals<br/>rejections · findings")]
@@ -98,9 +96,14 @@ remember to update a topic list, which means it cannot go stale.
 | | **GenAI SDK** — structured extraction for the agenda | `provenance/agenda.py` |
 | Google Cloud | **Firestore** — evidence store | `provenance/store/` |
 | | **Cloud Run** — console + fleet | `Dockerfile` |
-| | **Pub/Sub** — stage events | 4 topics |
-| | **Cloud Scheduler** — nightly trigger | |
-| | **Cloud Storage** — rendered creatives | |
+| | **Cloud Scheduler** — nightly trigger | 03:00 America/New_York |
+| | **Secret Manager** — GitHub and email credentials | |
+
+Pub/Sub topics and a Cloud Storage bucket exist in the project and nothing
+writes to them. The nightly run is a single Cloud Run Job that carries its own
+state through Firestore, so an event bus between stages would be decoration
+rather than architecture. They are named here only so nobody counts them as
+part of the system.
 
 Two version traps, recorded so they are not reintroduced:
 

@@ -51,19 +51,16 @@ Cloud Scheduler (nightly)
       │
       ▼
   SCOUT ──── PubMed · Europe PMC, one query dialect each, DOI-first dedupe
-      │      pub/sub: paper.ingested
       ▼
   TRIAGE ─── gemini-3.5-flash-lite · relevance only, one cheap question
       │
       ▼
   APPRAISER  gemini-3.7-flash · GRADE-lite tier A–D, verbatim quote per claim
-      │      pub/sub: paper.appraised
       ▼
   GROUNDING  code, not a model: every quote must appear in the source
       │
       ▼
   SYNTHESIST arithmetic gate, then judgement — see "Convergence" below
-      │      pub/sub: finding.opened
       ├──────────────────────┐
       ▼                      ▼
   ENGINEER              STORYTELLER
@@ -118,7 +115,7 @@ reason code: `not_relevant`, `no_quantitative_result`, `ungrounded_claim`,
 |---|---|
 | Gemini 3.5+ | `gemini-3.7-flash` (reasoning) · `gemini-3.5-flash-lite` (triage) |
 | Google Agent Framework | **ADK** (`LlmAgent`, `SequentialAgent`, `ParallelAgent`, `before_tool_callback`) and the **GenAI SDK** |
-| Google Cloud | **Firestore** (evidence store) · **Cloud Run** (agents + console) · **Pub/Sub** (stage events) · **Cloud Scheduler** (nightly) · **Cloud Storage** (creatives) |
+| Google Cloud | **Vertex AI** (Gemini) · **Firestore** (evidence store) · **Cloud Run** Job + Service (nightly fleet, review console) · **Cloud Scheduler** (03:00 nightly) · **Secret Manager** |
 
 > **Version trap, recorded so nobody re-introduces it:** the most capable
 > Gemini available is `gemini-3.1-pro-preview`, but the hackathon requires 3.5
