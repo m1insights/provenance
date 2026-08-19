@@ -85,10 +85,11 @@ read-only repository navigation the Engineer uses, and `before_tool_callback`
 for the guardrails. The **GenAI SDK** handles the structured extraction that
 builds the agenda.
 
-**Firestore** is the evidence store — papers, appraisals, rejections, findings,
-decisions. **Cloud Run** hosts the review console and the fleet. **Pub/Sub**
-carries stage events. **Cloud Scheduler** starts the nightly run.
-**Cloud Storage** holds rendered creatives.
+**Vertex AI** serves both models, so there is no API key anywhere — the fleet's
+service account is the credential. **Firestore** is the evidence store: papers,
+appraisals, rejections, findings, decisions. **Cloud Run** hosts the review
+console as a service and the nightly fleet as a job. **Cloud Scheduler** starts
+it at 03:00. **Secret Manager** holds the GitHub and email credentials.
 
 Creatives are rendered deterministically: HTML and CSS through headless Chrome,
 frame-by-frame for motion, assembled with ffmpeg. No image model touches them.

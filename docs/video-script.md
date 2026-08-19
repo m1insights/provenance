@@ -169,7 +169,7 @@ and a causal verb on cohort evidence.
 **On screen:** the architecture diagram.
 
 > "Gemini 3.7 Flash for appraisal, 3.5 Flash-Lite for triage. ADK for the
-> fleet. Firestore, Cloud Run, Pub/Sub, Cloud Scheduler, Cloud Storage. And
+> fleet. Vertex AI, Firestore, Cloud Run, Cloud Scheduler. And
 > Claude Opus auditing what Gemini writes, because one model checking its own
 > work isn't a check.
 >
