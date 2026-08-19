@@ -357,6 +357,55 @@ def cmd_storyteller(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_content(args: argparse.Namespace) -> int:
+    """The publishable pool: papers worth a post, ranked, with a motion each."""
+    from . import content as pool
+    from .models import Appraisal, Paper
+    from .store import firestore as store
+
+    db = store.client()
+    appraisals = [
+        Appraisal.model_validate(doc.to_dict())
+        for doc in db.collection(store.APPRAISALS).stream()
+    ]
+    papers = {
+        p.doc_id: p
+        for doc in db.collection(store.PAPERS).stream()
+        if (p := Paper.model_validate(doc.to_dict()))
+    }
+
+    if args.mark:
+        pool.mark_posted(args.mark, db=db, note=args.note or "")
+        print(f"marked posted: {args.mark}")
+        return 0
+
+    posted = pool.posted_ids(db=db)
+    picks = pool.candidates(
+        appraisals, papers,
+        posted=posted, component=args.component,
+        include_weak=args.include_weak, limit=args.limit,
+    )
+    if not picks:
+        print("nothing publishable in the pool")
+        return 0
+
+    print(f"{len(picks)} publishable · {len(posted)} already posted\n")
+    for index, c in enumerate(picks, start=1):
+        a = c.appraisal
+        print(f"{index:>2}. [{a.tier.value}] {c.title[:76]}")
+        journal = c.paper.journal if c.paper else ""
+        bits = " · ".join(b for b in (journal, a.design, a.follow_up) if b)
+        print(f"    {bits}")
+        print(f"    motion {c.motion}  ·  score {c.score:.0f}  ·  {', '.join(c.reasons)}")
+        for claim in c.numeric_claims[:2]:
+            ci = (f" [{claim.ci_low:g} to {claim.ci_high:g}]"
+                  if claim.ci_low is not None and claim.ci_high is not None else "")
+            print(f"      {claim.value:g}{claim.unit}{ci} — {claim.statement[:74]}")
+        print(f"    id {c.paper_id}")
+        print()
+    return 0
+
+
 def cmd_health(args: argparse.Namespace) -> int:
     from . import health as pr_health
     from .models import Finding
@@ -489,6 +538,16 @@ def main(argv: list[str] | None = None) -> int:
     story.add_argument("--out", default="renderer/out-real")
     story.add_argument("--render", action="store_true", help="also run the renderer")
     story.set_defaults(func=cmd_storyteller)
+
+    con = sub.add_parser("content", help="the publishable pool, ranked for social")
+    con.add_argument("--component", default=None, help="e.g. mvpa")
+    con.add_argument("--limit", type=int, default=12)
+    con.add_argument("--include-weak", action="store_true",
+                     help="include tier C/D — never post these as settled")
+    con.add_argument("--mark", default=None, metavar="PAPER_ID",
+                     help="record a paper as posted so it stops being offered")
+    con.add_argument("--note", default=None)
+    con.set_defaults(func=cmd_content)
 
     hc = sub.add_parser("health", help="check proposals already opened")
     hc.add_argument("--comment", action="store_true", help="comment on unhealthy PRs")
