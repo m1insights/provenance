@@ -74,9 +74,13 @@ async def run(
     log.info("nightly: %d new papers", len(result.papers))
 
     # --- appraise ---------------------------------------------------------
+    tonight_appraisals: list[Appraisal] = []
+    tonight_rejections: list = []
     if result.papers:
         kept, triaged_out = await triage(result.papers, result.agenda)
         appraisals, rejected = await appraise(kept, result.agenda)
+        tonight_appraisals = list(appraisals)
+        tonight_rejections = list(result.rejections) + list(triaged_out) + list(rejected)
         store.save_appraisals(appraisals, db=db)
         store.save_rejections(triaged_out + rejected, db=db)
         summary |= {
@@ -89,6 +93,7 @@ async def run(
         }
     else:
         summary |= {"appraised": 0}
+        tonight_rejections = list(result.rejections)
 
     # --- synthesise -------------------------------------------------------
     # Convergence is judged over the whole accumulated corpus, not tonight's
@@ -168,7 +173,11 @@ async def run(
     # "nothing to report" is how a system teaches its reader to swipe past the
     # message that mattered.
     try:
-        summary["notified"] = _notify(db, subject, fresh, prior)
+        summary["notified"] = _notify(
+            db, subject, fresh, prior,
+            run=summary, appraisals=tonight_appraisals,
+            rejections=tonight_rejections, papers=papers,
+        )
     except Exception as exc:
         log.warning("nightly: notification failed: %s", exc)
         summary["notified"] = {"error": str(exc)}
@@ -191,8 +200,25 @@ async def run(
 DIGEST_WEEKDAY = 6
 
 
-def _notify(db, subject: SubjectApp, fresh: list[Finding], prior: list[Finding]) -> dict:
-    """One email per new proposal; a digest on Sundays. Nothing otherwise."""
+def _notify(
+    db,
+    subject: SubjectApp,
+    fresh: list[Finding],
+    prior: list[Finding],
+    *,
+    run: dict,
+    appraisals: list[Appraisal],
+    rejections: list,
+    papers: dict,
+) -> dict:
+    """A briefing every morning; a decision email only once there is a decision.
+
+    The briefing was added because the previous rule -- silence unless something
+    needs approving -- made a quiet night and a dead cron job look identical
+    from the outside, and left a night's reading visible only in Cloud Run logs.
+    It never asks for anything, which is what keeps it from competing with the
+    email that does.
+    """
     config = notify.mail_config()
     if not config.configured:
         return {"skipped": "email not configured"}
@@ -210,11 +236,20 @@ def _notify(db, subject: SubjectApp, fresh: list[Finding], prior: list[Finding])
     # has audited the diff.
     _ = (appraisals, papers, fresh)
 
+    # --- the morning briefing -------------------------------------------
+    open_findings = [
+        f for f in prior + fresh
+        if f.status is FindingStatus.OPEN or f.status is FindingStatus.PR_DRAFTED
+    ]
+    pairs = [(papers.get(a.paper_id), a) for a in appraisals]
+    subject_line, html = notify.briefing_email(
+        run, pairs, rejections, open_findings, config
+    )
+    if notify.send(subject_line, html, config):
+        sent.append("briefing")
+
     if datetime.now(timezone.utc).weekday() == DIGEST_WEEKDAY:
-        pending = [
-            f for f in prior + fresh
-            if f.status is FindingStatus.OPEN or f.status is FindingStatus.PR_DRAFTED
-        ]
+        pending = open_findings
         reasons = Counter(
             (doc.to_dict() or {}).get("reason_code", "unknown")
             for doc in db.collection(store.REJECTIONS).stream()

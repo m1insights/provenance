@@ -26,7 +26,9 @@ from datetime import datetime, timedelta, timezone
 
 import httpx
 
-from .models import Appraisal, Finding, Paper
+from collections import Counter
+
+from .models import Appraisal, Finding, Paper, Rejection
 
 log = logging.getLogger(__name__)
 
@@ -230,6 +232,237 @@ def decision_email(
 
     subject = f"Provenance: {finding.component_id} — {len(rows)} studies disagree with a current value"
     return subject, html
+
+
+#: Tier and alignment are the two facts that decide whether a paper matters, so
+#: they get colour. Everything else in the briefing is ink on paper.
+_TIER_COPY = {
+    "A": ("#1F7F9C", "Randomised or systematic"),
+    "B": ("#2E7D6B", "Prospective cohort"),
+    "C": ("#77858F", "Weaker design"),
+}
+_ALIGN_COPY = {
+    "supports": ("#2E7D6B", "agrees with our rule"),
+    "challenges": ("#8A6A1F", "argues against our rule"),
+    "neutral": ("#77858F", "neither way"),
+}
+
+
+def _first_sentence(text: str, limit: int = 170) -> str:
+    """The synthesist writes paragraphs; a briefing line needs one sentence."""
+    clean = " ".join(str(text or "").split())
+    cut = clean.find(". ")
+    if 0 < cut < limit:
+        return clean[: cut + 1]
+    return clean[:limit].rstrip(" ,;") + ("\u2026" if len(clean) > limit else "")
+
+
+def _stat(label: str, value: str, *, emphasis: bool = False) -> str:
+    """One number in the strip across the top."""
+    size = "26px" if emphasis else "22px"
+    colour = "#101820" if emphasis else "#3C4A54"
+    return (
+        f'<td style="padding:0 16px 0 0;vertical-align:top;">'
+        f'<div style="font-size:{size};font-weight:700;color:{colour};'
+        f'line-height:1.2;">{_escape(value)}</div>'
+        f'<div style="{STYLE_MUTED}margin-top:2px;">{_escape(label)}</div>'
+        f"</td>"
+    )
+
+
+def _paper_block(paper: Paper | None, appraisal: Appraisal) -> str:
+    """One appraised paper: what it is, how strong, and what it actually said.
+
+    The quote is the whole point. A summary of a summary is how a briefing
+    becomes something you stop reading, and the verbatim span is the same one
+    the grounding check verified -- so the email shows the evidence rather than
+    a paraphrase of it.
+    """
+    title = _escape(paper.title if paper else appraisal.paper_id)
+    journal = _escape(paper.journal if paper else "")
+    tier_colour, tier_text = _TIER_COPY.get(appraisal.tier.value, ("#77858F", ""))
+    align_colour, align_text = _ALIGN_COPY.get(appraisal.alignment.value, ("#77858F", ""))
+
+    meta = " · ".join(
+        bit for bit in (
+            journal,
+            f"n={appraisal.sample_size:,}" if appraisal.sample_size else "",
+            _escape(appraisal.follow_up),
+        ) if bit
+    )
+
+    chips = (
+        f'<span style="display:inline-block;padding:3px 9px;border-radius:20px;'
+        f'background:{tier_colour}18;color:{tier_colour};font-size:12px;'
+        f'font-weight:700;">Tier {_escape(appraisal.tier.value)} · {tier_text}</span>'
+        f'<span style="display:inline-block;padding:3px 9px;border-radius:20px;'
+        f'background:{align_colour}18;color:{align_colour};font-size:12px;'
+        f'font-weight:700;margin-left:6px;">{align_text}</span>'
+    )
+
+    claims = ""
+    for claim in appraisal.claims[:2]:
+        figure = ""
+        if claim.value is not None:
+            # "to", not an en dash: a negative bound turns a dash range into
+            # "-28.27--3.17", which reads as a typo rather than an interval.
+            ci = (
+                f" (95% CI {claim.ci_low:g} to {claim.ci_high:g})"
+                if claim.ci_low is not None and claim.ci_high is not None else ""
+            )
+            unit = _escape(claim.unit)
+            # "%" and friends sit tight against the figure; a word does not.
+            spacer = "" if (not unit or unit[0] in "%\u00b0/") else " "
+            figure = (
+                f'<div style="font-family:ui-monospace,Menlo,monospace;font-size:14px;'
+                f'font-weight:700;color:#101820;margin:0 0 4px;">'
+                f"{claim.value:g}{spacer}{unit}{ci}</div>"
+            )
+        claims += (
+            f'<div style="margin:12px 0 0;padding:10px 12px;background:#F4F6F8;'
+            f'border-left:3px solid #1F7F9C;border-radius:4px;">'
+            f"{figure}"
+            f'<div style="font-size:14px;color:#101820;margin:0 0 6px;">'
+            f"{_escape(claim.statement)}</div>"
+            f'<div style="{STYLE_MUTED}font-style:italic;">'
+            f"\u201c{_escape(claim.quote)}\u201d</div>"
+            f"</div>"
+        )
+
+    link = (
+        f'<div style="margin-top:10px;"><a href="{_escape(paper.url)}" '
+        f'style="color:#1F7F9C;font-size:13px;text-decoration:none;">'
+        f"Read the paper \u2192</a></div>"
+        if paper and paper.url else ""
+    )
+
+    return (
+        f'<div style="padding:18px 0;border-top:1px solid #E6EBEF;">'
+        f'<div style="font-size:16px;font-weight:600;color:#101820;'
+        f'line-height:1.4;margin:0 0 6px;">{title}</div>'
+        f'<div style="{STYLE_MUTED}margin:0 0 10px;">{meta}</div>'
+        f"{chips}{claims}{link}</div>"
+    )
+
+
+def briefing_email(
+    run: dict,
+    appraised: list[tuple[Paper | None, Appraisal]],
+    rejected: list[Rejection],
+    open_findings: list[Finding],
+    config: MailConfig,
+) -> tuple[str, str]:
+    """The morning briefing: what was read last night, and what it amounted to.
+
+    This is deliberately NOT a decision email. Nothing here has a button and
+    nothing here is asking for approval -- a proposal still has to be written
+    and independently audited before it earns that. This exists because a
+    system that only speaks when it wants something is indistinguishable, on a
+    quiet morning, from a system that has silently died.
+
+    The subject line carries the verdict, so a glance at the inbox is usually
+    the whole interaction.
+    """
+    new_findings = run.get("findings_new", 0) or 0
+    read = run.get("retrieved_new", 0) or 0
+    kept = run.get("appraised", 0) or 0
+
+    if new_findings:
+        headline = f"{new_findings} new finding{'s' if new_findings > 1 else ''}"
+        lede = (
+            "Evidence converged on a rule in the algorithm. Nothing has been "
+            "written or reviewed yet \u2014 run <code>/provenance</code> to draft "
+            "the change and have it audited."
+        )
+    elif kept:
+        headline = f"{kept} paper{'s' if kept > 1 else ''} kept, nothing to propose"
+        lede = (
+            "Worth reading, but not enough to move a constant. Evidence has to "
+            "converge across studies before a proposal is opened."
+        )
+    elif read:
+        headline = "Nothing survived triage"
+        lede = "Papers came back, none of them bore on the rules being watched."
+    else:
+        headline = "Nothing new to read"
+        lede = "No papers published in the window that the agenda had not already seen."
+
+    date_line = datetime.now(timezone.utc).strftime("%A %d %B")
+
+    stats = (
+        f'<table cellpadding="0" cellspacing="0" style="margin:0 0 4px;"><tr>'
+        + _stat("read", str(read), emphasis=True)
+        + _stat("kept", str(kept), emphasis=True)
+        + _stat("thrown out", str(len(rejected)), emphasis=True)
+        + _stat("seen before", str(run.get("already_seen", 0) or 0))
+        + "</tr></table>"
+    )
+
+    papers_html = "".join(_paper_block(paper, a) for paper, a in appraised[:5])
+    if papers_html:
+        papers_html = (
+            '<h2 style="font-size:13px;letter-spacing:.08em;text-transform:uppercase;'
+            'color:#77858F;margin:26px 0 0;">What it kept</h2>' + papers_html
+        )
+
+    # The rejections are the credibility of the whole thing: anything can
+    # produce findings, the number worth showing is what was refused.
+    reasons = Counter(r.reason_code for r in rejected)
+    rejects_html = ""
+    if reasons:
+        rows = "".join(
+            f'<tr><td style="{STYLE_MUTED}padding:3px 12px 3px 0;">'
+            f'{_escape(code.replace("_", " "))}</td>'
+            f'<td style="{STYLE_MUTED}font-weight:700;color:#3C4A54;">{count}</td></tr>'
+            for code, count in reasons.most_common(6)
+        )
+        rejects_html = (
+            '<h2 style="font-size:13px;letter-spacing:.08em;text-transform:uppercase;'
+            'color:#77858F;margin:26px 0 8px;">What it threw out</h2>'
+            f'<table cellpadding="0" cellspacing="0">{rows}</table>'
+        )
+
+    pending_html = ""
+    if open_findings:
+        items = "".join(
+            f'<li style="margin:0 0 6px;font-size:14px;color:#101820;">'
+            f"<strong>{_escape(f.component_id)}</strong> \u2014 "
+            f"{_escape(_first_sentence(f.statement))} "
+            f'<span style="{STYLE_MUTED}">'
+            f'({_escape(f.status.value.replace("_", " "))}'
+            f'{", " + str(round(f.confidence * 100)) + "% confidence" if f.confidence else ""})'
+            f"</span>"
+            + (f'<br><a href="{_escape(f.pr_url)}" style="color:#1F7F9C;font-size:13px;'
+               f'text-decoration:none;">Open the pull request \u2192</a>' if f.pr_url else "")
+            + f"</li>"
+            for f in open_findings[:5]
+        )
+        pending_html = (
+            '<h2 style="font-size:13px;letter-spacing:.08em;text-transform:uppercase;'
+            'color:#77858F;margin:26px 0 8px;">Still on the table</h2>'
+            f'<ul style="margin:0;padding-left:18px;">{items}</ul>'
+        )
+
+    gated = run.get("components_gated", 0) or 0
+    footer = (
+        f'<p style="{STYLE_MUTED}margin:26px 0 0;padding-top:16px;'
+        f'border-top:1px solid #E6EBEF;">'
+        f"{gated} component{'s' if gated != 1 else ''} watched and left alone tonight. "
+        f"Run finished in {run.get('seconds', 0):.0f}s against "
+        f"{_escape(run.get('algorithm_version', ''))}."
+        f"<br>No approvals are requested in this email.</p>"
+    )
+
+    html = (
+        f'<body style="{STYLE_BODY}"><div style="{STYLE_CARD}">'
+        f'<div style="{STYLE_MUTED}margin:0 0 4px;">{_escape(date_line)}</div>'
+        f'<h1 style="font-size:23px;line-height:1.25;margin:0 0 10px;color:#101820;">'
+        f"{_escape(headline)}</h1>"
+        f'<p style="font-size:15px;color:#3C4A54;margin:0 0 22px;">{lede}</p>'
+        f"{stats}{papers_html}{rejects_html}{pending_html}{footer}"
+        f"</div></body>"
+    )
+    return (f"Provenance \u2014 {headline}", html)
 
 
 def digest_email(summary: dict, pending: list[Finding], config: MailConfig) -> tuple[str, str]:
