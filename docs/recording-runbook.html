@@ -161,8 +161,8 @@
   <label><input type="checkbox"><div><b>2 · <code>LONGEVITY_FEATURE_STACK.md</code></b><span>Scrolled to Section 3, the eleven components.</span></div></label>
   <label><input type="checkbox"><div><b>3 · Terminal in <code>~/Dev/provenance</code></b><span>Cleared. You'll run three commands from here.</span></div></label>
   <label><input type="checkbox"><div><b>4 · The console, unlocked</b><span>provenance-console-vwe3lj6lwq-uc.a.run.app — POST your write token to <code>/unlock</code> first so the buttons are live.</span></div></label>
-  <label><input type="checkbox"><div><b>5 · GitHub: <code>synq#2</code>, on the Files changed tab</b><span>Plus the audit comment in a second tab.</span></div></label>
-  <label><input type="checkbox"><div><b>6 · A terminal in <code>~/Dev/apps/synqology/</code> — NOT started</b><span>The session hook has to fire on camera. Opening it early kills the shot.</span></div></label>
+  <label><input type="checkbox"><div><b>5 · GitHub: <code>synq#2</code>, on the Files changed tab</b><span>Scrolled to the diff, ready to point at the guard clause.</span></div></label>
+  <label><input type="checkbox"><div><b>6 · Google Cloud Console, two tabs signed in and pre-loaded</b><span>Vertex AI request logs, and Cloud Run → Jobs → <code>provenance-nightly</code> with a past execution open. This is the hackathon's hard requirement — proof the backend runs on GCP. Don't navigate to it live.</span></div></label>
   <label><input type="checkbox"><div><b>7 · <code>docs/architecture.md</code>, scrolled to the diagram</b><span>Final shot.</span></div></label>
 </div>
 
@@ -195,11 +195,10 @@
 </div>
 
 <div class="beat">
-  <div class="beat-head"><span class="tc">2:15</span><span class="what">A second model audits the first ← the one that lands</span></div>
-  <div class="row"><span class="tag do">Do</span><p>Open the synqology terminal <strong>now</strong>, on camera. The hook fires and names the un-audited work.</p></div>
-  <div class="row"><span class="tag say">Say</span><p class="say-text">I don't trust one model writing changes to a health app people actually use. So Gemini proposes, and Claude Opus audits before I'm asked to approve anything. This runs on its own when I open the project.</p></div>
-  <div class="row"><span class="tag screen">Screen</span><p>Scroll to the audit comment on <code>synq#2</code>. Show the two-line function.</p></div>
-  <div class="row"><span class="tag say">Say</span><p class="say-text">Both branches return the same number. The guard does nothing — and shift workers, people on disrupted schedules, quietly lost an accommodation the comment still says they have. Fifty-one tests passed on this. I read it myself. Neither of us caught it, because both assertions had been updated to the new value. You could <em>delete the whole thing</em> and the suite stays green.</p></div>
+  <div class="beat-head"><span class="tc">2:15</span><span class="what">Reading the diff myself ← the one that lands</span></div>
+  <div class="row"><span class="tag say">Say</span><p class="say-text">I don't approve a change to a health app off a green test suite. I read every diff myself before deciding. Here's what that caught on the first real one.</p></div>
+  <div class="row"><span class="tag screen">Screen</span><p>Scroll to the guard clause on <code>synq#2</code>. Show the two-line function.</p></div>
+  <div class="row"><span class="tag say">Say</span><p class="say-text">Both branches return the same number. The guard does nothing — and shift workers, people on disrupted schedules, quietly lost an accommodation the comment still says they have. Fifty-one tests passed on this. Both assertions had been updated to the new value, so you could <em>delete the whole thing</em> and the suite stays green. Only reading it catches that.</p></div>
 </div>
 
 <div class="beat">
@@ -222,14 +221,14 @@
   <div class="beat-head"><span class="tc">3:40</span><span class="what">The human, and the close</span></div>
   <div class="row"><span class="tag screen">Screen</span><p>Console showing the mvpa finding, <strong>approved</strong>. Then the architecture diagram.</p></div>
   <div class="row"><span class="tag say">Say</span><p class="say-text">Nothing merges. There is no merge function in this codebase — not a rule in a prompt, an <em>absent tool</em>. I approve or I reject, and a rejection goes back to the agents as guidance.</p></div>
-  <div class="row"><span class="tag say">Say</span><p class="say-text">Gemini for appraisal, ADK for the fleet, Firestore, Cloud Run, Pub/Sub, Scheduler. And Claude Opus auditing what Gemini writes — because one model checking its own work isn't a check. It reads the literature so the algorithm doesn't fall behind it. It shows its working every time. And the most useful thing it does is <em>refuse</em>.</p></div>
+  <div class="row"><span class="tag say">Say</span><p class="say-text">Gemini for appraisal, ADK for the fleet, Firestore, Cloud Run, Cloud Scheduler — no static API key anywhere, the fleet's service account is the credential. It reads the literature so the algorithm doesn't fall behind it. It shows its working every time. And the most useful thing it does is <em>refuse</em>.</p></div>
 </div>
 
 <h2>If a take goes wrong</h2>
 <p class="lede">Three things that could misbehave live, and what to do.</p>
 
 <div class="beat">
-  <div class="row"><span class="tag note">Hook silent</span><p>Both PRs are audited, so it <em>should</em> be silent. To make it speak, delete the audit comment on <code>synq_insights#1</code> before the take — the hook keys on that marker.</p></div>
+  <div class="row"><span class="tag note">GCP Console signed out</span><p>The Vertex AI logs and Cloud Run tabs need a live session — sign in before you start recording, not mid-take. A login redirect on camera is the one shot you can't cut around.</p></div>
   <div class="row"><span class="tag note">Storyteller slow</span><p>It calls Gemini twice; ~40s is normal. Talk over it, or cut to the rendered slides you already have in <code>renderer/out-real/</code>.</p></div>
   <div class="row"><span class="tag note">Console 403</span><p>Your write cookie expired. POST the token to <code>/unlock</code> again — it's a 12-hour cookie.</p></div>
 </div>
