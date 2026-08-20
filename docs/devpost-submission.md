@@ -59,11 +59,12 @@ Every night, Provenance:
    contributing rules require, and running the project's scoring test suite
    against the change.
 7. **Writes the social content** from the same evidence, through four gates.
-8. **Has a second model audit the diff.** Claude Opus reviews every
-   Gemini-authored change before a human is asked to approve it, from a
-   `/provenance` command that a `SessionStart` hook fires automatically. The
-   verdict travels in the email, so nobody approves code no independent model
-   has read.
+8. **Has a second model audit the diff.** The instant a pull request opens, a
+   GitHub Action runs Claude Opus against it — no static key, authenticated
+   through workload identity federation so GitHub mints a short-lived token
+   per run instead of a secret sitting in the repo. The verdict posts as a PR
+   comment before a human is asked to approve anything and travels in the
+   email, so nobody approves code no independent model has read.
 9. **Waits for a human.** Nothing merges. Nothing posts.
 
 Steps 1–5 run unattended on Cloud Scheduler at 03:00. Step 6 — opening a pull
@@ -75,7 +76,9 @@ overnight is a record rather than an inference.
 ## How I built it
 
 **Claude Opus** audits every Gemini-authored diff before a human sees it, via
-the Claude Code CLI in headless mode. **Gemini 3.7 Flash** appraises,
+Claude Code running headless inside a **GitHub Action** — triggered the
+instant a pull request opens, authenticated through workload identity
+federation rather than a stored API key. **Gemini 3.7 Flash** appraises,
 synthesises, engineers and writes.
 **Gemini 3.5 Flash-Lite** does first-pass relevance triage, where volume is
 high and the question is cheap.
@@ -85,8 +88,11 @@ read-only repository navigation the Engineer uses, and `before_tool_callback`
 for the guardrails. The **GenAI SDK** handles the structured extraction that
 builds the agenda.
 
-**Vertex AI** serves both models, so there is no API key anywhere — the fleet's
-service account is the credential. **Firestore** is the evidence store: papers,
+**Vertex AI** serves both models, so there is no API key anywhere — the
+fleet's service account is the credential, and the same is true on the audit
+side: **workload identity federation** turns each Action run's own GitHub
+OIDC token into Claude API access, so there is no Anthropic key sitting in
+the repo either. **Firestore** is the evidence store: papers,
 appraisals, rejections, findings, decisions. **Cloud Run** hosts the review
 console as a service and the nightly fleet as a job. **Cloud Scheduler** starts
 it at 03:00. **Secret Manager** holds the GitHub and email credentials.
