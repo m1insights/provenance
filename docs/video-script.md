@@ -182,7 +182,7 @@ and a causal verb on cohort evidence.
 
 1. synqology App Store page
 2. `LONGEVITY_FEATURE_STACK.md`
-3. Terminal in `agent-hackathon`, venv active
+3. Terminal in `provenance`, venv active
 4. github.com/m1insights/synq — issue #1 and PR #2
 5. The console, unlocked with the write token
 6. A second terminal in `~/Dev/apps/synqology/`, not yet started — the

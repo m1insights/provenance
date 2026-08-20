@@ -70,7 +70,7 @@ of this command know the audit already happened.
 ## 5. Send one decision email per newly audited pull request
 
 ```
-cd /Users/m1labs/Dev/agent-hackathon && .venv/bin/python -m provenance notify --pr <n> --repo <repo> --verdict <verdict> --summary "<one line>"
+cd /Users/m1labs/Dev/provenance && .venv/bin/python -m provenance notify --pr <n> --repo <repo> --verdict <verdict> --summary "<one line>"
 ```
 
 Only for pull requests audited in *this* run. The email carries the verdict, so
