@@ -88,13 +88,16 @@ table and the backtest.
 
 ## 2:30 – 3:05 · A second model audits the first
 
-**On screen:** a fresh terminal in `apps/synqology/`. The session-start hook
-fires and names the un-audited pull request. Then type `/provenance`.
+**On screen:** the pull request on GitHub. Switch to the Checks tab —
+"Opus Audit" is running, triggered the instant the PR opened. Wait for it to
+finish, then scroll to the comment it posts.
 
 > "I don't trust one model writing changes to a health app that people use. So
-> Gemini proposes, and Claude Opus audits before I'm asked to approve anything.
+> Gemini proposes, and the moment that pull request opens, a GitHub Action
+> runs Claude Opus against it — no terminal, no one has to remember to check.
 >
-> This runs on its own when I open the project. Watch what it found."
+> No API key sits in this repo either — it authenticates with a short-lived
+> token GitHub mints for this one run. Watch what it found."
 
 **Scroll to the audit comment on the PR.** Read the finding aloud:
 
@@ -170,8 +173,10 @@ and a causal verb on cohort evidence.
 
 > "Gemini 3.7 Flash for appraisal, 3.5 Flash-Lite for triage. ADK for the
 > fleet. Vertex AI, Firestore, Cloud Run, Cloud Scheduler. And
-> Claude Opus auditing what Gemini writes, because one model checking its own
-> work isn't a check.
+> Claude Opus, in a GitHub Action, auditing what Gemini writes — because one
+> model checking its own work isn't a check. Neither side has a static API
+> key: Vertex AI runs on the fleet's service account, Opus runs on workload
+> identity federation.
 >
 > It reads the literature so the algorithm doesn't fall behind it. It shows its
 > working every time. And the most useful thing it does is refuse."
