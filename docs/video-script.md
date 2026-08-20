@@ -45,7 +45,9 @@ Edit the algorithm and the research agenda changes with it.
 ## 1:00 – 1:45 · The filter, which is the trust surface
 
 **On screen:** the console's counters — 571 papers, 70 appraised, 515 rejected.
-Then scroll the rejection reasons.
+Keep the browser's address bar in frame here — the `.run.app` domain is the
+first proof this runs on Google Cloud, not a laptop. Then scroll the
+rejection reasons.
 
 > "Last night it read five hundred and seventy-one papers. Seventy survived.
 >
@@ -169,7 +171,16 @@ and a causal verb on cohort evidence.
 
 ## 3:45 – 4:00 · Stack, and close
 
-**On screen:** the architecture diagram.
+**On screen:** cut between the architecture diagram and the Cloud Console —
+this is the hackathon's required proof the backend actually runs on Google
+Cloud, not just a claim in the diagram. Timed to the words below:
+
+- On "Vertex AI" — the request logs, showing `gemini-3.7-flash` calls
+  actually landing (Console → Vertex AI → **Generative AI Studio** or
+  **Logs Explorer** filtered to `aiplatform.googleapis.com`).
+- On "Cloud Run" — the Cloud Run **Jobs** list, `provenance-nightly`, with a
+  completed execution open so the timestamp is visible on screen.
+- On "Cloud Scheduler" — the trigger firing `provenance-nightly` at 03:00.
 
 > "Gemini 3.7 Flash for appraisal, 3.5 Flash-Lite for triage. ADK for the
 > fleet. Vertex AI, Firestore, Cloud Run, Cloud Scheduler. And
@@ -188,7 +199,11 @@ and a causal verb on cohort evidence.
 1. synqology App Store page
 2. `LONGEVITY_FEATURE_STACK.md`
 3. Terminal in `provenance`, venv active
-4. github.com/m1insights/synq — issue #1 and PR #2
-5. The console, unlocked with the write token
-6. A second terminal in `~/Dev/apps/synqology/`, not yet started — the
-   session-start hook has to fire on camera, so open it during the take
+4. github.com/m1insights/synq — issue #1 and PR #2, open to the Checks tab
+   so the Opus Audit run is one click away
+5. The console, unlocked with the write token — address bar visible, not
+   cropped, so the `.run.app` domain reads on camera
+6. Google Cloud Console, two tabs pre-loaded and signed in: Vertex AI request
+   logs, and Cloud Run → Jobs → `provenance-nightly` with a past execution
+   already open — this is the hard requirement ("must demonstrate the
+   backend is running on Google Cloud"), don't discover navigation live
