@@ -44,8 +44,7 @@ flowchart TB
         STORY --> GATES --> RENDER
     end
 
-    ENG --> AUDIT["**Auditor** — Claude Opus<br/>GitHub Action, fires on PR open<br/>reviews the diff Gemini wrote<br/>CLEAN · CONCERNS · DEFECT"]
-    AUDIT --> GH["GitHub<br/>issue + DRAFT PR<br/>+ backtest + audit"]
+    ENG --> GH["GitHub<br/>issue + DRAFT PR<br/>+ backtest"]
     RENDER --> CREATIVES[("1080×1350 · 1080×1920")]
 
     GH --> CONSOLE
@@ -98,8 +97,6 @@ remember to update a topic list, which means it cannot go stale.
 | | **Cloud Run** — console + fleet | `Dockerfile` |
 | | **Cloud Scheduler** — nightly trigger | 03:00 America/New_York |
 | | **Secret Manager** — GitHub and email credentials | |
-| Claude Opus | **GitHub Actions**, `anthropics/claude-code-action` — fires on `pull_request: opened` | `.github/workflows/opus-audit.yml`, in `synq` and `synq_insights` |
-| | **Workload identity federation** — GitHub's own OIDC token exchanged for Claude API access; no static key in either repo | Claude Console → Workload identity |
 
 Pub/Sub topics and a Cloud Storage bucket exist in the project and nothing
 writes to them. The nightly run is a single Cloud Run Job that carries its own
@@ -210,33 +207,22 @@ already holds. That is why the window is 18 months rather than 24 hours —
 PubMed indexes papers days to weeks after publication, irregularly, and a
 narrow window silently misses most of them.
 
-## The second model
+## Human review, and why the ordering matters
 
 Gemini does everything on the code path: reads the algorithm, appraises the
 literature, decides a constant is wrong, writes the Swift. One model, and a
-human as the only check.
-
-So a **Claude Opus audit** sits between the diff and the human. A GitHub
-Action runs it the instant the pull request opens — no terminal session
-required, authenticated through workload identity federation so there is no
-static Anthropic key sitting in either repo. A local `/provenance` command
-still exists, for opening the PR and sending the decision email, and a
-`SessionStart` hook still nudges when a PR is waiting on that email — but the
-audit itself no longer depends on either being run.
+human — reading the actual diff — as the check before anything is approved.
 
 The ordering is the point:
 
 ```
-nightly (cloud)     finds evidence, opens a Finding, stays silent
+nightly (cloud)   finds evidence, opens a Finding, stays silent
       ↓
-/provenance         opens the draft PR
+/provenance       opens the draft PR
       ↓
-GitHub Action        Opus audits the diff the instant it opens
-                      audit posted as a PR comment
+one email         carrying the PR link
       ↓
-/provenance notify   one email, carrying the verdict
-      ↓
-human approves        already knowing what the audit found
+human approves    reads the diff before deciding
 ```
 
 The obvious design — email as soon as the nightly run finds something — asks

@@ -65,10 +65,6 @@ Cloud Scheduler (nightly)
       ▼                      ▼
   ENGINEER              STORYTELLER
   issue + DRAFT PR      creative spec → CLAIMS GATE → deterministic renderer
-      ▼                      │
-  AUDITOR                    │
-  Claude Opus, GitHub Action fired on PR open · CLEAN · CONCERNS · DEFECT
-  no static key — workload identity federation, not ANTHROPIC_API_KEY
       │                      │
       └──────────┬───────────┘
                  ▼
@@ -120,7 +116,6 @@ reason code: `not_relevant`, `no_quantitative_result`, `ungrounded_claim`,
 | Gemini 3.5+ | `gemini-3.7-flash` (reasoning) · `gemini-3.5-flash-lite` (triage) |
 | Google Agent Framework | **ADK** (`LlmAgent`, `SequentialAgent`, `ParallelAgent`, `before_tool_callback`) and the **GenAI SDK** |
 | Google Cloud | **Vertex AI** (Gemini) · **Firestore** (evidence store) · **Cloud Run** Job + Service (nightly fleet, review console) · **Cloud Scheduler** (03:00 nightly) · **Secret Manager** |
-| Claude Opus | **GitHub Actions** (`anthropics/claude-code-action`) in the subject repos, fired on `pull_request: opened` · **workload identity federation** for auth — no static Anthropic key stored anywhere |
 
 > **Version trap, recorded so nobody re-introduces it:** the most capable
 > Gemini available is `gemini-3.1-pro-preview`, but the hackathon requires 3.5
@@ -168,10 +163,6 @@ provenance/
   agents/           scout.py · appraiser.py · synthesist.py
   store/            firestore.py — provenance_* collections
 docs/plans/         design documents
-docs/architecture.md  the full pipeline, the auditor, and why the ordering matters
-integrations/synqology-claude/  the tracked copy of the Claude Code auditor —
-  skill, command, hook, and the GitHub Action workflow. It's installed into
-  the subject app's own repositories (private), so the live audit itself runs
-  there, not here; this is the source of truth for what's installed.
+docs/architecture.md  the full pipeline and why the ordering matters
 tests/              grounding and convergence-gate suites
 ```

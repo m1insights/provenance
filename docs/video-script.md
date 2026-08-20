@@ -88,20 +88,15 @@ table and the backtest.
 
 ---
 
-## 2:30 – 3:05 · A second model audits the first
+## 2:30 – 3:05 · Reading the diff myself
 
-**On screen:** the pull request on GitHub. Switch to the Checks tab —
-"Opus Audit" is running, triggered the instant the PR opened. Wait for it to
-finish, then scroll to the comment it posts.
+**On screen:** the pull request on GitHub, scrolled to the diff.
 
-> "I don't trust one model writing changes to a health app that people use. So
-> Gemini proposes, and the moment that pull request opens, a GitHub Action
-> runs Claude Opus against it — no terminal, no one has to remember to check.
->
-> No API key sits in this repo either — it authenticates with a short-lived
-> token GitHub mints for this one run. Watch what it found."
+> "I don't approve a change to a health app off a green test suite. I read
+> every diff myself before deciding. Here's what that caught on the first
+> real one."
 
-**Scroll to the audit comment on the PR.** Read the finding aloud:
+**Scroll to the guard clause. Read the finding aloud:**
 
 ```swift
 guard let schedule = schedule, schedule.isEnabled, schedule.isShiftWorker else { return 2.0 }
@@ -112,9 +107,9 @@ return 2.0
 > workers — people on disrupted schedules — quietly lost an accommodation the
 > comment still says they have.
 >
-> Fifty-one tests passed on this. I read it myself. Neither caught it, because
-> both assertions had been updated to the new value — you could delete the
-> whole thing and the suite stays green."
+> Fifty-one tests passed on this. Both assertions had been updated to the new
+> value, so you could delete the whole guard and the suite stays green. Only
+> reading it catches that."
 
 **Then the trap, which is the best 15 seconds in the video:**
 
@@ -183,11 +178,8 @@ Cloud, not just a claim in the diagram. Timed to the words below:
 - On "Cloud Scheduler" — the trigger firing `provenance-nightly` at 03:00.
 
 > "Gemini 3.7 Flash for appraisal, 3.5 Flash-Lite for triage. ADK for the
-> fleet. Vertex AI, Firestore, Cloud Run, Cloud Scheduler. And
-> Claude Opus, in a GitHub Action, auditing what Gemini writes — because one
-> model checking its own work isn't a check. Neither side has a static API
-> key: Vertex AI runs on the fleet's service account, Opus runs on workload
-> identity federation.
+> fleet. Vertex AI, Firestore, Cloud Run, Cloud Scheduler — no static API key
+> anywhere, the fleet's service account is the credential.
 >
 > It reads the literature so the algorithm doesn't fall behind it. It shows its
 > working every time. And the most useful thing it does is refuse."
@@ -199,8 +191,7 @@ Cloud, not just a claim in the diagram. Timed to the words below:
 1. synqology App Store page
 2. `LONGEVITY_FEATURE_STACK.md`
 3. Terminal in `provenance`, venv active
-4. github.com/m1insights/synq — issue #1 and PR #2, open to the Checks tab
-   so the Opus Audit run is one click away
+4. github.com/m1insights/synq — issue #1 and PR #2, scrolled to the diff
 5. The console, unlocked with the write token — address bar visible, not
    cropped, so the `.run.app` domain reads on camera
 6. Google Cloud Console, two tabs pre-loaded and signed in: Vertex AI request
