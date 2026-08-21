@@ -1,0 +1,95 @@
+{
+ "slides": [
+  {
+   "kicker": "EXERCISE TIMING",
+   "headline": "You do not need to train *every day*.",
+   "body": "Packing your movement into one or two sessions was linked to lower heart risk just like daily workouts.",
+   "source": {
+    "authors": "Lei et al.",
+    "journal": "Obesity (Silver Spring)",
+    "sample": "n=85,934",
+    "tier": "COHORT"
+   },
+   "chart": {
+    "type": "bar",
+    "label": "HEART RISK",
+    "bars": [
+     {
+      "label": "weekend",
+      "value": 0.72
+     },
+     {
+      "label": "regular",
+      "value": 0.75
+     }
+    ]
+   }
+  },
+  {
+   "kicker": "THE SIZE OF IT",
+   "headline": "Total weekly movement tracked with *lower risk*.",
+   "body": "People who squeezed workouts into a couple days showed similar lower death rates.",
+   "source": {
+    "authors": "Lei et al.",
+    "journal": "Obesity (Silver Spring)",
+    "sample": "n=85,934",
+    "tier": "COHORT"
+   },
+   "figure": {
+    "value": "24%",
+    "unit": ""
+   },
+   "chart": {
+    "type": "bar",
+    "label": "RISK OF DYING",
+    "bars": [
+     {
+      "label": "all causes",
+      "value": 0.76
+     },
+     {
+      "label": "cancer",
+      "value": 0.81
+     }
+    ]
+   }
+  },
+  {
+   "kicker": "THE TWIST",
+   "headline": "Blood sugar health showed the *same pattern*.",
+   "body": "Getting enough movement in fewer days was linked to lower long term health risks.",
+   "source": {
+    "authors": "Lei et al.",
+    "journal": "Obesity (Silver Spring)",
+    "sample": "n=85,934",
+    "tier": "COHORT"
+   },
+   "chart": {
+    "type": "bar",
+    "label": "DISEASE RISK",
+    "bars": [
+     {
+      "label": "weekend",
+      "value": 0.83
+     },
+     {
+      "label": "regular",
+      "value": 0.82
+     }
+    ]
+   }
+  },
+  {
+   "kicker": "WHAT TO DO",
+   "headline": "Hit your weekly goal *on your schedule*.",
+   "body": "Total weekly movement matters. Squeeze it into your weekend or spread it across the week.",
+   "source": {
+    "authors": "Lei et al.",
+    "journal": "Obesity (Silver Spring)",
+    "sample": "n=85,934",
+    "tier": "COHORT"
+   }
+  }
+ ],
+ "caption": "New evidence shows that packing your weekly workouts into one or two days is linked to the same heart and longevity benefits as spreading them out."
+}

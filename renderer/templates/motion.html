@@ -62,6 +62,40 @@ html, body {
   display: flex; flex-direction: column;
 }
 
+/* Reel aspect (rendered at 1080×1920 via the motionreel format): same 928px
+   column, padded into the safe zone — Instagram's chrome covers roughly the
+   top 250px and bottom 420px of a 9:16 frame. The content box that remains
+   (1160px) matches the 4:5 layout's (1186px), so nothing reflows. */
+@media (min-height: 1900px) {
+  html, body { height: 1920px; }
+  .stage { padding: 300px 76px 460px; }
+  /* Reel type scale — matched to reel.html (the 10k-steps breakout frame).
+     The 4:5 sizes read fine in a feed cell but starve a full-screen Reel. */
+  .title { font-size: 64px; }
+  svg.chart text { font-size: 28px; }
+  svg.chart text.cat { font-size: 36px; }
+  svg.chart text.value { font-size: 42px; }
+  svg.chart text.note { font-size: 30px; }
+  .statement .flag { font-size: 46px; }
+  .statement .detail { font-size: 34px; }
+  svg.chart text.groupln { font-size: 44px; }
+  svg.chart text.vsln { font-size: 30px; }
+  .body .line { font-size: 42px; }
+  .source { font-size: 28px; }
+  .tier { font-size: 20px; }
+}
+
+/* Contract #7 (social.md): when the axis measures something the marks cannot
+   say on their own — a hazard ratio, risk vs a reference group — the one line
+   explaining it sits UNDER the headline at reading size, closed by a hairline,
+   never inside the plot at footnote size. Shown only when the spec sends
+   `deck`; the svg axis-title is suppressed in its favour. */
+.rule { margin-top: 30px; border-top: 1px solid var(--line); display: none; }
+.deck {
+  margin-top: 28px; font-size: 36px; font-weight: 500;
+  color: var(--ink-2); line-height: 1.22; display: none;
+}
+
 .title {
   margin-top: auto;
   font-size: 60px; font-weight: 700; letter-spacing: -.02em;
@@ -94,7 +128,41 @@ svg.chart text.value {
 }
 svg.chart text.note { fill: var(--ink-3); font-size: 25px; }
 
+/* The clock: a big mono counter in the 10k-steps register. It is the one
+   element allowed to move for the whole run — it counts elapsed follow-up
+   time, which really did elapse, while the data holds still. */
+svg.chart text.clocknum {
+  font-family: var(--mono); fill: var(--ink);
+  font-size: 84px; font-weight: 700; font-variant-numeric: tabular-nums;
+}
+svg.chart text.clocklabel {
+  fill: var(--ink-3); font-size: 27px; font-weight: 600;
+}
+/* Clockhold storytelling layer, living in the dead zone between the dots and
+   the null line. The promise is an instruction to the viewer, never a data
+   claim; the mark slot swaps time beats with reserved position; the cohort
+   count animates a grounded static total (an entrance, not a time series). */
+svg.chart text.promiseln { fill: var(--ink-2); font-size: 36px; font-weight: 500; }
+svg.chart text.markln    { fill: var(--ink);   font-size: 32px; font-weight: 600; }
+svg.chart text.cohortln { fill: var(--ink-3); font-size: 30px; font-weight: 500; }
+svg.chart tspan.cohortnum {
+  font-family: var(--mono); fill: var(--ink-2);
+  font-weight: 700; font-variant-numeric: tabular-nums;
+}
+svg.chart tspan.clocknum {
+  font-family: var(--mono); fill: var(--ink);
+  font-size: 84px; font-weight: 700; font-variant-numeric: tabular-nums;
+}
+svg.chart tspan.clocklabel { fill: var(--ink-3); font-size: 27px; font-weight: 600; }
+/* Clockhold group headers: the two compared groups are the #2 element in the
+   reading hierarchy (after the headline) — they DRIVE the narrative, so they
+   head their columns at statement size instead of hanging under the dots as
+   tags. */
+svg.chart text.groupln { fill: var(--ink); font-size: 34px; font-weight: 700; }
+svg.chart text.vsln    { fill: var(--ink-4); font-size: 26px; font-weight: 600; }
+
 svg.chart .bar     { rx: 4; }
+svg.chart line.trail { stroke-width: 5px; stroke-linecap: round; }
 svg.chart .track   { fill: rgba(245, 247, 249, .05); rx: 4; }
 svg.chart .nullrule{ stroke: var(--ink-4); stroke-width: 2px; stroke-dasharray: 8 8; }
 svg.chart .dot     { stroke: var(--stage); stroke-width: 2px; }
@@ -135,6 +203,11 @@ svg.chart .bracket { stroke: var(--accent); stroke-width: 3px; fill: none; }
   letter-spacing: .15em; text-transform: uppercase;
 }
 .wordmark {
+  /* Faint, and only in the final second — the 10k-steps breakout carried
+     exactly this and distributed anyway, so the late whisper stays for VIDEO.
+     KB §3.1's wordmark ban is for lockups on stills; a late 25px ink-4 fade
+     is a signature, not a watermark. Never make it earlier, bigger, or
+     brighter. */
   margin-top: 20px; color: var(--ink-4);
   font-size: 25px; font-weight: 700; letter-spacing: .34em;
   opacity: 0;
@@ -144,6 +217,8 @@ svg.chart .bracket { stroke: var(--accent); stroke-width: 3px; fill: none; }
 <body>
 <div class="stage">
   <div class="title" id="title"></div>
+  <div class="rule" id="rule"></div>
+  <div class="deck" id="deck"></div>
   <div class="plot" id="plot"></div>
   <div class="statement" id="statement">
     <div class="flag" id="statement-flag"></div>
@@ -159,6 +234,9 @@ svg.chart .bracket { stroke: var(--accent); stroke-width: 3px; fill: none; }
 <script>
 const W = 928;
 const PAD = { l: 0, r: 34, t: 56, b: 46 };
+/* Reel aspect: the plot earns more height so the frame is a chart with some
+   text on it, not text with a small chart — the 10k-steps proportions. */
+const TALL = window.innerHeight >= 1900;
 
 const esc = (s) => String(s ?? "").replace(/[&<>]/g, (c) => (
   { "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]
@@ -217,7 +295,7 @@ function sourceHTML(src) {
 ------------------------------------------------------------------------- */
 function renderGrow(spec, p) {
   const items = spec.items || [];
-  const rowH = 104, barH = 56, gap = rowH - barH;
+  const rowH = TALL ? 136 : 104, barH = TALL ? 72 : 56, gap = rowH - barH;
   const H = PAD.t + items.length * rowH + PAD.b;
   const labelW = 250;
   const x0 = labelW + 24, x1 = W - PAD.r;
@@ -274,7 +352,7 @@ function renderGrow(spec, p) {
 ------------------------------------------------------------------------- */
 function renderHold(spec, p) {
   const items = spec.items || [];
-  const H = 440;
+  const H = TALL ? 700 : 440;
   const x0 = 60, x1 = W - PAD.r;
   const lo = spec.domain?.[0] ?? -1, hi = spec.domain?.[1] ?? 1;
   const y = (v) => H - PAD.b - ((v - lo) / ((hi - lo) || 1)) * (H - PAD.t - PAD.b);
@@ -288,7 +366,7 @@ function renderHold(spec, p) {
   // Every label on ONE baseline, below the lowest dot. Hanging each label off
   // its own dot made them stagger by a few pixels -- which is exactly the
   // visual noise this motion exists to deny.
-  const labelY = Math.max(...items.map((i) => y(i.value))) + 58;
+  const labelY = Math.max(...items.map((i) => y(i.value))) + (TALL ? 72 : 58);
 
   const dots = items.map((item, index) => {
     const t = stagger(index, items.length, p, 0.4);
@@ -304,9 +382,9 @@ function renderHold(spec, p) {
     // leaves the reader taking the sameness on trust.
     const shown = clamp01((t - 0.7) / 0.3);
     return `
-      <text class="value" x="${cx.toFixed(1)}" y="${(cy - 30).toFixed(1)}"
+      <text class="value" x="${cx.toFixed(1)}" y="${(cy - (TALL ? 38 : 30)).toFixed(1)}"
             text-anchor="middle" opacity="${shown.toFixed(3)}">${esc(fmt(item.value, spec))}</text>
-      <circle class="dot" cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="15" fill="${fill}"
+      <circle class="dot" cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${TALL ? 19 : 15}" fill="${fill}"
               opacity="${clamp01(t * 2).toFixed(3)}"/>
       <text class="cat" x="${cx.toFixed(1)}" y="${labelY.toFixed(1)}" text-anchor="middle"
             opacity="${clamp01((t - 0.5) / 0.5).toFixed(3)}">${esc(item.label)}</text>`;
@@ -324,6 +402,239 @@ function renderHold(spec, p) {
 }
 
 /* -------------------------------------------------------------------------
+   CLOCKHOLD -- an absence of effect, told against elapsed time.
+
+   The reel-first equivalence motion. Static hold is honest but engine-less on
+   a full-screen Reel: the dots land and then nothing resolves for eight
+   seconds. Here the dots land FAST (by ~18% of the run) and the thing that
+   moves for the rest of the reel is a follow-up clock — years of study time
+   ticking up in the counter register of the 10k-steps breakout. The data
+   never moves, because it didn't; the point IS that the clock runs and the
+   gap never opens. Time elapsing is the one motion an equivalence claim can
+   wear without lying.
+
+   spec.clock = { to: 7.86, label: "years of follow-up", decimals: 1 }
+   `to` must trace to the paper's follow-up like any other digit on screen.
+------------------------------------------------------------------------- */
+function renderClockhold(spec, p) {
+  const items = spec.items || [];
+  const H = TALL ? 640 : 420;
+  const x0 = 60, x1 = W - PAD.r;
+  const lo = spec.domain?.[0] ?? -1, hi = spec.domain?.[1] ?? 1;
+  // The group headers own the top of the plot; dots drop in BELOW them, so
+  // the chart's ceiling sits under the header row.
+  const headY = PAD.t - 4;
+  const topY = PAD.t + 84;
+  const y = (v) => H - PAD.b - ((v - lo) / ((hi - lo) || 1)) * (H - topY - PAD.b);
+  const nullAt = spec.null_at ?? 0;
+
+  /* Choreography: one new thing at a time, one attention anchor.
+       0.00  headline / deck / group headers stand
+       0.10  dots drop into their columns, values land
+       0.30  centre stage: cohort counts up ("10,989 adults tracked"), exits
+       0.48  centre stage: the promise poses the question
+       0.52  clock starts (bottom-right, alone there), marks fire centre stage
+       0.85  final mark answers the promise
+       0.90  statement lands; the frame then holds for the screenshot.
+     Two entrances never run at once -- that was the v4 defect (cohort
+     counting while the dots dropped, 84px from the clock). */
+  const drop = clamp01((p - 0.10) / 0.16);
+  const colX = (index) => items.length === 1
+    ? (x0 + x1) / 2
+    : lerp(x0 + 130, x1 - 130, index / (items.length - 1));
+
+  // Reading hierarchy: headline, then the two GROUPS -- they drive the
+  // narrative, so they head their columns at reading size, present from the
+  // first frame, with the data arriving under them.
+  const headOp = clamp01(p / 0.05).toFixed(3);
+  const headers = items.map((item, index) => `
+    <text class="groupln" x="${colX(index).toFixed(1)}" y="${headY}" text-anchor="middle"
+          opacity="${headOp}">${esc(item.label)}</text>`).join("");
+  const vsSvg = items.length === 2
+    ? `<text class="vsln" x="${(x0 + x1) / 2}" y="${headY}" text-anchor="middle"
+         opacity="${headOp}">vs</text>` : "";
+
+  const clock = spec.clock || {};
+  // Timeline mode COLD-OPENS: the sweep is already running in the first
+  // frames -- the 10k reel's real hook is a chart in motion by second one,
+  // and entrance choreography before it is swipe-away time. Column mode
+  // keeps its staged start.
+  const cpEarly = spec.timeline
+    ? clamp01((p - 0.02) / 0.88)
+    : clamp01((p - 0.52) / 0.36);
+  const yearsEarly = (clock.to ?? 0) * cpEarly;
+
+  /* Two renderings of the same claim. Default: dots drop into their columns
+     and hold. `spec.timeline`: the sweep form — time runs on the x-axis, the
+     chips hold their HEIGHT while riding the sweep edge, a flat trail growing
+     behind each. The flatness is the story: the clock crosses the frame and
+     the chips never move apart. HONESTY RULE: the paper reports ONE
+     whole-period number, so the trail is the study's AVERAGE drawn across its
+     follow-up — the axis carries that label (`timeline_note`), and nothing
+     may imply per-year measurements. */
+  let dots, maxDotY = Math.max(...items.map((i) => y(i.value)));
+  const xL = x0 + 14, xR = x1 - 96;
+  // Timeline mode runs in LANES: y stops encoding the value (a 3-point
+  // difference is 34px on any honest scale -- the chips kiss) and becomes a
+  // race lane per group. Sameness is shown by synchronized motion: two
+  // runners crossing the frame together, neither ever ahead. The values ride
+  // the chips as numerals, which is where the quantitative claim lives.
+  const laneY = (i) => topY + 96 + i * (TALL ? 176 : 132);
+  if (spec.timeline) {
+    const edgeX = xL + clamp01(yearsEarly / (clock.to || 1)) * (xR - xL);
+    // No drop, no stagger: chips sit at their lanes and are already moving
+    // in frame one. A fast global fade (~0.5s) keeps the open from popping;
+    // lane labels arrive as soon as the chips clear their starts.
+    const on = clamp01(p / 0.04);
+    dots = items.map((item, index) => {
+      const yv = laneY(index);
+      const fill = `var(${BANDS[index % BANDS.length]})`;
+      // The lane label fades in only once the chip's riding value has swept
+      // clear of the label's width -- position-gated, not time-gated.
+      const startOp = clamp01((edgeX - (xL + item.label.length * 15 + 46)) / 60);
+      return `
+        <line class="trail" x1="${xL}" y1="${yv}" x2="${edgeX.toFixed(1)}" y2="${yv}"
+              stroke="${fill}" opacity="${on.toFixed(3)}"/>
+        <text class="cat" x="${xL}" y="${(yv - 28).toFixed(1)}"
+              text-anchor="start" opacity="${startOp.toFixed(3)}">${esc(item.label)}</text>
+        <text class="value" x="${edgeX.toFixed(1)}" y="${(yv - (TALL ? 40 : 32)).toFixed(1)}"
+              text-anchor="middle" opacity="${on.toFixed(3)}">${esc(fmt(item.value, spec))}</text>
+        <circle class="dot" cx="${edgeX.toFixed(1)}" cy="${yv.toFixed(1)}" r="${TALL ? 19 : 15}"
+                fill="${fill}" opacity="${on.toFixed(3)}"/>`;
+    }).join("");
+    maxDotY = laneY(items.length - 1);
+  } else {
+    dots = items.map((item, index) => {
+      const t = stagger(index, items.length, drop, 0.4);
+      const cx = colX(index);
+      const cy = lerp(y(hi), y(item.value), t);
+      const fill = `var(${BANDS[index % BANDS.length]})`;
+      const shown = clamp01((t - 0.7) / 0.3);
+      return `
+        <text class="value" x="${cx.toFixed(1)}" y="${(cy - (TALL ? 38 : 30)).toFixed(1)}"
+              text-anchor="middle" opacity="${shown.toFixed(3)}">${esc(fmt(item.value, spec))}</text>
+        <circle class="dot" cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${TALL ? 19 : 15}" fill="${fill}"
+                opacity="${clamp01(t * 2).toFixed(3)}"/>`;
+    }).join("");
+  }
+
+  // The clock ticks linearly -- it is time, and time does not ease. It starts
+  // as the promise poses its question and lands before the statement answers.
+  const years = yearsEarly;
+  const digits = clock.decimals ?? 1;
+  const numText = years.toLocaleString("en-US", {
+    minimumFractionDigits: digits, maximumFractionDigits: digits,
+  });
+  const labelText = clock.label || "years of follow-up";
+  const labelW = labelText.length * 14;
+  const clockBase = H + 56 + (TALL ? 128 : 104);
+  // The clock row enters only when its beat arrives -- a parked 0.0 sitting
+  // there from frame one is one more thing on screen before its turn.
+  // Timeline mode centres it UNDER the lanes, in the same column where the
+  // payoff will land -- one counter, one place; a second location for the
+  // same number splits the eyes.
+  const clockOp = clamp01((p - (spec.timeline ? 0.02 : 0.46)) / (spec.timeline ? 0.04 : 0.06)).toFixed(3);
+  const clockY = laneY(items.length - 1) + (TALL ? 122 : 100);
+  const clockSvg = spec.timeline
+    ? `<text x="${(x0 + x1) / 2}" y="${clockY.toFixed(1)}" text-anchor="middle" opacity="${clockOp}"
+        ><tspan class="clocknum">${numText}</tspan><tspan class="clocklabel">  ${esc(labelText)}</tspan></text>`
+    : `
+    <text class="clocklabel" x="${x1}" y="${clockBase}" text-anchor="end"
+          opacity="${clockOp}">${esc(labelText)}</text>
+    <text class="clocknum" x="${(x1 - labelW - 22).toFixed(1)}" y="${clockBase}"
+          text-anchor="end" opacity="${clockOp}">${numText}</text>`;
+
+  // The storytelling layer fills the dead zone between the labels and the
+  // null line -- the stretch of frame that used to hold nothing for 8s.
+  const zoneTop = maxDotY + 56, zoneBot = y(nullAt) - 40;
+  const midX = (x0 + x1) / 2;
+
+  // Timeline mode's x-axis: start and end ticks under the baseline, plus the
+  // average label -- the line that keeps the flat trails honest.
+  // Lane mode's baseline sits at the bottom of the chart box, clear of the
+  // centred clock + payoff column; value mode keeps the domain-anchored null.
+  const baseY = spec.timeline ? H - 6 : y(nullAt);
+  let axisSvg = "";
+  if (spec.timeline) {
+    const endLabel = `${(clock.to ?? 0).toLocaleString("en-US", {
+      minimumFractionDigits: digits, maximumFractionDigits: digits,
+    })} ${clock.axis_label || "years"}`;
+    axisSvg = `
+      <text class="note" x="${xL}" y="${(baseY + 44).toFixed(1)}" text-anchor="start"
+            opacity="${clockOp}">0</text>
+      <text class="note" x="${xR}" y="${(baseY + 44).toFixed(1)}" text-anchor="end"
+            opacity="${clockOp}">${esc(endLabel)}</text>`;
+    if (spec.timeline_note) axisSvg += `
+      <text class="note" x="${xR}" y="${(baseY + 88).toFixed(1)}" text-anchor="end"
+            opacity="${clockOp}">${esc(spec.timeline_note)}</text>`;
+  }
+
+  /* The story column. The steps-reel grammar, learned by violating it:
+     NOTHING EVER EXITS. Every line lands, stays, and the final frame carries
+     the whole story -- context, question, answer, stacked in reading order in
+     the dead zone. v5 swapped three beats through one slot (count-up, vanish,
+     replace) and the churn read as confusion, not story. */
+
+  // Line 1 -- context: the cohort counts up, parks, and STAYS. In timeline
+  // mode it joins the header block (the riding values own the mid-plot), in
+  // column mode it opens the story column.
+  let cohortSvg = "";
+  if (spec.cohort?.n != null) {
+    const cq = easeOut(clamp01((p - 0.30) / 0.10));
+    const co = clamp01((p - 0.30) / 0.06);
+    const shownN = Math.round(spec.cohort.n * cq).toLocaleString("en-US");
+    const cohortY = spec.timeline ? headY + 46 : zoneTop + 24;
+    cohortSvg = `<text class="cohortln" x="${midX}" y="${cohortY.toFixed(1)}" text-anchor="middle"
+      opacity="${co.toFixed(3)}"><tspan class="cohortnum">${shownN}</tspan>  ${esc(spec.cohort.label || "adults tracked")}</text>`;
+  }
+
+  // Line 2 -- the question. Told to expect movement, the viewer reads every
+  // tick that does not deliver it as information. It stays on screen so the
+  // answer lands directly beneath it.
+  let promiseSvg = "";
+  // Sits high in the inter-lane band: lane 2's value rides ABOVE its chip,
+  // so the lower half of the band belongs to the passing 25%.
+  const promiseY = spec.timeline
+    ? laneY(0) + (laneY(items.length - 1) - laneY(0)) * 0.40 + 6
+    : zoneTop + 96;
+  if (spec.promise) {
+    // The promise IS the hook: in timeline mode it lands right behind the
+    // group headers, before anything else moves.
+    const po = clamp01((p - (spec.timeline ? 0.08 : 0.44)) / 0.06);
+    promiseSvg = `<text class="promiseln" x="${midX}" y="${promiseY.toFixed(1)}"
+      text-anchor="middle" opacity="${po.toFixed(3)}">${esc(spec.promise)}</text>`;
+  }
+
+  // Line 3 -- the answer, under the question it answers. Marks accumulate
+  // (none exit); in practice one whole-period mark is enough, because the
+  // paper reports ONE number and mid-run teasers were churn.
+  const marks = clock.marks || [];
+  const markBase = spec.timeline ? clockY + 62 : zoneTop + 168;
+  const markSvg = marks.filter((m) => years >= m.at).map((m, i) => {
+    const mo = clamp01((years - m.at) / Math.max(0.001, (clock.to ?? 1) * 0.04));
+    return `<text class="markln" x="${midX}" y="${(markBase + i * 48).toFixed(1)}"
+      text-anchor="middle" opacity="${mo.toFixed(3)}">${esc(m.label)}</text>`;
+  }).join("");
+
+
+  const title = spec.axis_title
+    ? `<text class="axis-title" x="0" y="${PAD.t - 26}">${esc(spec.axis_title)}</text>` : "";
+  // In lane mode y does not encode the value, so a y-anchored null line would
+  // be a lie of geometry: the baseline is just the time axis.
+  const noteText = spec.null_label || "no difference";
+  const baseSvg = spec.timeline
+    ? `<line class="axis" x1="${x0}" y1="${baseY.toFixed(1)}" x2="${x1}" y2="${baseY.toFixed(1)}"/>`
+    : `<line class="nullrule" x1="${x0}" y1="${y(nullAt).toFixed(1)}" x2="${x1}" y2="${y(nullAt).toFixed(1)}"/>
+    <text class="note" x="${x1}" y="${(y(nullAt) - 16).toFixed(1)}" text-anchor="end">${esc(noteText)}</text>`;
+  const svgH = spec.timeline ? Math.round(baseY + 118) : clockBase + 26;
+  return `<svg class="chart" height="${svgH}" viewBox="0 0 ${W} ${svgH}">
+    ${title}
+    ${baseSvg}
+    ${headers}${vsSvg}${dots}${axisSvg}${clockSvg}${promiseSvg}${markSvg}${cohortSvg}
+  </svg>`;
+}
+
+/* -------------------------------------------------------------------------
    NARROW -- a range, or a threshold.
 
    A wide interval closes onto the estimate. This is the motion for "the
@@ -332,7 +643,7 @@ function renderHold(spec, p) {
    the band never closes to zero.
 ------------------------------------------------------------------------- */
 function renderNarrow(spec, p) {
-  const H = 340;
+  const H = TALL ? 480 : 340;
   const x0 = 60, x1 = W - PAD.r;
   const [lo, hi] = spec.domain || [0, 1];
   const x = (v) => x0 + ((v - lo) / ((hi - lo) || 1)) * (x1 - x0);
@@ -389,10 +700,16 @@ function renderTypeLines(spec, p) {
   }).join("");
 }
 
-const MOTIONS = { grow: renderGrow, hold: renderHold, narrow: renderNarrow };
+const MOTIONS = { grow: renderGrow, hold: renderHold, clockhold: renderClockhold, narrow: renderNarrow };
 
 window.setSpec = function (spec) {
-  SPEC = spec;
+  // A deck replaces the in-plot axis eyebrow: same fact, reading size.
+  SPEC = spec.deck ? Object.assign({}, spec, { axis_title: null }) : spec;
+  if (spec.deck) {
+    document.getElementById("deck").textContent = spec.deck;
+    document.getElementById("deck").style.display = "block";
+    document.getElementById("rule").style.display = "block";
+  }
   document.getElementById("title").innerHTML = markup(spec.title || "");
   document.getElementById("source").innerHTML = sourceHTML(spec.source);
   const statement = document.getElementById("statement");
@@ -424,9 +741,12 @@ window.setFrame = function (p) {
 
   // The statement lands after the chart has finished saying what it says --
   // it is the reading of the chart, and it cannot be read before there is one.
+  // Clockhold delays it further: it must follow the final mark's answer, then
+  // the frame holds on it for the screenshot.
   if (SPEC.statement) {
+    const [sAt, sSpan] = SPEC.motion === "clockhold" ? [0.90, 0.08] : [0.62, 0.22];
     document.getElementById("statement").style.opacity =
-      clamp01((run - 0.62) / 0.22).toFixed(3);
+      clamp01((run - sAt) / sSpan).toFixed(3);
   }
   document.getElementById("wordmark").style.opacity =
     clamp01((clamped - 0.86) / 0.09).toFixed(3);

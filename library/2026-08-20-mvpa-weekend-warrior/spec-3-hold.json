@@ -1,0 +1,38 @@
+{
+  "motion": "hold",
+  "title": "Blood sugar health showed the same pattern.",
+  "axis_title": "LOWER DISEASE RISK VS INACTIVE",
+  "suffix": "%",
+  "domain": [0, 40],
+  "null_at": 0,
+  "null_label": "no benefit",
+  "items": [
+    { "label": "1–2 days", "value": 17 },
+    { "label": "spread out", "value": 18 }
+  ],
+  "statement": {
+    "flag": "No difference",
+    "detail": "Heart, kidney and blood-sugar disease combined — enough movement in fewer days was linked to the same lower risk."
+  },
+  "source": {
+    "authors": "Sun et al.",
+    "journal": "BMC Public Health",
+    "sample": "n=76,875",
+    "tier": "COHORT"
+  },
+  "_provenance": {
+    "finding": "mvpa · weekend warrior equivalence · confidence 0.65 · 22 studies",
+    "claims": [
+      {
+        "paper": "doi:10.1186_s12889-026-27719-0 · Sun et al. 2026, BMC Public Health, n=76,875, 8.1y median",
+        "value_on_screen": "17% = 1 - HR 0.83 [0.79–0.87] (weekend warrior)",
+        "quote": "Compared with inactive participants, regularly active (HR = 0.82, 95% CI: 0.77-0.87) and WW (HR = 0.83, 95% CI: 0.79-0.87) had lower risks of transitioning from healthy to FCRMD"
+      },
+      {
+        "paper": "doi:10.1186_s12889-026-27719-0",
+        "value_on_screen": "18% = 1 - HR 0.82 [0.77–0.87] (regularly active)",
+        "quote": "regularly active (HR = 0.82, 95% CI: 0.77-0.87)"
+      }
+    ]
+  }
+}

@@ -23,6 +23,7 @@ import logging
 from google.adk.agents import LlmAgent
 from google.adk.runners import InMemoryRunner
 from google.genai import types
+from pydantic import BaseModel
 
 from .. import grounding
 from ..llm import model as llm_model
@@ -97,6 +98,16 @@ number or rule, not when it is merely about the same topic.
 - `neutral`    - bears on the component without implying any change.
 
 `component_ids` must use the exact identifiers given in the CURRENT RULES.
+
+`plain_summary` is one sentence for a reader who is not a clinician: what the \
+study looked at, in whom, and what it found. Write it the way you would say it \
+out loud. No abbreviations (write "moderate exercise", not "MVPA"), no \
+statistical notation (write "people who did X were a third less likely to die \
+during the study" rather than "HR 0.68, 95% CI 0.61-0.75"), no hedging \
+throat-clearing. Say only what this paper found -- never what it implies for \
+the algorithm, which is the `alignment` field's job. Do not state a number here \
+that does not appear in one of your quotes.
+
 Be sceptical. Most papers do not justify changing a production algorithm.
 """
 
@@ -208,6 +219,86 @@ def _parse_json(text: str) -> dict | None:
                         break
     log.warning("could not parse model response as JSON: %s", text[:200])
     return None
+
+
+SUMMARISER_INSTRUCTION = """\
+Write one sentence about a study, for a reader who is not a clinician: what it \
+looked at, in whom, and what it found. Write it the way you would say it out \
+loud to a friend.
+
+No abbreviations (write "moderate exercise", not "MVPA"; "heart rate \
+variability", not "HRV"). No statistical notation -- say "a fifth less likely", \
+not "HR 0.80, 95% CI 0.72-0.89". No throat-clearing: do not begin "This study \
+shows" or "Researchers found".
+
+You are shown the claims already extracted and verified from this paper. Say \
+only what those support. Do not introduce a number that is not in them, and do \
+not say what it implies for anyone's algorithm -- that judgement is recorded \
+elsewhere and is not yours to make here.
+"""
+
+
+class PlainSummary(BaseModel):
+    summary: str
+
+
+async def summarise(
+    pairs: list[tuple[Paper | None, Appraisal]]
+) -> list[Appraisal]:
+    """Fill in ``plain_summary`` for appraisals that predate the field.
+
+    Separate from ``appraise`` on purpose: this reads an appraisal that already
+    passed grounding and rewrites nothing but its cover sentence. It cannot
+    change a tier, an alignment or a claim, so a backfill can never quietly
+    alter what the corpus says.
+    """
+    agent = _agent("summariser", REASONING_MODEL, SUMMARISER_INSTRUCTION, PlainSummary)
+    # A backfill runs over the whole corpus at once rather than over one night's
+    # papers, which is enough to trip the Vertex quota. Narrower, and patient.
+    semaphore = asyncio.Semaphore(3)
+
+    async def one(paper: Paper | None, appraisal: Appraisal) -> Appraisal | None:
+        claims = "\n".join(
+            f"- {c.statement}"
+            + (f" [{c.value:g}{' ' + c.unit if c.unit else ''}]" if c.value is not None else "")
+            + f'\n  quoted: "{c.quote}"'
+            for c in appraisal.claims
+        )
+        prompt = (
+            f"# PAPER\n{_paper_block(paper) if paper else appraisal.paper_id}\n\n"
+            f"# VERIFIED CLAIMS\n{claims}\n\n"
+            f"# DESIGN\n{appraisal.design}"
+            + (f", n={appraisal.sample_size:,}" if appraisal.sample_size else "")
+            + (f", followed {appraisal.follow_up}" if appraisal.follow_up else "")
+        )
+        # One paper failing -- a rate limit, a malformed response -- must not
+        # cost the whole backfill the papers that did succeed. Every appraisal
+        # here is already complete and stored; a missing cover sentence falls
+        # back to the claim statement, which is the state we started from.
+        payload = None
+        for attempt, pause in enumerate((2, 8, 20)):
+            try:
+                async with semaphore:
+                    payload = await _run(agent, prompt)
+                break
+            except Exception as exc:  # noqa: BLE001 - any model failure is retryable here
+                log.warning(
+                    "summarise: attempt %d failed for %s: %s",
+                    attempt + 1, appraisal.paper_id, str(exc)[:120],
+                )
+                await asyncio.sleep(pause)
+        if not payload:
+            log.warning("summarise: no summary for %s", appraisal.paper_id)
+            return None
+        summary = PlainSummary.model_validate(payload).summary.strip()
+        if not summary:
+            return None
+        return appraisal.model_copy(update={"plain_summary": summary})
+
+    results = await asyncio.gather(*(one(p, a) for p, a in pairs))
+    updated = [a for a in results if a is not None]
+    log.info("summarise: %d of %d written", len(updated), len(pairs))
+    return updated
 
 
 async def triage(

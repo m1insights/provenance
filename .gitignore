@@ -12,3 +12,7 @@ content/
 service-account*.json
 renderer/node_modules/
 renderer/out/
+
+# social asset library: track specs/captions/readme, ignore media
+library/**/*.png
+library/**/frames/

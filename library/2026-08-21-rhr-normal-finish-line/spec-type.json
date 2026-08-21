@@ -1,0 +1,19 @@
+{
+  "motion": "type",
+  "title": "Your watch shows it *every morning*.",
+  "lines": [
+    "The slope showed up in young adults — decades before anyone calls it a risk factor.",
+    "One number, measured while you do nothing at all.",
+    "Watch the trend, not just the 'normal' range."
+  ],
+  "source": {
+    "authors": "Chen et al.",
+    "journal": "Open Heart",
+    "sample": "n=12,232",
+    "tier": "COHORT"
+  },
+  "_provenance": {
+    "paper": "doi:10.1136_openhrt-2026-004279",
+    "note": "copy-only closer; no digits on screen, facts trace to claims c1/c2 in spec-grow.json"
+  }
+}

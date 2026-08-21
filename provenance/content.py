@@ -20,7 +20,7 @@ the tier travels onto the asset itself as a chip.
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
 from .models import Alignment, Appraisal, EvidenceTier, Paper
@@ -62,6 +62,9 @@ class Candidate:
     score: float
     motion: str
     reasons: list[str]
+    #: Dose-response markers found in the claims. Non-empty means this paper
+    #: could be the 84K format -- see ``sweep_signals``.
+    sweep_signals: list[str] = field(default_factory=list)
 
     @property
     def paper_id(self) -> str:
@@ -74,6 +77,54 @@ class Candidate:
     @property
     def numeric_claims(self) -> list:
         return [c for c in self.appraisal.claims if c.value is not None]
+
+
+# --------------------------------------------------------------------------- #
+# Sweepability -- the shape the breakout reel needs
+# --------------------------------------------------------------------------- #
+
+#: Phrases that mark a continuous dose-response -- the claim shape the sweep
+#: reel renders (the 10k-steps format: 84K views, the account's one breakout).
+#: These alone are enough: an author who writes "dose-response" or "J-shaped"
+#: measured a curve, and a curve is a sweepable domain.
+_SWEEP_STRONG = (
+    "dose-response", "dose–response", "dose response",
+    "j-shaped", "u-shaped", "l-shaped",
+    "nonlinear", "non-linear", "spline", "inflection",
+    "per additional", "each additional", "per 1,000", "per 1000",
+    "per increment", "per 10 minutes", "per hour of", "per cup",
+    "plateau", "p for trend", "p-trend", "trend across",
+)
+
+#: Graded-exposure language. Ambiguous alone -- nearly every cohort has a
+#: reference quartile -- so these count only when the appraisal also carries
+#: three or more numeric claims, i.e. enough points to actually draw a curve.
+_SWEEP_GRADED = (
+    "quartile", "quintile", "tertile", "highest versus lowest",
+    "highest vs lowest", "categories of", "increasing levels",
+)
+
+
+def sweep_signals(appraisal: Appraisal) -> list[str]:
+    """Markers suggesting the paper reports a curve, not a point.
+
+    Read from the words the appraiser already grounded -- statements, verbatim
+    quotes, design, reasoning -- never from the figures alone, because three
+    numbers can be three unrelated endpoints. This flags CANDIDATES; whether
+    the full text tabulates enough of the curve to sweep is the operator's
+    call, made with the paper open.
+    """
+    text = " ".join(
+        [c.statement for c in appraisal.claims]
+        + [c.quote for c in appraisal.claims]
+        + [appraisal.design, appraisal.reasoning]
+    ).lower()
+
+    found = [marker for marker in _SWEEP_STRONG if marker in text]
+    numeric = sum(1 for c in appraisal.claims if c.value is not None)
+    if numeric >= 3:
+        found += [marker for marker in _SWEEP_GRADED if marker in text]
+    return found
 
 
 def pick_motion(appraisal: Appraisal) -> str:
@@ -116,6 +167,13 @@ def pick_motion(appraisal: Appraisal) -> str:
     ratios = [c.value for c in numeric if c.value is not None and 0.5 < c.value < 2.0]
     if len(ratios) >= 3 and all(abs(v - 1.0) <= 0.08 for v in ratios):
         return "hold"
+
+    # The breakout shape. Checked AFTER the null rules on purpose: an
+    # equivalence result dressed in graded language must stay `hold` --
+    # sweeping a flat line animates a difference that is not there.
+    if len(numeric) >= 2 and sweep_signals(appraisal):
+        return "sweep"
+
     if len(numeric) >= 2:
         return "grow"
     return "narrow"
@@ -146,11 +204,19 @@ def score(appraisal: Appraisal, paper: Paper | None, *, posted: set[str]) -> tup
         total += 5.0
         reasons.append("reports its uncertainty")
 
-    if pick_motion(appraisal) == "hold":
+    motion = pick_motion(appraisal)
+    if motion == "hold":
         # "Two things you think differ do not" is the most watchable finding a
         # cohort study can produce, and the hardest to fake.
         total += 10.0
         reasons.append("an equivalence result")
+    elif motion == "sweep":
+        # The one shape with a proven breakout (10k-steps: 84K views vs the
+        # account's ~2K baseline). A dose-response curve is the only claim
+        # whose reveal test passes by construction: the motion IS the value
+        # arriving, so the answer cannot sit whole in frame one.
+        total += 15.0
+        reasons.append("sweep-shaped — the breakout reel format")
 
     if appraisal.sample_size:
         # Scale, not linearly -- 400k is not forty times more convincing than
@@ -199,9 +265,14 @@ def candidates(
     posted: set[str] | None = None,
     component: str | None = None,
     include_weak: bool = False,
+    sweepable: bool = False,
     limit: int = 20,
 ) -> list[Candidate]:
-    """The ranked publishable pool."""
+    """The ranked publishable pool.
+
+    ``sweepable`` narrows to papers carrying dose-response signals -- the hunt
+    for the next 10k-steps reel, as a filter rather than a separate pool.
+    """
     posted = posted or set()
     out: list[Candidate] = []
 
@@ -209,6 +280,9 @@ def candidates(
         if component and component not in appraisal.component_ids:
             continue
         if not include_weak and appraisal.tier not in PUBLISHABLE_TIERS:
+            continue
+        signals = sweep_signals(appraisal)
+        if sweepable and not signals:
             continue
         value, reasons = score(appraisal, papers.get(appraisal.paper_id), posted=posted)
         if value < 0:
@@ -219,6 +293,7 @@ def candidates(
             score=value,
             motion=pick_motion(appraisal),
             reasons=reasons,
+            sweep_signals=signals,
         ))
 
     out.sort(key=lambda c: c.score, reverse=True)

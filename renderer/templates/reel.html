@@ -60,36 +60,55 @@ html, body {
   display: flex; flex-direction: column;
 }
 
+.deck {
+  margin-top: 40px; padding-top: 30px;
+  border-top: 1px solid var(--line);
+  font-size: 36px; font-weight: 500; line-height: 1.22;
+  color: var(--ink-2);
+}
+
 .title {
   font-size: 54px; font-weight: 700; letter-spacing: -.02em;
   color: var(--ink); line-height: 1.06;
 }
-.subtitle {
-  margin-top: 14px; font-size: 28px; font-weight: 400;
-  color: var(--ink-3); font-style: italic;
+/* The y-axis says what it is measuring, so no deck line has to. */
+svg.chart text.axis-title {
+  fill: var(--ink-4); font-size: 21px; font-weight: 700; letter-spacing: .14em;
 }
 
-/* Annotations fire at thresholds and fade. They are the only moving text. */
-.annotation {
-  margin-top: 30px; min-height: 92px;
-  opacity: 0; transition: none;
-}
-.annotation .flag {
-  color: var(--accent); font-size: 26px; font-weight: 700;
-  letter-spacing: .16em; text-transform: uppercase;
-}
-.annotation .detail {
-  margin-top: 8px; color: var(--ink-3); font-size: 27px; font-weight: 400;
-}
+/* Annotations name REGIONS of the chart, not moments in the clip.
 
-.plot { margin-top: 18px; position: relative; }
-svg.chart { display: block; width: 928px; height: 780px; overflow: visible; }
+   They used to swap in place in the header: one caption replaced the other, so
+   "past here" pointed at nothing and the viewer never saw the two parts of the
+   curve side by side. They now render as brackets spanning the x-range each one
+   describes, drawn in the same scale as the plot and directly above it, and
+   once revealed they STAY. By the last frame both labels are on screen over the
+   stretch of curve each is talking about.
+
+   Text still never wears a band colour -- the bracket is the mark that carries
+   accent, the words stay in ink tokens. */
+.plot { margin-top: 54px; position: relative; }
+svg.chart { display: block; width: 928px; height: 904px; overflow: visible; }
 
 svg.chart .band       { stroke: var(--stage); stroke-width: 2px; }
 svg.chart .edge       { stroke: var(--ink); stroke-width: 3px; fill: none; opacity: .9; }
 svg.chart .axis       { stroke: var(--axis); stroke-width: 1.5px; fill: none; }
 svg.chart .grid       { stroke: var(--grid); stroke-width: 1px; fill: none; }
 svg.chart text        { font-family: var(--display); fill: var(--ink-4); font-size: 24px; }
+
+/* The region rail. The bracket is accent because it is a mark; the words are
+   ink because they are words. */
+svg.chart .bracket    { stroke: var(--accent); stroke-width: 3px; fill: none; }
+svg.chart text.region-flag {
+  fill: var(--ink); font-size: 32px; font-weight: 700;
+  letter-spacing: .02em; text-transform: uppercase;
+}
+svg.chart text.region-detail { fill: var(--ink-2); font-size: 24px; font-weight: 400; }
+svg.chart text.marker {
+  fill: var(--ink); font-size: 30px; font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+svg.chart .region-rule { stroke: rgba(245, 247, 249, .22); stroke-width: 1.5px; }
 svg.chart text.inband {
   font-family: var(--display); font-size: 27px; font-weight: 700;
   letter-spacing: .08em; text-transform: uppercase;
@@ -127,6 +146,7 @@ svg.chart text.inband {
 /* Brand arrives last. A wordmark sitting on screen throughout competes with
    the animation that is doing the work. */
 .wordmark {
+
   margin-top: 20px; color: var(--ink-4);
   font-size: 25px; font-weight: 700; letter-spacing: .34em;
   opacity: 0;
@@ -136,11 +156,7 @@ svg.chart text.inband {
 <body>
 <div class="stage">
   <div class="title" id="title"></div>
-  <div class="subtitle" id="subtitle"></div>
-  <div class="annotation" id="annotation">
-    <div class="flag" id="annotation-flag"></div>
-    <div class="detail" id="annotation-detail"></div>
-  </div>
+  <div class="deck" id="deck"></div>
   <div class="plot" id="plot"></div>
   <div class="counter"><span id="counter-value"></span><span class="caption" id="counter-caption"></span></div>
   <div class="foot">
@@ -151,7 +167,9 @@ svg.chart text.inband {
 
 <script>
 const W = 928, H = 780;
-const PAD = { l: 74, r: 34, t: 26, b: 58 };
+/** Height reserved above the plot for the region rail. */
+const RAIL = 124;
+const PAD = { l: 74, r: 34, t: 64, b: 58 };
 
 const esc = (s) => String(s ?? "").replace(/[&<>]/g, (c) => (
   { "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]
@@ -162,8 +180,16 @@ const BANDS = ["--band-1", "--band-2", "--band-3", "--band-4", "--band-5", "--ba
 let SPEC = null;
 
 const lerp = (a, b, t) => a + (b - a) * t;
-/** Ease so the sweep starts and ends calmly but crosses the middle briskly. */
-const easeInOut = (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
+const clamp01 = (t) => Math.max(0, Math.min(1, t));
+/** Ease OUT: fastest at the very start, settling as it lands.
+ *
+ * This was ease-in-out, which is the right curve for a chart someone chose to
+ * look at and the wrong one for a chart scrolling past them -- its first second
+ * covered 1.5% of the domain, so the opening frames were a static-looking sliver
+ * and the clip read as a photo. Ease-out puts the largest visible change in the
+ * first half second, which is the entire window in which a feed decides whether
+ * to keep watching, and still decelerates into the final state. */
+const easeOut = (t) => 1 - Math.pow(1 - t, 2.2);
 
 function xScale(spec) {
   const [x0, x1] = spec.domain;
@@ -201,6 +227,111 @@ function stackAt(series, x) {
   return stops.map((s) => ({ ...s, base: s.base * scale, top: s.top * scale }));
 }
 
+function renderRegions(spec, head, x, yBase, x1) {
+  // Region rail. Annotation i owns the span from its own x to the next one's
+  // (or the end of the domain), so the label sits over the stretch of curve it
+  // is describing. A region appears when the sweep reaches its start and then
+  // persists -- the last frame carries every label at once, which is the frame
+  // people screenshot.
+  const anns = spec.annotations || [];
+  return anns.map((a, i) => {
+    const from = a.at;
+    const to = i + 1 < anns.length ? anns[i + 1].at : x1;
+    if (head < from) return "";
+    // Fade in over the first quarter of the region so it arrives with the sweep
+    // rather than snapping on.
+    const age = Math.max(0, Math.min(1, (head - from) / Math.max(1, (to - from) * 0.25)));
+    const xa = x(from), xb = x(to);
+    const tx = (xa + 7).toFixed(1);
+    return `<g opacity="${age.toFixed(3)}">
+      <text class="region-flag"   x="${tx}" y="${-RAIL + 40}">${esc(a.flag || "")}</text>
+      <text class="region-detail" x="${tx}" y="${-RAIL + 76}">${esc(a.detail || "")}</text>
+      <path class="bracket" d="M ${xa.toFixed(1)} ${-RAIL + 92}
+                               V ${-RAIL + 104} H ${xb.toFixed(1)} V ${-RAIL + 92}"/>
+      <line class="region-rule" x1="${xa.toFixed(1)}" y1="${-RAIL + 104}"
+            x2="${xa.toFixed(1)}" y2="${yBase.toFixed(1)}"/>
+    </g>`;
+  }).join("");
+}
+
+/** y-scale for curve mode: a real measured range, not a 0-100 composition. */
+function yScaleCurve(spec) {
+  const [lo, hi] = spec.y_domain || [0, 1];
+  return (v) => H - PAD.b - ((v - lo) / ((hi - lo) || 1)) * (H - PAD.t - PAD.b);
+}
+
+/**
+ * Curve mode: one series revealed left to right, with a marker and a printed
+ * value at every point the paper actually reported.
+ *
+ * The line between two markers is a straight interpolation and nothing was
+ * measured along it, so the markers are drawn emphatically and carry the
+ * numbers: the reader's eye lands on the reported values, not on the segments
+ * joining them.
+ */
+function renderCurve(spec, progress) {
+  const x = xScale(spec), y = yScaleCurve(spec);
+  const [x0, x1] = spec.domain;
+  const head = lerp(x0, x1, progress);
+  const points = (spec.series?.[0]?.points) || [];
+
+  const steps = 96;
+  const xs = [];
+  for (let i = 0; i <= steps; i += 1) {
+    const v = lerp(x0, head, i / steps);
+    xs.push(v);
+    if (v >= head) break;
+  }
+  const top = xs.map((v) => `${x(v).toFixed(1)},${y(valueAt(points, v)).toFixed(1)}`);
+  const base = `${x(head).toFixed(1)},${y(spec.y_domain[0]).toFixed(1)} ${x(x0).toFixed(1)},${y(spec.y_domain[0]).toFixed(1)}`;
+
+  const area = progress > 0.004
+    ? `<polygon class="band" fill="var(--band-2)" opacity=".28" points="${top.join(" ")} ${base}"/>
+       <polyline class="edge" points="${top.join(" ")}"/>` : "";
+
+  const markers = points.map((pt) => {
+    if (head < pt[0]) return "";
+    const age = head >= x1 - 1
+      ? 1
+      : clamp01((head - pt[0]) / Math.max(1, (x1 - x0) * 0.05));
+    const cx = x(pt[0]), cy = y(pt[1]);
+    const label = pt[2];
+    // Keep the printed value inside the plot: the final marker sits on the
+    // right edge, so a centred label hangs off it.
+    const lx = Math.min(Math.max(cx, PAD.l + 40), W - PAD.r - 46);
+    return `<g opacity="${age.toFixed(3)}">
+      <circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="11" fill="var(--band-1)"
+              stroke="var(--stage)" stroke-width="3"/>
+      ${label ? `<text class="marker" x="${lx.toFixed(1)}" y="${(cy - 30).toFixed(1)}"
+                       text-anchor="middle">${esc(label)}</text>` : ""}
+    </g>`;
+  }).join("");
+
+  const headX = x(head);
+  const edge = progress > 0.005 && progress < 0.999
+    ? `<line class="edge" x1="${headX.toFixed(1)}" y1="${y(spec.y_domain[1]).toFixed(1)}"
+             x2="${headX.toFixed(1)}" y2="${y(spec.y_domain[0]).toFixed(1)}"/>` : "";
+
+  const ticks = (spec.ticks || []).map((t) =>
+    `<text x="${x(t.at).toFixed(1)}" y="${H - 16}" text-anchor="middle">${esc(t.label)}</text>`
+  ).join("");
+
+  const gridlines = (spec.y_ticks || []).map((t) =>
+    `<line class="grid" x1="${PAD.l}" y1="${y(t.at).toFixed(1)}" x2="${W - PAD.r}" y2="${y(t.at).toFixed(1)}"/>
+     <text x="${PAD.l - 16}" y="${(y(t.at) + 8).toFixed(1)}" text-anchor="end">${esc(t.label)}</text>`
+  ).join("");
+
+  const axisTitle = spec.y_title && !spec.deck
+    ? `<text class="axis-title" x="0" y="${(y(spec.y_domain[1]) - 26).toFixed(1)}">${esc(spec.y_title)}</text>` : "";
+
+  const regions = renderRegions(spec, head, x, y(spec.y_domain[0]), x1);
+  return `<svg class="chart" viewBox="0 ${-RAIL} ${W} ${H + RAIL}">
+    ${axisTitle}${gridlines}${area}${markers}${edge}
+    <line class="axis" x1="${PAD.l}" y1="${y(spec.y_domain[0]).toFixed(1)}" x2="${W - PAD.r}" y2="${y(spec.y_domain[0]).toFixed(1)}"/>
+    ${ticks}${regions}
+  </svg>`;
+}
+
 function renderChart(spec, progress) {
   const x = xScale(spec), y = yScale();
   const [x0, x1] = spec.domain;
@@ -227,13 +358,25 @@ function renderChart(spec, progress) {
   // Labels sit inside their band, at the widest revealed point, so the viewer
   // never has to map a colour back to a legend.
   const labels = spec.series.map((s, index) => {
-    if (!s.label || progress < 0.18) return "";
+    if (!s.label || progress < 0.08) return "";
     const at = Math.floor(xs.length * 0.55);
     const slice = stacksByX[at] && stacksByX[at][index];
     if (!slice) return "";
     const height = Math.abs(y(slice.base) - y(slice.top));
     if (height < 34) return "";  // too thin to hold a word honestly
-    const cx = x(xs[at]);
+
+    // ...and wide enough, which the height gate alone did not catch: early in
+    // the sweep the revealed strip was narrower than the word, so the leading
+    // edge sliced "DIABETES" down to "DIABETE". A clipped label is worse than
+    // no label. 27px caps at .08em track measure ~0.78em per character.
+    const approx = s.label.length * 27 * 0.78;
+    const left = x(x0), right = x(head);
+    if (right - left < approx + 32) return "";
+    // Keep the whole word inside the revealed strip as it slides right.
+    const cx = Math.min(
+      Math.max(x(xs[at]), left + approx / 2 + 10),
+      right - approx / 2 - 10
+    );
     const cy = (y(slice.base) + y(slice.top)) / 2 + 9;
     // Bands 1-3 are light enough to need dark type; 4-6 are dark enough to
     // need white. Anything in between reads as washed at thumbnail size.
@@ -262,21 +405,22 @@ function renderChart(spec, progress) {
     `<text x="${x(t.at).toFixed(1)}" y="${H - 16}" text-anchor="middle">${esc(t.label)}</text>`
   ).join("");
 
+  const axisTitle =
+    `<text class="axis-title" x="0" y="${(y(100) - 26).toFixed(1)}">% OF DEATHS</text>`;
+
   const gridlines = [0, 25, 50, 75, 100].map((v) =>
     `<line class="grid" x1="${PAD.l}" y1="${y(v).toFixed(1)}" x2="${W - PAD.r}" y2="${y(v).toFixed(1)}"/>
      <text x="${PAD.l - 16}" y="${(y(v) + 8).toFixed(1)}" text-anchor="end">${v}%</text>`
   ).join("");
 
-  return `<svg class="chart" viewBox="0 0 ${W} ${H}">
-    ${gridlines}${bands}${labels}${edge}
+  const regions = renderRegions(spec, head, x, y(0), x1);
+
+
+  return `<svg class="chart" viewBox="0 ${-RAIL} ${W} ${H + RAIL}">
+    ${axisTitle}${gridlines}${bands}${labels}${edge}${regions}
     <line class="axis" x1="${PAD.l}" y1="${y(0).toFixed(1)}" x2="${W - PAD.r}" y2="${y(0).toFixed(1)}"/>
     ${ticks}
   </svg>`;
-}
-
-function activeAnnotation(spec, value) {
-  const hits = (spec.annotations || []).filter((a) => value >= a.at);
-  return hits.length ? hits[hits.length - 1] : null;
 }
 
 function sourceHTML(src) {
@@ -290,7 +434,7 @@ function sourceHTML(src) {
 window.setSpec = function (spec) {
   SPEC = spec;
   document.getElementById("title").textContent = spec.title || "";
-  document.getElementById("subtitle").textContent = spec.subtitle || "";
+  document.getElementById("deck").textContent = spec.deck || "";
   document.getElementById("source").innerHTML = sourceHTML(spec.source);
   document.getElementById("counter-caption").textContent = spec.counter_caption || "";
   window.setFrame(0);
@@ -305,11 +449,14 @@ window.setFrame = function (p) {
   if (!SPEC) return;
   const clamped = Math.max(0, Math.min(1, p));
 
-  // Hold briefly at the start so the title is readable, and at the end so the
-  // finished chart lands before the clip loops.
-  const sweep = easeInOut(Math.max(0, Math.min(1, (clamped - 0.08) / 0.74)));
+  // Motion begins almost immediately. The old 8% head-hold spent nearly a second
+  // on a static frame, which on a feed is most of the attention the clip is ever
+  // going to get -- a still first second reads as a photo and gets swiped. The
+  // tail hold stays generous so the finished chart lands before the loop.
+  const sweep = easeOut(Math.max(0, Math.min(1, (clamped - 0.015) / 0.80)));
 
-  document.getElementById("plot").innerHTML = renderChart(SPEC, sweep);
+  document.getElementById("plot").innerHTML =
+    (SPEC.chart === "curve" ? renderCurve : renderChart)(SPEC, sweep);
 
   const [x0, x1] = SPEC.domain;
   const value = lerp(x0, x1, sweep);
@@ -321,18 +468,6 @@ window.setFrame = function (p) {
   });
   document.getElementById("counter-value").textContent =
     `${SPEC.counter_prefix || ""}${shown}`;
-
-  const annotation = activeAnnotation(SPEC, value);
-  const box = document.getElementById("annotation");
-  if (annotation) {
-    document.getElementById("annotation-flag").textContent = annotation.flag || "";
-    document.getElementById("annotation-detail").textContent = annotation.detail || "";
-    // Fade in over the first slice of the annotation's life.
-    const age = (value - annotation.at) / Math.max(1, (x1 - x0) * 0.04);
-    box.style.opacity = String(Math.max(0, Math.min(1, age)));
-  } else {
-    box.style.opacity = "0";
-  }
 
   // Brand arrives at 86%, once the chart has finished saying what it says.
   document.getElementById("wordmark").style.opacity =
@@ -356,7 +491,7 @@ window.DEMO = {
     { at: 12000, label: "12,000" },
   ],
   annotations: [
-    { at: 4000, flag: "The steep part", detail: "Most of the change happens early" },
+    { at: 2000, flag: "The steep part", detail: "Most of the change happens early" },
     { at: 7500, flag: "It flattens", detail: "Past here, more steps change little" },
   ],
   series: [

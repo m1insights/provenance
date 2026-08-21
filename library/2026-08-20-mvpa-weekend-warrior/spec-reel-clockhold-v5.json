@@ -1,0 +1,78 @@
+{
+  "motion": "clockhold",
+  "title": "You do not need to train every day.",
+  "axis_title": "LOWER HEART DISEASE RISK VS INACTIVE",
+  "suffix": "%",
+  "domain": [
+    0,
+    40
+  ],
+  "null_at": 0,
+  "null_label": "no benefit",
+  "items": [
+    {
+      "label": "1\u20132 days a week",
+      "value": 28
+    },
+    {
+      "label": "3+ days a week",
+      "value": 25
+    }
+  ],
+  "statement": {
+    "flag": "Same benefit",
+    "detail": "Packing movement into one or two sessions was linked to lower heart risk \u2014 same as spreading it out."
+  },
+  "source": {
+    "authors": "Yang et al.",
+    "journal": "Diabetes Res Clin Pract",
+    "sample": "n=10,989",
+    "tier": "COHORT"
+  },
+  "_provenance": {
+    "finding": "mvpa \u00b7 weekend warrior equivalence \u00b7 confidence 0.65 \u00b7 22 studies",
+    "claims": [
+      {
+        "paper": "doi:10.1016_j.diabres.2025.112948 \u00b7 Yang et al. 2025, Diabetes Res Clin Pract, n=10,989, median 7.86y",
+        "value_on_screen": "28% = 1 - HR 0.72 [0.63\u20130.83]",
+        "quote": "Compared to inactive individuals, the active WW group had a lower risk of overall CVD, MI, AF, and HF, with HRs and 95 % CIs of 0.72 (0.63-0.83), 0.66 (0.51-0.85), 0.70 (0.58-0.85), and 0.66 (0.51-0.86), respectively."
+      },
+      {
+        "paper": "doi:10.1016_j.diabres.2025.112948",
+        "value_on_screen": "25% = 1 - HR 0.75 [0.64\u20130.89]",
+        "quote": "Similar risk reductions were observed in the active regular group (overall CVD: 0.75 [0.64-0.89], MI: 0.58 [0.42-0.80], AF: 0.85 [0.68-1.05], HF: 0.51 [0.36-0.72])."
+      },
+      {
+        "paper": "doi:10.1016_j.diabres.2025.112948 \u00b7 Yang et al. 2025, Diabetes Res Clin Pract",
+        "value_on_screen": "clock 0 -> 7.9 = median follow-up 7.86 years",
+        "quote": "median 7.86y (study metadata carried on the appraisal)"
+      }
+    ]
+  },
+  "seconds": 14,
+  "deck": "Lower heart disease risk vs staying inactive",
+  "clock": {
+    "to": 7.86,
+    "label": "years of follow-up",
+    "decimals": 1,
+    "marks": [
+      {
+        "at": 2.0,
+        "label": "2 years pass\u2026"
+      },
+      {
+        "at": 4.5,
+        "label": "5 years pass\u2026"
+      },
+      {
+        "at": 7.3,
+        "label": "7.9 years. Nobody pulled ahead."
+      }
+    ]
+  },
+  "promise": "More days should win\u2026 right?",
+  "cohort": {
+    "n": 10989,
+    "label": "adults tracked"
+  }
+}

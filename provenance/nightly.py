@@ -177,6 +177,9 @@ async def run(
             db, subject, fresh, prior,
             run=summary, appraisals=tonight_appraisals,
             rejections=tonight_rejections, papers=papers,
+            # The briefing names components the way a person does -- "Cardio",
+            # not "mvpa". Only the agenda knows that mapping.
+            components={i.component_id: i.display_name for i in result.agenda.items},
         )
     except Exception as exc:
         log.warning("nightly: notification failed: %s", exc)
@@ -210,6 +213,7 @@ def _notify(
     appraisals: list[Appraisal],
     rejections: list,
     papers: dict,
+    components: dict[str, str] | None = None,
 ) -> dict:
     """A briefing every morning; a decision email only once there is a decision.
 
@@ -239,7 +243,7 @@ def _notify(
     ]
     pairs = [(papers.get(a.paper_id), a) for a in appraisals]
     subject_line, html = notify.briefing_email(
-        run, pairs, rejections, open_findings, config
+        run, pairs, rejections, open_findings, config, components=components
     )
     if notify.send(subject_line, html, config):
         sent.append("briefing")

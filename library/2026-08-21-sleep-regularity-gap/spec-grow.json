@@ -1,0 +1,38 @@
+{
+  "motion": "grow",
+  "title": "8 hours of sleep was never the whole story.",
+  "deck": "Higher risk of heart attack or stroke vs a steady sleep schedule",
+  "suffix": "%",
+  "max": 30,
+  "items": [
+    { "label": "irregular sleep", "value": 26 },
+    { "label": "+ enough hours", "value": 19 }
+  ],
+  "statement": {
+    "flag": "Not just the hours",
+    "detail": "Sleeping enough narrowed the gap but didn't close it — an erratic schedule tracked with risk on its own."
+  },
+  "source": {
+    "authors": "Chaput et al.",
+    "journal": "J Epidemiol Community Health",
+    "sample": "n=72,269",
+    "tier": "COHORT"
+  },
+  "_provenance": {
+    "paper": "doi:10.1136_jech-2024-222795 · Chaput et al. 2025, J Epidemiol Community Health · prospective cohort, n=72,269, 8y follow-up",
+    "appraisal_tier": "B",
+    "claims": [
+      {
+        "claim_id": "c1",
+        "value_on_screen": "26% = HR 1.26 [1.16-1.37], irregular vs regular sleepers, MACE",
+        "quote": "Irregular (HR 1.26, 95% CI 1.16 to 1.37) and moderately irregular sleepers (HR 1.08, 95% CI 1.01 to 1.70) were at higher risk of MACE compared with regular sleepers."
+      },
+      {
+        "claim_id": "c2",
+        "value_on_screen": "19% = HR 1.19 [1.06-1.35], irregular sleepers meeting age-specific duration recommendation, MACE",
+        "quote": "Joint SRI and sleep duration analyses showed that meeting the age-specific sleep duration recommendation offsets MACE risk for moderately irregular sleepers (HR 1.07, 95% CI 0.96 to 1.18), but not for irregular sleepers (HR 1.19, 95% CI 1.06 to 1.35)."
+      }
+    ],
+    "reveal_test": "Headline names the 8-hours belief and withholds the replacement (schedule); the second bar is the answer and lands last."
+  }
+}

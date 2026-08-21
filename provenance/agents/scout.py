@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 
 from ..agenda import build_agenda
 from ..config import SubjectApp
+from ..content_agenda import lane_items
 from ..models import Paper, Rejection, ResearchAgenda
 from ..sources import gather
 
@@ -86,6 +87,15 @@ async def sweep(
 ) -> SweepResult:
     """Query every agenda component and return unseen, screenable papers."""
     agenda = build_agenda(subject)
+    # The content lane rides along: universal-belief topics adjacent to the
+    # app, swept for the feed rather than the algorithm. It joins the agenda
+    # HERE, after build_agenda, so the algorithm-derived agenda stays pure --
+    # and deduplicated by id, because a cloud run's stored agenda already
+    # carries the lane from the run that published it. The synthesist skips
+    # `content.*` components, so nothing here can ever become a pull request.
+    extra = lane_items({item.component_id for item in agenda.items})
+    if extra:
+        agenda = agenda.model_copy(update={"items": agenda.items + extra})
     items = [
         item
         for item in agenda.items

@@ -1,0 +1,35 @@
+{
+  "motion": "grow",
+  "title": "Total weekly movement tracked with lower risk.",
+  "axis_title": "LOWER RISK OF DYING VS INACTIVE",
+  "suffix": "%",
+  "max": 40,
+  "items": [
+    { "label": "any cause", "value": 24 },
+    { "label": "cancer", "value": 19 }
+  ],
+  "statement": {
+    "flag": "Not one study",
+    "detail": "Pooled results across cohort studies — weekend-pattern movers had lower death rates from any cause and from cancer."
+  },
+  "source": {
+    "authors": "Kim et al.",
+    "journal": "Public Health",
+    "tier": "META-ANALYSIS"
+  },
+  "_provenance": {
+    "finding": "mvpa · weekend warrior equivalence · confidence 0.65 · 22 studies",
+    "claims": [
+      {
+        "paper": "doi:10.1016_j.puhe.2025.105977 · Kim et al. 2025, Public Health, systematic review and meta-analysis",
+        "value_on_screen": "24% = 1 - RR 0.76 [0.66–0.87]",
+        "quote": "Lower risks were observed for all-cause mortality (Weekend warrior: relative risk (RR) 0.76, 95 % confidence interval (CI) 0.66-0.87; Regular physical activity: RR 0.71, 95 % CI 0.63-0.80)"
+      },
+      {
+        "paper": "doi:10.1016_j.puhe.2025.105977",
+        "value_on_screen": "19% = 1 - RR 0.81 [0.75–0.88]",
+        "quote": "cancer mortality (Weekend warrior: RR 0.81, 95 % CI 0.75-0.88)"
+      }
+    ]
+  }
+}

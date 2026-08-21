@@ -28,6 +28,7 @@ from google.genai import types
 from pydantic import BaseModel, Field
 
 from ..config import REASONING_MODEL, SubjectApp
+from ..content_agenda import is_content_component
 from ..llm import model as llm_model
 from ..models import (
     AgendaItem,
@@ -325,6 +326,12 @@ async def synthesise(
     rejections: list[Rejection] = []
 
     for item in agenda.items:
+        # The content lane exists for the feed, not the algorithm. There is no
+        # constant behind `content.*`, so convergence there must never become
+        # a Finding, an issue, or a pull request -- this guard is the whole
+        # boundary, and content_agenda.py documents the contract.
+        if is_content_component(item.component_id):
+            continue
         challengers, blocked = gate(item.component_id, by_component.get(item.component_id, []))
         if blocked is not None:
             rejections.append(blocked)

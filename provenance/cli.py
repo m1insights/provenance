@@ -383,10 +383,12 @@ def cmd_content(args: argparse.Namespace) -> int:
     picks = pool.candidates(
         appraisals, papers,
         posted=posted, component=args.component,
-        include_weak=args.include_weak, limit=args.limit,
+        include_weak=args.include_weak, sweepable=args.sweepable,
+        limit=args.limit,
     )
     if not picks:
-        print("nothing publishable in the pool")
+        print("nothing sweepable in the pool" if args.sweepable
+              else "nothing publishable in the pool")
         return 0
 
     print(f"{len(picks)} publishable · {len(posted)} already posted\n")
@@ -397,6 +399,8 @@ def cmd_content(args: argparse.Namespace) -> int:
         bits = " · ".join(b for b in (journal, a.design, a.follow_up) if b)
         print(f"    {bits}")
         print(f"    motion {c.motion}  ·  score {c.score:.0f}  ·  {', '.join(c.reasons)}")
+        if c.sweep_signals:
+            print(f"    sweep signals: {', '.join(c.sweep_signals[:4])}")
         for claim in c.numeric_claims[:2]:
             ci = (f" [{claim.ci_low:g} to {claim.ci_high:g}]"
                   if claim.ci_low is not None and claim.ci_high is not None else "")
@@ -480,6 +484,130 @@ def cmd_notify(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_summarise(args: argparse.Namespace) -> int:
+    """Write the plain-English cover sentence onto appraisals that lack one.
+
+    Only papers appraised before the field existed need this. It touches
+    nothing else on the record, so it is safe to re-run.
+    """
+    import asyncio
+
+    from .agents.appraiser import summarise
+    from .models import Appraisal, Paper
+    from .store import firestore as store
+
+    db = store.client()
+    missing = [
+        a
+        for doc in db.collection(store.APPRAISALS).stream()
+        if (a := Appraisal.model_validate(doc.to_dict())) and not a.plain_summary.strip()
+    ]
+    if not missing:
+        print("every appraisal already has a plain-English summary")
+        return 0
+
+    missing.sort(key=lambda a: a.appraised_at, reverse=True)
+    if args.limit:
+        missing = missing[: args.limit]
+    papers = {
+        p.doc_id: p
+        for doc in db.collection(store.PAPERS).stream()
+        if (p := Paper.model_validate(doc.to_dict()))
+    }
+    print(f"summarising {len(missing)} appraisal(s)")
+
+    updated = asyncio.run(summarise([(papers.get(a.paper_id), a) for a in missing]))
+    store.save_appraisals(updated, db=db)
+    for appraisal in updated:
+        print(f"  {appraisal.paper_id}\n    {appraisal.plain_summary}")
+    print(f"wrote {len(updated)} of {len(missing)}")
+    return 0
+
+
+def cmd_briefing(args: argparse.Namespace) -> int:
+    """Rebuild the morning briefing for a run that already happened.
+
+    The nightly job composes this once and posts it. When the question is "what
+    did that email look like" -- reviewing a change to it, or showing someone
+    the output without waiting for 06:00 -- rebuilding it from the stored run
+    beats re-running the pipeline, and it is the same function that sends it,
+    so a preview cannot flatter the real thing.
+    """
+    from . import notify
+    from .models import Appraisal, Finding, FindingStatus, Paper, Rejection
+    from .store import firestore as store
+
+    db = store.client()
+    runs = sorted(
+        (doc.to_dict() or {} for doc in db.collection("provenance_runs").stream()),
+        key=lambda r: r.get("started_at", ""),
+    )
+    runs = [r for r in runs if r.get("subject") in (args.subject, None)]
+    if not runs:
+        print("no runs recorded yet — run `provenance` nightly first")
+        return 1
+    run = runs[-1 - min(args.ago, len(runs) - 1)]
+
+    started = run.get("started_at", "")
+    print(f"briefing for the run started {started}")
+
+    def _after(value) -> bool:
+        """Records written by this run, not the whole corpus."""
+        if not started or not value:
+            return False
+        return str(value) >= started
+
+    appraisals = [
+        a
+        for doc in db.collection(store.APPRAISALS).stream()
+        if (a := Appraisal.model_validate(doc.to_dict()))
+        and _after(a.appraised_at.isoformat())
+    ]
+    rejections = [
+        r
+        for doc in db.collection(store.REJECTIONS).stream()
+        if (r := Rejection.model_validate(doc.to_dict()))
+        and _after(r.rejected_at.isoformat())
+    ]
+    papers = {
+        p.doc_id: p
+        for doc in db.collection(store.PAPERS).stream()
+        if (p := Paper.model_validate(doc.to_dict()))
+    }
+    findings = [
+        f
+        for doc in db.collection(store.FINDINGS).stream()
+        if (f := Finding.model_validate(doc.to_dict()))
+        and f.status in (FindingStatus.OPEN, FindingStatus.PR_DRAFTED)
+    ]
+    agenda = store.latest_agenda(args.subject, db=db)
+    components = (
+        {item.component_id: item.display_name for item in agenda.items} if agenda else {}
+    )
+
+    subject_line, html = notify.briefing_email(
+        run,
+        [(papers.get(a.paper_id), a) for a in appraisals],
+        rejections,
+        findings,
+        notify.mail_config(),
+        components=components,
+    )
+    print(f"  {len(appraisals)} kept · {len(rejections)} thrown out · "
+          f"{len(findings)} still open")
+    print(f"  subject: {subject_line}")
+
+    if args.out:
+        with open(args.out, "w", encoding="utf-8") as handle:
+            handle.write(html)
+        print(f"  wrote {args.out}")
+
+    if args.send:
+        sent = notify.send(subject_line, html)
+        print(f"  {'sent' if sent else 'NOT SENT (email not configured)'}  {sent or ''}")
+    return 0
+
+
 def cmd_status(args: argparse.Namespace) -> int:
     from .store import firestore as store
 
@@ -544,6 +672,9 @@ def main(argv: list[str] | None = None) -> int:
     con.add_argument("--limit", type=int, default=12)
     con.add_argument("--include-weak", action="store_true",
                      help="include tier C/D — never post these as settled")
+    con.add_argument("--sweepable", action="store_true",
+                     help="only papers with dose-response signals — the hunt "
+                          "for the next 10k-steps reel")
     con.add_argument("--mark", default=None, metavar="PAPER_ID",
                      help="record a paper as posted so it stops being offered")
     con.add_argument("--note", default=None)
@@ -560,6 +691,19 @@ def main(argv: list[str] | None = None) -> int:
     notify_cmd.add_argument("--verdict", default="", choices=["", "clean", "concerns", "defect"])
     notify_cmd.add_argument("--summary", default="", help="one line from the audit")
     notify_cmd.set_defaults(func=cmd_notify)
+
+    summ = sub.add_parser("summarise",
+                          help="backfill plain-English summaries on older appraisals")
+    summ.add_argument("--limit", type=int, default=None, help="newest N only")
+    summ.set_defaults(func=cmd_summarise)
+
+    brief = sub.add_parser("briefing", help="rebuild the morning briefing for a past run")
+    brief.add_argument("--out", default=None, metavar="FILE",
+                       help="write the email to an HTML file")
+    brief.add_argument("--ago", type=int, default=0,
+                       help="0 is the most recent run, 1 the one before it")
+    brief.add_argument("--send", action="store_true", help="also email it")
+    brief.set_defaults(func=cmd_briefing)
 
     status = sub.add_parser("status", help="counts by collection")
     status.set_defaults(func=cmd_status)

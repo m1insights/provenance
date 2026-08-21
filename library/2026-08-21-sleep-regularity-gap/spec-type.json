@@ -1,0 +1,19 @@
+{
+  "motion": "type",
+  "title": "Same time tonight. *Same time tomorrow.*",
+  "lines": [
+    "Enough hours didn't close the gap. The steady schedule was the missing half.",
+    "It's measurable — your watch already records when you sleep and wake.",
+    "Consistency is a health signal. Treat it like one."
+  ],
+  "source": {
+    "authors": "Chaput et al.",
+    "journal": "J Epidemiol Community Health",
+    "sample": "n=72,269",
+    "tier": "COHORT"
+  },
+  "_provenance": {
+    "paper": "doi:10.1136_jech-2024-222795",
+    "note": "copy-only closer; no digits on screen, all facts trace to claims c1/c2 in spec-grow.json"
+  }
+}

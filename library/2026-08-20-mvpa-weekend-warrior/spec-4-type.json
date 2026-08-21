@@ -1,0 +1,19 @@
+{
+  "motion": "type",
+  "title": "Hit your weekly goal *on your schedule*.",
+  "lines": [
+    "Total weekly movement matters.",
+    "Squeeze it into your weekend, or spread it across the week.",
+    "This research just changed how synqology credits your week."
+  ],
+  "source": {
+    "authors": "22 studies",
+    "journal": "UK Biobank · NHANES cohorts",
+    "tier": "TIER B"
+  },
+  "_provenance": {
+    "finding": "mvpa · weekend warrior equivalence · confidence 0.65 · tiers {C: 2, B: 20} = 22 supporting studies",
+    "app_change": "m1insights/synq PR #2, merged 2026-08-18: mvpaTargetCreditDays 3 → 2 (VI v2.12.0)",
+    "note": "copy-only slide; the only digit on screen is the study count, which traces to the finding record's tier_counts"
+  }
+}

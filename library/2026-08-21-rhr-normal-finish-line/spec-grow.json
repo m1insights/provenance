@@ -1,0 +1,39 @@
+{
+  "motion": "grow",
+  "title": "A 'normal' resting heart rate was never the finish line.",
+  "deck": "Higher risk per 10 bpm higher resting heart rate — young adults",
+  "suffix": "%",
+  "max": 30,
+  "items": [
+    { "label": "any cause", "value": 26 },
+    { "label": "heart disease", "value": 18 }
+  ],
+  "statement": {
+    "flag": "A slope, not a switch",
+    "detail": "No cliff edge in the data — every 10 beats per minute higher tracked with higher risk, decades before old age."
+  },
+  "source": {
+    "authors": "Chen et al.",
+    "journal": "Open Heart",
+    "sample": "n=12,232",
+    "tier": "COHORT"
+  },
+  "_provenance": {
+    "paper": "doi:10.1136_openhrt-2026-004279 · Chen et al. 2026, Open Heart · population-based prospective cohort, n=12,232, median 17.8y (primary) / 27.6y (validation)",
+    "appraisal_tier": "B",
+    "claims": [
+      {
+        "claim_id": "c1",
+        "value_on_screen": "26% = HR 1.26 [1.07-1.50] per +10 bpm, all-cause mortality, primary cohort",
+        "quote": "Each 10 beats per minute higher RHR was associated with higher all-cause mortality (primary cohort: HR, 1.26; 95% CI 1.07 to 1.50; validation: HR, 1.17; 95% CI 1.12 to 1.22)."
+      },
+      {
+        "claim_id": "c2",
+        "value_on_screen": "18% = HR 1.18 [1.08-1.29] per +10 bpm, CVD mortality, validation cohort",
+        "quote": "In validation, RHR predicted non-CVD (HR, 1.17; 95% CI 1.11 to 1.23) and CVD (HR, 1.18; 95% CI 1.08 to 1.29) mortality about equally."
+      }
+    ],
+    "reveal_test": "Headline names the 'normal range' belief and withholds the replacement (a per-beat slope); the bars supply it.",
+    "note": "Bars are two outcomes from the same paper; c2 is the validation cohort — attributed in the caption."
+  }
+}
