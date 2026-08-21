@@ -26,6 +26,15 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const FORMATS = {
   carousel: { template: "carousel.html", width: 1080, height: 1350 },
   reel: { template: "reel.html", width: 1080, height: 1920, seconds: 15, fps: 30 },
+  // The four non-sweep motions, at carousel aspect. A feed carousel accepts
+  // video slides, and 4:5 buys ~25% more vertical real estate than 9:16 does
+  // once Instagram's chrome is deducted.
+  clip: { template: "motion.html", width: 1080, height: 1350, seconds: 8, fps: 30 },
+  // Same four motions at Reel aspect — the primary deliverable
+  // (ig-knowledge-base §2/§3.3): 9:16 uploads ride the recommendation
+  // engine; 4:5 clips are the carousel companion. motion.html pads itself
+  // into the Reel safe zone via a min-height media query.
+  motionreel: { template: "motion.html", width: 1080, height: 1920, seconds: 12, fps: 30 },
 };
 
 function run(command, args) {
@@ -83,8 +92,7 @@ async function renderCarousel(spec, outDir) {
   }
 }
 
-async function renderReel(spec, outDir) {
-  const format = FORMATS.reel;
+async function renderMotion(spec, outDir, format, name) {
   const seconds = spec.seconds ?? format.seconds;
   const fps = spec.fps ?? format.fps;
   const total = Math.round(seconds * fps);
@@ -107,7 +115,7 @@ async function renderReel(spec, outDir) {
       });
     }
 
-    const output = join(outDir, "reel.mp4");
+    const output = join(outDir, `${name}.mp4`);
     await run("ffmpeg", [
       "-y", "-loglevel", "error",
       "-framerate", String(fps),
@@ -121,6 +129,17 @@ async function renderReel(spec, outDir) {
   } finally {
     await browser.close();
   }
+}
+
+/** Output name for a motion render. Derived from the spec FILENAME
+ *  (spec-1-hold.json -> 1-hold.mp4) rather than spec.motion, because a post
+ *  routinely holds two clips of the same motion and the second must not
+ *  silently overwrite the first. Falls back to the motion for unnamed specs. */
+function motionName(kind, spec, specPath) {
+  if (kind === "reel") return "reel";
+  const base = specPath?.replace(/^.*\//, "").replace(/^spec-/, "").replace(/\.json$/, "");
+  const name = base && base !== "-" ? base : (spec.motion || "clip");
+  return kind === "motionreel" && !name.startsWith("reel") ? `reel-${name}` : name;
 }
 
 async function main() {
@@ -143,7 +162,7 @@ async function main() {
 
   const files = kind === "carousel"
     ? await renderCarousel(spec, outDir)
-    : await renderReel(spec, outDir);
+    : await renderMotion(spec, outDir, FORMATS[kind], motionName(kind, spec, specPath));
 
   for (const file of files) console.log(file);
 }

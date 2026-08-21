@@ -201,6 +201,11 @@ class AppraisalDraft(BaseModel):
     alignment: Alignment = Alignment.NEUTRAL
     claims: list[Claim] = Field(default_factory=list)
     reasoning: str = ""
+    plain_summary: str = Field(
+        default="",
+        description="One sentence a non-specialist could read: what this study "
+        "did and what it found. No jargon, no statistics notation.",
+    )
 
 
 class RelevanceVerdict(BaseModel):
@@ -224,6 +229,10 @@ class Appraisal(BaseModel):
     alignment: Alignment = Alignment.NEUTRAL
     claims: list[Claim] = Field(default_factory=list)
     reasoning: str = ""
+    #: Written for a reader who is not a clinician. Optional by design: records
+    #: appraised before this field existed still load, and the briefing falls
+    #: back to the plain-language claim statement for them.
+    plain_summary: str = ""
     appraised_at: datetime = Field(default_factory=_utcnow)
 
 
