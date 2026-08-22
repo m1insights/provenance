@@ -95,12 +95,16 @@ def cmd_appraise(args: argparse.Namespace) -> int:
         for doc in db.collection(store.REJECTIONS).select([]).stream()
     }
     done = already | seen_rejects
+    # --redo runs ONLY the named papers back through the pipeline; the fresh
+    # appraisal overwrites the stored one (save_appraisals keys on paper_id).
+    redo = set(args.redo or [])
 
     query = db.collection(store.PAPERS)
     papers = [
         paper
         for doc in query.stream()
-        if (paper := Paper.model_validate(doc.to_dict())).doc_id not in done
+        if (paper := Paper.model_validate(doc.to_dict()))
+        and (paper.doc_id in redo if redo else paper.doc_id not in done)
     ]
     if args.limit_papers:
         papers = papers[: args.limit_papers]
@@ -643,6 +647,11 @@ def main(argv: list[str] | None = None) -> int:
 
     appraise_cmd = sub.add_parser("appraise", help="triage and appraise unappraised papers")
     appraise_cmd.add_argument("--limit-papers", type=int, default=None)
+    appraise_cmd.add_argument(
+        "--redo", action="append", default=None, metavar="PAPER_ID",
+        help="re-appraise this already-appraised paper (repeatable); the fresh "
+             "appraisal overwrites the stored one after passing grounding",
+    )
     appraise_cmd.set_defaults(func=cmd_appraise)
 
     synth = sub.add_parser("synthesise", help="open findings where evidence converges")

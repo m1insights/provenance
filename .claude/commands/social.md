@@ -84,10 +84,22 @@ to sweep honestly — and specs only the points the paper actually reports.
    value chips riding the line, identity-framed caption ("this is your body"),
    citation footer every frame, licensed audio added at post time.
 
-1. **Load.** Either a Finding (mirror `cmd_storyteller` in `provenance/cli.py`)
-   or a ranked appraisal from `python -m provenance content`. Run the
-   Storyteller to get the resolved payload + plan. If nothing survives the
-   gates, say so and stop.
+1. **Load — sweep first.** Run `python -m provenance content --sweepable`
+   BEFORE the general queue: the sweep is the only twice-proven format (see the
+   replication log under Format), so a sweepable paper outranks a higher-scored
+   non-sweep. A sweep needs **≥3 grounded points on ONE exposure axis** — and
+   sweepable content is MADE, not just found: the appraiser extracts every
+   tabulated dose-response point as its own claim (curve block in
+   `provenance/agents/appraiser.py`), and `python -m provenance appraise
+   --redo <paper_id>` re-runs a paper whose abstract tabulates more points than
+   its stored claims. Dose-response meta-analyses on universal-number topics
+   (steps, sleep hours, sitting, coffee, resting heart rate, fitness) print
+   their curves in the abstract — hunt those when the pool runs dry. A named
+   reference level in the abstract ("compared with 7 h") grounds the curve's
+   zero point as the comparator. Otherwise: a Finding (mirror `cmd_storyteller`
+   in `provenance/cli.py`) or a ranked appraisal from `python -m provenance
+   content`. Run the Storyteller to get the resolved payload + plan. If nothing
+   survives the gates, say so and stop.
 2. **Pick a motion per slide** from the vocabulary below. The claim's shape
    picks it — never pick for variety. Same shape twice in a set is fine.
 3. **Create the post folder.** Everything for this post goes in ONE folder:
@@ -168,6 +180,10 @@ carousel cells, where a frame does not have to carry 12 seconds alone.
 >
 >   Test any draft: *does a viewer who reads only the headline still have an
 >   unanswered question?* If not, rewrite it. Cheapest lever in the pipeline.
+>   And the headline NAMES THE TOPIC in words — "8 hours *of sleep* was never
+>   the target", never bare "8 hours" (founder correction, 2026-08-21). A
+>   scroller reads only the headline; an unnamed subject costs the hook its
+>   meaning. Open the loop AND name the thing.
 >
 > **2. The animation must CARRY the data, not just move.** In 10k the line IS
 > the value (`y` = risk), so its motion is new information and the big counter
@@ -318,6 +334,24 @@ visible defect.
     "window.setSpec is not a function" — a template that fails to parse looks
     exactly like a missing function. Syntax-check the script block before
     blaming the renderer.
+12. **A reference-relative curve must decode itself in one glance.** The sleep
+    J-curve (2026-08-21) rendered correctly and still failed a founder read —
+    "I don't understand what the visual is trying to tell me" — until all three
+    of these landed:
+    - The deck LEADS with what "up" means, in plain words: "*Extra risk of
+      dying*, compared with people who sleep 7 hours a day" — never "Risk of
+      dying vs people sleeping 7 hours", where the quantity hides mid-sentence.
+    - The reference point gets a visible tag — a marker label ("lowest") at the
+      nadir/zero. An unlabeled dip is an invisible baseline; the viewer cannot
+      know the curve touches "same risk as the comparison group".
+    - Region flags carry MEANING, not place names. For a J/U-curve the
+      Goldilocks frame — "TOO LITTLE · SWEET SPOT · TOO MUCH" — tells the whole
+      story in one sweep; "THE LONG SIDE" names where, not what.
+13. **Width-gate region copy like any label (#6).** Region flags run ~17px/char
+    (26px caps) and details ~12px/char (25px); both must fit inside
+    `x(next.at) − x(at)`. "THE SWEET SPOT" overflowed a 2-hour span twice on
+    2026-08-21 before "SWEET SPOT" fit. Compute the span in pixels BEFORE
+    rendering, not after frame inspection.
 
 ## Format
 
@@ -327,7 +361,12 @@ visible defect.
   the four competitor outliers (§3.3) — are 9:16 animated charts. A 4:5
   carousel harvests engagement from people already reached; it cannot do the
   reaching.
-  - Sweep-shaped claim → `render.mjs reel` (the sweep IS the genre).
+  - Sweep-shaped claim → `render.mjs reel` (the sweep IS the genre). 12s,
+    pinned to the breakout (`FORMATS.reel.seconds = 12`) — replicate, don't
+    drift. **Replication log:** 10k-steps 84K/24h (2026-08-19) · sleep J-curve
+    **17K at 4h** (2026-08-21, vs 10k-steps' ~2K at 6h — ahead of the breakout
+    at the same age). Same engine, same recipe, N=2. The recipe is the
+    standing plan; every post starts by looking for its sweep.
   - Any other motion → `render.mjs motionreel` — same motion.html, padded
     into the 9:16 safe zone, named `reel-<spec>.mp4`. 10–12s.
 - **Carousel clips** — 1080×1350, the companion set, from the same specs.

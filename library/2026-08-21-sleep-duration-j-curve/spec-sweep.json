@@ -1,0 +1,58 @@
+{
+  "chart": "curve",
+  "title": "8 hours of sleep was never the target.",
+  "deck": "Extra risk of dying, compared with people who sleep 7 hours a day",
+  "counter_prefix": "",
+  "counter_caption": "hours of sleep / day",
+  "counter_step": 0.1,
+  "counter_decimals": 1,
+  "domain": [4, 11],
+  "y_domain": [0, 42],
+  "ticks": [
+    { "at": 4, "label": "4h" },
+    { "at": 7, "label": "7h" },
+    { "at": 11, "label": "11h" }
+  ],
+  "annotations": [
+    { "at": 4, "flag": "TOO LITTLE", "detail": "A small extra risk" },
+    { "at": 6.5, "flag": "SWEET SPOT", "detail": "Lowest at 7" },
+    { "at": 9, "flag": "TOO MUCH", "detail": "Risk climbs fast" }
+  ],
+  "series": [
+    {
+      "label": "All-cause mortality",
+      "points": [
+        [4, 5, "+5%"],
+        [5, 6, "+6%"],
+        [6, 4, "+4%"],
+        [7, 0, "lowest"],
+        [8, 3, "+3%"],
+        [9, 13, "+13%"],
+        [10, 25, "+25%"],
+        [11, 38, "+38%"]
+      ]
+    }
+  ],
+  "source": {
+    "authors": "Liu et al.",
+    "journal": "Sleep Med Rev",
+    "sample": "n=2,200,425",
+    "tier": "META-ANALYSIS"
+  },
+  "_provenance": {
+    "paper": "doi:10.1016_j.smrv.2016.02.005 · Liu et al. 2016, Sleep Med Rev · non-linear meta-regression, 40 prospective cohorts, n=2,200,425, 271,507 deaths",
+    "appraisal_tier": "B",
+    "reference": "7 h of sleep (reference for 24-h sleep duration) — RR 1.00 by definition; the (7, 0) point is the comparator, not a reported estimate",
+    "claims": [
+      { "claim_id": "c1", "value_on_screen": "+5% at 4h = RR 1.05 [1.02-1.07]", "quote": "4 h: relative risk [RR] = 1.05; 95% confidence interval [CI] = 1.02-1.07" },
+      { "claim_id": "c2", "value_on_screen": "+6% at 5h = RR 1.06 [1.03-1.09]", "quote": "5 h: RR = 1.06; 95% CI = 1.03-1.09" },
+      { "claim_id": "c3", "value_on_screen": "+4% at 6h = RR 1.04 [1.03-1.06]", "quote": "6 h: RR = 1.04; 95% CI = 1.03-1.06" },
+      { "claim_id": "c4", "value_on_screen": "+3% at 8h = RR 1.03 [1.02-1.05]", "quote": "8 h: RR = 1.03; 95% CI = 1.02-1.05" },
+      { "claim_id": "c5", "value_on_screen": "+13% at 9h = RR 1.13 [1.10-1.16]", "quote": "9 h: RR = 1.13; 95% CI = 1.10-1.16" },
+      { "claim_id": "c6", "value_on_screen": "+25% at 10h = RR 1.25 [1.22-1.28]", "quote": "10 h: RR = 1.25; 95% CI = 1.22-1.28" },
+      { "claim_id": "c7", "value_on_screen": "+38% at 11h = RR 1.38 [1.33-1.44]", "quote": "11 h: RR = 1.38; 95% CI = 1.33-1.44" }
+    ],
+    "reveal_test": "Headline names the 8-hours belief, withholds the target; the curve supplies it (7h nadir) and the long-side climb is the completion payoff at the end of the sweep.",
+    "honesty": "Curve is 24-hour sleep duration (naps included), hence 'hours of sleep / day'; night-only numbers in the abstract differ and are not drawn."
+  }
+}

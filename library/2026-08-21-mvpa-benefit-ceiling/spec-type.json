@@ -1,0 +1,19 @@
+{
+  "motion": "type",
+  "title": "Steep gains early. *Then it flattens.*",
+  "lines": [
+    "The curve is L-shaped — most of the association builds in the early minutes.",
+    "Past the flattening point, extra minutes tracked with little further drop in risk.",
+    "Consistency at the level beats chasing maximums."
+  ],
+  "source": {
+    "authors": "An et al.",
+    "journal": "Front Endocrinol",
+    "sample": "n=88,281",
+    "tier": "COHORT"
+  },
+  "_provenance": {
+    "paper": "doi:10.3389_fendo.2026.1844167",
+    "note": "copy-only closer; no digits on screen, facts trace to claim c1 in spec-narrow.json"
+  }
+}

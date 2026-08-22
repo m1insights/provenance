@@ -25,7 +25,8 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 
 const FORMATS = {
   carousel: { template: "carousel.html", width: 1080, height: 1350 },
-  reel: { template: "reel.html", width: 1080, height: 1920, seconds: 15, fps: 30 },
+  // 12s matches the 10k-steps breakout exactly (84K views); replicate, don't drift.
+  reel: { template: "reel.html", width: 1080, height: 1920, seconds: 12, fps: 30 },
   // The four non-sweep motions, at carousel aspect. A feed carousel accepts
   // video slides, and 4:5 buys ~25% more vertical real estate than 9:16 does
   // once Instagram's chrome is deducted.

@@ -1,0 +1,34 @@
+{
+  "motion": "narrow",
+  "title": "The standard exercise target was never the ceiling.",
+  "deck": "Minutes of moderate exercise a week where the heart-risk curve flattens",
+  "domain": [0, 300],
+  "from": [0, 300],
+  "to": [207, 219],
+  "estimate": 213,
+  "suffix": " min/week",
+  "ticks": [{ "at": 0, "label": "0" }],
+  "statement": {
+    "flag": "About three and a half hours",
+    "detail": "More minutes tracked with lower heart-disease risk up to the mark — past it, the curve ran flat."
+  },
+  "source": {
+    "authors": "An et al.",
+    "journal": "Front Endocrinol",
+    "sample": "n=88,281",
+    "tier": "COHORT"
+  },
+  "_provenance": {
+    "paper": "doi:10.3389_fendo.2026.1844167 · An et al. 2026, Front Endocrinol (Lausanne) · prospective cohort (UK Biobank), n=88,281, median 7.29y",
+    "appraisal_tier": "B",
+    "claims": [
+      {
+        "claim_id": "c1",
+        "value_on_screen": "213 min/week, band = 95% CI [207-219]",
+        "quote": "Overall, LPA and MVPA exhibited nonlinear L-shaped relationships across stages 0-3, with overall inflection points at 2,357 (95% CI: 2335-2379) min/week for LPA and 213 (95% CI: 207-219) min/week for MVPA."
+      }
+    ],
+    "why_not_sweep": "Only the inflection point is grounded; no curve values survive grounding, so a sweep would require inventing the L-curve's y-values. Narrow renders the one number honestly: the band closes onto 213 and the remaining width IS the 95% CI.",
+    "note": "No pin at the 150-min guideline: 150 traces to no claim, so it stays off the asset. The caption names it, explicitly attributed to guidelines."
+  }
+}

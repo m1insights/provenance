@@ -1,0 +1,50 @@
+{
+  "chart": "curve",
+  "title": "The gym was never the point.",
+  "deck": "Risk of dying, compared with the least active 25% of adults",
+  "counter_prefix": "",
+  "counter_caption": "of 100 · ranked by daily movement",
+  "counter_step": 1,
+  "counter_decimals": 0,
+  "domain": [0, 100],
+  "y_domain": [0, 112],
+  "ticks": [
+    { "at": 12.5, "label": "least active" },
+    { "at": 87.5, "label": "most active" }
+  ],
+  "annotations": [
+    { "at": 0, "flag": "THE BIG DROP", "detail": "Half the risk, one step up" },
+    { "at": 55, "flag": "STILL FALLING", "detail": "Any intensity counts" }
+  ],
+  "series": [
+    {
+      "label": "All-cause mortality",
+      "points": [
+        [12.5, 100, "baseline"],
+        [37.5, 48, "−52%"],
+        [62.5, 34, "−66%"],
+        [87.5, 27, "−73%"]
+      ]
+    }
+  ],
+  "source": {
+    "authors": "Ekelund et al.",
+    "journal": "BMJ",
+    "sample": "n=36,383",
+    "tier": "META-ANALYSIS"
+  },
+  "_provenance": {
+    "paper": "doi:10.1136_bmj.l4570 · Ekelund et al. 2019, BMJ · systematic review + harmonised meta-analysis of 8 accelerometry cohorts, n=36,383, median follow-up 5.8y, 2,149 deaths",
+    "appraisal_tier": "B",
+    "axis": "The paper reports quarters of the study population ranked by accelerometer-measured TOTAL physical activity; medians per quarter are not in the abstract, so x = population percentile with points at quarter midpoints (12.5/37.5/62.5/87.5). The counter counts percentile, not minutes — nothing on screen implies measured activity volumes.",
+    "reference": "First quarter (least active) — HR 1.00 by definition; the (12.5, 100, 'baseline') point is the comparator, not a reported estimate",
+    "claims": [
+      { "claim_id": "c4", "value_on_screen": "−52% at Q2 = HR 0.48 [0.43-0.54]", "quote": "0.48 (95% confidence interval 0.43 to 0.54) in the second quarter" },
+      { "claim_id": "c5", "value_on_screen": "−66% at Q3 = HR 0.34 [0.26-0.45]", "quote": "0.34 (0.26 to 0.45) in the third quarter" },
+      { "claim_id": "c6", "value_on_screen": "−73% at Q4 = HR 0.27 [0.23-0.32]", "quote": "0.27 (0.23 to 0.32) in the fourth quarter (most active)" }
+    ],
+    "copy_grounding": "'Any intensity counts' ← abstract: 'Any physical activity, regardless of intensity, was associated with lower risk of mortality'. 'Half the risk, one step up' ← c4 (−52% in the second quarter vs the first).",
+    "reveal_test": "Headline names the gym belief and withholds the replacement; the curve supplies it (total movement, any intensity) and the −73% endpoint is the completion payoff. 'THE BIG DROP' flag is on screen from t≈0.2s while the baseline segment holds — the stake lands before the plunge.",
+    "honesty": "Total-activity arm only. The MVPA arm (c1–c3: −36/−45/−48%) is weaker than the total arm and goes to the caption, explicitly attributed — it is the evidence FOR the headline, not a second curve."
+  }
+}
