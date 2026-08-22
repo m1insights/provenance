@@ -1,29 +1,65 @@
 {
   "chart": "curve",
   "title": "Your age was never one number.",
-  "deck": "Risk of dying, vs people with no organs aging early",
+  "deck": "Risk of dying, as more of your 11 organs test older than you",
   "counter_prefix": "",
-  "counter_caption": "of 11 · organs aging early",
+  "counter_caption": "of 11 organs testing older than you",
   "counter_step": 1,
   "counter_decimals": 0,
-  "domain": [0, 8],
-  "y_domain": [0, 9.3],
+  "domain": [
+    0,
+    8
+  ],
+  "y_domain": [
+    0,
+    9.3
+  ],
   "ticks": [
-    { "at": 0, "label": "none" },
-    { "at": 8, "label": "8+" }
+    {
+      "at": 0,
+      "label": "none"
+    },
+    {
+      "at": 8,
+      "label": "8+"
+    }
   ],
   "annotations": [
-    { "at": 0, "flag": "IT STACKS", "detail": "Every aged organ raises it" },
-    { "at": 5, "flag": "IT ACCELERATES", "detail": "The jumps get bigger" }
+    {
+      "at": 0,
+      "flag": "IT STACKS",
+      "detail": "Each old organ adds risk"
+    },
+    {
+      "at": 5,
+      "flag": "IT ACCELERATES",
+      "detail": "The jumps get bigger"
+    }
   ],
   "series": [
     {
       "label": "All-cause mortality",
       "points": [
-        [0, 1.0, "normal aging"],
-        [3, 2.3, "2.3×"],
-        [6, 4.5, "4.5×"],
-        [8, 8.3, "8.3×"]
+        [
+          0,
+          1.0,
+          "all normal"
+        ],
+        [
+          3,
+          2.3,
+          "2.3×"
+        ],
+        [
+          6,
+          4.5,
+          "4.5×"
+        ],
+        [
+          8,
+          8.3,
+          "8.3×"
+        ]
       ]
     }
   ],
@@ -39,12 +75,25 @@
     "axis": "x = count of biologically aged organs (of 11 estimated). The paper bins 2-4 / 5-7 / 8+; points sit at bin midpoints (3, 6) with the open 8+ bin plotted at its FLOOR (8) — conservative, never overstating. 'Aged organ' = age-gap z-score > 1.5 in that organ's model (full text, Methods); translated on the frame as 'aging early'.",
     "reference": "'Normal agers' (full text: multi-organ agers tested against normal agers) — HR 1.00 by definition; the (0, 1.0, 'normal aging') point is the comparator, not a reported estimate",
     "claims": [
-      { "claim_id": "c3", "value_on_screen": "2.3× at 2-4 aged organs", "quote": "Accrual of aged organs progressively increased mortality risk (2-4 aged organs, HR = 2.3" },
-      { "claim_id": "c4", "value_on_screen": "4.5× at 5-7 aged organs", "quote": "5-7 aged organs, HR = 4.5;" },
-      { "claim_id": "c5", "value_on_screen": "8.3× at 8+ aged organs", "quote": "8+ aged organs, HR = 8.3)" }
+      {
+        "claim_id": "c3",
+        "value_on_screen": "2.3× at 2-4 aged organs",
+        "quote": "Accrual of aged organs progressively increased mortality risk (2-4 aged organs, HR = 2.3"
+      },
+      {
+        "claim_id": "c4",
+        "value_on_screen": "4.5× at 5-7 aged organs",
+        "quote": "5-7 aged organs, HR = 4.5;"
+      },
+      {
+        "claim_id": "c5",
+        "value_on_screen": "8.3× at 8+ aged organs",
+        "quote": "8+ aged organs, HR = 8.3)"
+      }
     ],
     "copy_grounding": "'IT STACKS / Every aged organ raises it' + 'IT ACCELERATES / The jumps get bigger' ← 'Accrual of aged organs progressively increased mortality risk' and the reported sequence (+1.3, +2.2, +3.8 between bins). '11' ← 'the biological age of 11 organs'. 'aging early' ← extreme-ager definition (z > 1.5).",
     "reveal_test": "Headline names the one-age belief and withholds the replacement; the counter climbing through organ counts and the risk curve compounding supply it, with 8.3× as the completion payoff. 'IT STACKS' is on screen from t≈0.2s.",
-    "honesty": "Rising curve — first one in the series; the area fill grows with risk, so motion = the bad news arriving, which is the honest shape of this claim. Segments between markers are interpolation per the template contract; no 0-1 organ bin is reported, and no point is drawn there. The youthful-organ protection trio (c6-c8: HR 0.60/0.58/0.44) is caption material — the hopeful flip, never a second curve."
+    "honesty": "Rising curve — first one in the series; the area fill grows with risk, so motion = the bad news arriving, which is the honest shape of this claim. Segments between markers are interpolation per the template contract; no 0-1 organ bin is reported, and no point is drawn there. The youthful-organ protection trio (c6-c8: HR 0.60/0.58/0.44) is caption material — the hopeful flip, never a second curve.",
+    "layman_pass": "Founder read 2026-08-22: v1 deck 'vs people with no organs aging early' garden-pathed as 'people with no organs', and the frame never stated the premise. Deck now carries premise + axis + quantity in one line; reference marker 'all normal'."
   }
 }
