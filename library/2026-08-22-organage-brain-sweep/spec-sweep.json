@@ -1,0 +1,93 @@
+{
+  "chart": "curve",
+  "title": "Your brain has its own age.",
+  "deck": "Risk of Alzheimer's disease, as your brain tests older",
+  "counter_prefix": "",
+  "counter_caption": "of 100 · your age, ranked by brain age",
+  "counter_step": 1,
+  "counter_decimals": 0,
+  "domain": [
+    0,
+    100
+  ],
+  "y_domain": [
+    0,
+    3.7
+  ],
+  "ticks": [
+    {
+      "at": 3,
+      "label": "tests youngest"
+    },
+    {
+      "at": 50,
+      "label": "typical"
+    },
+    {
+      "at": 97,
+      "label": "tests oldest"
+    }
+  ],
+  "annotations": [
+    {
+      "at": 0,
+      "flag": "THE YOUNG END",
+      "detail": "Protection like the best genes"
+    },
+    {
+      "at": 58,
+      "flag": "THE OLD END",
+      "detail": "Risk like the worst gene"
+    }
+  ],
+  "series": [
+    {
+      "label": "Alzheimer's disease",
+      "points": [
+        [
+          3,
+          0.26,
+          "0.26×"
+        ],
+        [
+          50,
+          1.0,
+          ""
+        ],
+        [
+          97,
+          3.1,
+          "3.1×"
+        ]
+      ]
+    }
+  ],
+  "source": {
+    "authors": "Oh et al.",
+    "journal": "Nat Med",
+    "sample": "n=44,498",
+    "tier": "UK BIOBANK COHORT"
+  },
+  "_provenance": {
+    "paper": "doi:10.1038_s41591-025-03798-1 · Oh et al. 2025, Nat Med · prospective cohort, plasma proteomic organ clocks, UK Biobank n=44,498, 2-17y follow-up",
+    "appraisal_tier": "B",
+    "axis": "Sweep-only ruling (founder, 2026-08-22) + owned-axis rule: x = where a person's brain age ranks among people their age, 0-100. The paper defines extreme agers by age-gap z-score beyond ±1.5, which is mathematically the outer ~7% of a normal distribution — so 'tests youngest' plots at 3, the reference at 50, 'tests oldest' at 97. The counter counts rank among 100 peers, the established house axis (movement + steps reels). Genre model: datakatadka SEX HORMONES BY AGE (17.2K) — counter sweeping an owned number while the curve resolves.",
+    "reference": "'Typical' (50) = a brain testing its age — HR 1.00 by definition, the comparator, not a reported estimate",
+    "claims": [
+      {
+        "claim_id": "c2",
+        "value_on_screen": "0.26× at tests youngest",
+        "quote": "whereas a youthful brain (HR = 0.26) provided protection that was similar to carrying two copies of APOE2, independent of APOE genotype."
+      },
+      {
+        "claim_id": "c1",
+        "value_on_screen": "3.1× at tests oldest",
+        "quote": "having an especially aged brain posed a risk of Alzheimer's disease (hazard ratio (HR) = 3.1) that was similar to carrying one copy of APOE4,"
+      }
+    ],
+    "copy_grounding": "'Protection like the best genes' ← c2 ('similar to carrying two copies of APOE2'). 'Risk like the worst gene' ← c1 ('similar to carrying one copy of APOE4, the strongest genetic risk factor'). Region flags are places (THE YOUNG END / THE OLD END), details carry the gene story — marker values carry the figures, nothing restates them. Widths measured: region1 span 476px vs detail 360px; region2 span 344px vs flag 209px / detail 288px.",
+    "reveal_test": "Headline names the premise, withholds what a brain's own age does; the counter climbs through peer rank while the curve stays low through 'typical', then bends up hard — 3.1× lands at the sweep's end as the payoff. Region flags carry the gene comparison mid-run.",
+    "cold_read": "Axis is a named organ the viewer owns, positioned the way school percentiles are ('of 100 people your age'). No counts, no z-scores, no derived quantity on the frame.",
+    "honesty": "Three reported points; segments between are interpolation per the template contract — the low-flat-then-bend shape is drawn only through reported values. z↔percentile mapping is a mathematical identity, not a new estimate. Association in cohort data; APOE comparisons are the paper's own. Mortality trio (0.60/0.58/0.44) stays caption material."
+  }
+}

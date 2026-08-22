@@ -28,8 +28,11 @@ not two bars, before committing.
 
 ## 4. Brain age vs genes — BUILT 2026-08-22 (as the paper's LEAD reel)
 `doi:10.1038_s41591-025-03798-1` · Tier B · claims c1/c2 grounded.
-Reel at `library/2026-08-22-organage-brain-age/` ("Your brain has its own
-age.", grow motionreel). Founder ruling: the ORGAN-COUNT reel
+Reel at `library/2026-08-22-organage-brain-sweep/` ("Your brain has its own
+age.", SWEEP — founder ruling 2026-08-22: sweepable reels ONLY; the grow-bars
+version at `2026-08-22-organage-brain-age/` is retired with the count reel).
+Axis = peer rank ("of 100 · your age, ranked by brain age"); genre model =
+datakatadka SEX HORMONES BY AGE (counter sweeping an owned number). Founder ruling: the ORGAN-COUNT reel
 (`2026-08-22-organage-one-number/`) is RETIRED as a post — nobody owns "a
 count of aged organs" (contract #13, owned-axis rule); its ladder numbers are
 caption context at most. This brain reel is the paper's lead post. Awaiting
