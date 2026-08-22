@@ -26,6 +26,20 @@ All-cause: <60 bpm (ref) → 60–80 = +12% (c3) → >80 = +45% (c5); CVD arm +8
 over bpm. Note: only 3 points; flat-ish then jump — check it reads as a curve,
 not two bars, before committing.
 
+## 4. Brain age vs genes — same organ-age paper, SECOND nugget
+`doi:10.1038_s41591-025-03798-1` · Tier B · claims c1/c2 grounded.
+Aged brain = 3.1× Alzheimer's (≈ one APOE4 copy); youthful brain = 0.26
+(≈ two APOE2 copies), independent of genotype. 3-point brain-age axis
+(youthful 0.26 → normal 1.0 → aged 3.1). Angle: "Alzheimer's was never just
+your genes." **Hold ~1 week after posting reel #5** — same-paper reels
+back-to-back read as one idea repeated. Health-sensitive topic: KB §7 bar,
+every figure verbatim.
+
+## 5. Youthful trio — same paper, carousel NOT a reel
+c6–c8: youthful brain −40% / immune −42% / both −56% mortality. Three
+discrete groups, no continuous axis → `grow` carousel companion. Currently
+the caption flip of reel #5 — trim overlap if it becomes its own post.
+
 ## Not sweeps — don't force them
 - `doi:10.1161_jaha.118.008552` (JAHA sleep, 9/10/11h): long side only —
   caption "zoom out" material for the posted sleep J-curve, not its own reel.
