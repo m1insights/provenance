@@ -182,3 +182,38 @@ class TestSignHandling:
     def test_fabricated_magnitude_still_fails(self):
         claim = _claim(quote=self.SOURCE, value=-0.75)
         assert check_claim(claim, self.SOURCE) is not None
+
+
+class TestFulltextGrounding:
+    """A paper carrying open-access body text grounds quotes from that body."""
+
+    def _paper(self, fulltext=""):
+        from provenance.models import Paper, SourceName
+        return Paper(
+            doc_id="doi:10.1_test", source=SourceName.PUBMED, title="A study",
+            abstract="The abstract says one thing about exercise and mortality here.",
+            fulltext=fulltext,
+        )
+
+    def _appraisal(self, quote, value=None):
+        from provenance.models import Alignment, Appraisal, Claim, EvidenceTier
+        return Appraisal(
+            paper_id="doi:10.1_test", tier=EvidenceTier.B, design="cohort",
+            alignment=Alignment.NEUTRAL,
+            claims=[Claim(claim_id="c1", statement="s", quote=quote, value=value)],
+        )
+
+    BODY_SPAN = "an aged immune system conferred a hazard ratio of 1.6 for mortality"
+
+    def test_body_quote_grounds_when_fulltext_present(self):
+        from provenance import grounding
+        paper = self._paper(fulltext=f"Results. In this analysis {self.BODY_SPAN} overall.")
+        verified, rejections = grounding.verify(self._appraisal(self.BODY_SPAN, 1.6), paper)
+        assert len(verified.claims) == 1 and not rejections
+
+    def test_body_quote_fails_without_fulltext(self):
+        """The default surface stays abstract-only — body quotes cannot ground
+        against a paper whose fulltext was never fetched."""
+        from provenance import grounding
+        verified, rejections = grounding.verify(self._appraisal(self.BODY_SPAN, 1.6), self._paper())
+        assert verified.claims == [] and rejections

@@ -270,3 +270,37 @@ async def search(
     finally:
         if owns_client:
             await client.aclose()
+
+
+async def fulltext(pmcid: str, *, client: httpx.AsyncClient | None = None) -> str:
+    """Open-access body text for one PMC article, as plain prose.
+
+    ``efetch`` on the ``pmc`` database returns JATS XML for articles in the
+    open-access subset. The <body> element's text nodes, joined and
+    whitespace-collapsed, are what grounding needs: a haystack the appraiser's
+    quotes can be found in verbatim. Figures' data live in <table-wrap> and
+    captions, whose text nodes are included by ``itertext``.
+
+    Returns an empty string when the article is not retrievable this way --
+    the caller decides whether that is an error.
+    """
+    ident = pmcid.upper().removeprefix("PMC")
+    owns_client = client is None
+    client = client or httpx.AsyncClient(headers={"User-Agent": "provenance/0.1"})
+    try:
+        response = await client.get(
+            f"{BASE}/efetch.fcgi",
+            params=_common_params() | {"db": "pmc", "id": ident, "retmode": "xml"},
+            timeout=60.0,
+        )
+        response.raise_for_status()
+        root = ET.fromstring(response.text)
+        body = root.find(".//body")
+        if body is None:
+            log.warning("pmc fulltext: no <body> for PMC%s (not open access?)", ident)
+            return ""
+        text = " ".join(chunk.strip() for chunk in body.itertext() if chunk.strip())
+        return text
+    finally:
+        if owns_client:
+            await client.aclose()

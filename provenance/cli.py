@@ -129,6 +129,41 @@ def cmd_appraise(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_fulltext(args: argparse.Namespace) -> int:
+    """Attach open-access body text to a stored paper.
+
+    Most numbers worth charting print in abstracts; this exists for the paper
+    whose results live in its body. Once stored, `appraise --redo <paper_id>`
+    shows the appraiser the full text and grounding verifies quotes against it.
+    """
+    from .models import Paper
+    from .sources.pubmed import fulltext as pmc_fulltext
+    from .store import firestore as store
+
+    db = store.client()
+    doc = db.collection(store.PAPERS).document(args.paper_id).get()
+    if not doc.exists:
+        print(f"no stored paper {args.paper_id!r}")
+        return 1
+    paper = Paper.model_validate(doc.to_dict())
+
+    pmcid = args.pmcid or paper.pmcid
+    if not pmcid:
+        print("paper has no PMCID; pass --pmcid PMC…")
+        return 1
+
+    text = asyncio.run(pmc_fulltext(pmcid))
+    if not text:
+        print(f"no open-access body for {pmcid} — nothing stored")
+        return 1
+
+    paper = paper.model_copy(update={"fulltext": text[:400_000], "pmcid": pmcid})
+    store.save_papers([paper], db=db)
+    print(f"stored {len(paper.fulltext):,} chars of body text on {paper.doc_id}")
+    print(f"next: .venv/bin/python -m provenance appraise --redo {paper.doc_id}")
+    return 0
+
+
 def cmd_synthesise(args: argparse.Namespace) -> int:
     import collections
 
@@ -657,6 +692,12 @@ def main(argv: list[str] | None = None) -> int:
              "appraisal overwrites the stored one after passing grounding",
     )
     appraise_cmd.set_defaults(func=cmd_appraise)
+
+    ft = sub.add_parser("fulltext",
+                        help="attach open-access PMC body text to a stored paper")
+    ft.add_argument("paper_id", help="stored doc id, e.g. doi:10.1038_s41591-...")
+    ft.add_argument("--pmcid", default=None, help="PMC id if the record lacks one")
+    ft.set_defaults(func=cmd_fulltext)
 
     synth = sub.add_parser("synthesise", help="open findings where evidence converges")
     synth.add_argument("--show-gated", action="store_true", help="show why components were gated")

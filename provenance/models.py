@@ -100,6 +100,12 @@ class Paper(BaseModel):
     publication_types: list[str] = Field(default_factory=list)
     #: Which agenda components triggered retrieval of this record.
     matched_components: list[str] = Field(default_factory=list)
+    #: Open-access body text, fetched on demand (``python -m provenance
+    #: fulltext``). Empty for most papers: the abstract is the default
+    #: grounding surface, and this exists for the paper whose numbers live in
+    #: its results section. When present, the appraiser is shown it and
+    #: grounding verifies quotes against it.
+    fulltext: str = ""
     retrieved_at: datetime = Field(default_factory=_utcnow)
 
     @staticmethod
