@@ -89,6 +89,16 @@ number appears inside the span you quoted. If the number is stated elsewhere in 
 the abstract, quote THAT sentence instead. Leave `value` null rather than \
 reaching for a number that is not in your quote.
 
+DOSE-RESPONSE CURVES: when the abstract reports a numeric result for MORE THAN \
+ONE level of the same exposure (quartiles, quintiles, categories, doses, or \
+per-increment results at named levels), extract EVERY level as its OWN claim -- \
+one claim per point, each with its own verbatim quote and its own `value`. Do \
+not summarise a table down to its extremes. Three or more grounded points along \
+one axis are what let a downstream chart draw the curve; the highest-vs-lowest \
+contrast alone cannot. When the abstract names the exposure level inside the \
+quoted span (e.g. "quartile 3, median 8,300 steps"), keep that span intact so \
+the level survives grounding with the result.
+
 Set `alignment` by comparing the paper against the CURRENT RULES shown:
 - `supports`   - consistent with what the algorithm already does.
 - `challenges` - implies a different threshold, weight, or window. THIS IS THE \
