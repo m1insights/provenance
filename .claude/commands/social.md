@@ -347,7 +347,17 @@ visible defect.
     - Region flags carry MEANING, not place names. For a J/U-curve the
       Goldilocks frame — "TOO LITTLE · SWEET SPOT · TOO MUCH" — tells the whole
       story in one sweep; "THE LONG SIDE" names where, not what.
-13. **Width-gate region copy like any label (#6).** Region flags run ~17px/char
+13. **The cold-read test: a layman must decode the frame from its text alone.**
+    Reel #5 v1 (2026-08-22) failed a founder read twice over: the deck "Risk
+    of dying, vs people with no organs aging early" garden-pathed as "people
+    with no organs", and nothing on the frame stated the PREMISE — that each
+    of your 11 organs can test older than you. When the x-axis measures
+    something the viewer does not know exists, the deck must establish it, in
+    the same line that names the quantity: "Risk of dying, as more of your 11
+    organs test older than you." Before rendering, read every frame line as a
+    stranger: no noun phrase that parses two ways, no axis whose subject is
+    off-frame. The caption cannot rescue the frame — scrollers read the frame.
+14. **Width-gate region copy like any label (#6).** Region flags run ~17px/char
     (26px caps) and details ~12px/char (25px); both must fit inside
     `x(next.at) − x(at)`. "THE SWEET SPOT" overflowed a 2-hour span twice on
     2026-08-21 before "SWEET SPOT" fit. Compute the span in pixels BEFORE
