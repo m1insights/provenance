@@ -1,0 +1,36 @@
+{
+  "motion": "grow",
+  "title": "Your brain has its own age.",
+  "deck": "Risk of Alzheimer's disease, by how old your brain tests",
+  "suffix": "×",
+  "decimals": 2,
+  "max": 4,
+  "items": [
+    { "label": "tests younger", "value": 0.26 },
+    { "label": "tests its age", "value": 1 },
+    { "label": "tests older", "value": 3.1 }
+  ],
+  "statement": {
+    "flag": "Genes were never the whole story",
+    "detail": "An old-testing brain carried risk like the strongest Alzheimer's gene. A young one protected like the best — whatever genes you carry."
+  },
+  "source": {
+    "authors": "Oh et al.",
+    "journal": "Nat Med",
+    "sample": "n=44,498",
+    "tier": "UK BIOBANK COHORT"
+  },
+  "_provenance": {
+    "paper": "doi:10.1038_s41591-025-03798-1 · Oh et al. 2025, Nat Med · prospective cohort, plasma proteomic organ clocks, UK Biobank n=44,498, 2-17y follow-up",
+    "appraisal_tier": "B",
+    "axis": "Named-organ frame per founder direction 2026-08-22: the viewer owns 'my brain', never 'a count of aged organs'. Three states of one organ — brain tests younger / its age / older — as discrete bars (grow), which is the honest motion for 3 groups. 'Tests its age' = the reference (HR 1.00 by definition, not a reported estimate). 'Older'/'younger' = extreme agers, age-gap z-score beyond ±1.5 (full text, Methods).",
+    "claims": [
+      { "claim_id": "c1", "value_on_screen": "3.10× at tests older", "quote": "having an especially aged brain posed a risk of Alzheimer's disease (hazard ratio (HR) = 3.1) that was similar to carrying one copy of APOE4," },
+      { "claim_id": "c2", "value_on_screen": "0.26× at tests younger", "quote": "whereas a youthful brain (HR = 0.26) provided protection that was similar to carrying two copies of APOE2, independent of APOE genotype." }
+    ],
+    "copy_grounding": "Statement's gene sentences ← c1 ('similar to carrying one copy of APOE4, the strongest genetic risk factor for sporadic Alzheimer's disease') and c2 ('similar to carrying two copies of APOE2, independent of APOE genotype'). '3.10×'/'0.26×' print the paper's HRs at uniform 2 decimals.",
+    "reveal_test": "Headline names the premise (your brain has an age) and withholds what that age does; bars arrive youngest-first so 3.10× lands LAST as the payoff, and the statement ('Genes were never the whole story') lands after the chart finishes.",
+    "cold_read": "Every frame line parses one way: deck subject is 'your brain'; bar labels are three states of that one named organ; no derived quantity anywhere (contract #13; count-of-organs frame retired for exactly this).",
+    "honesty": "Bar values are the paper's hazard ratios vs a brain testing its age — 1.00 drawn as the reference bar so 0.26 and 3.10 have a visible yardstick. Alzheimer's endpoint only; the mortality trio (youthful brain/immune/both, HR 0.60/0.58/0.44) is caption material. Association in cohort data; APOE comparisons are the paper's own."
+  }
+}

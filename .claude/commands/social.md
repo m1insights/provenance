@@ -353,10 +353,19 @@ visible defect.
     with no organs", and nothing on the frame stated the PREMISE — that each
     of your 11 organs can test older than you. When the x-axis measures
     something the viewer does not know exists, the deck must establish it, in
-    the same line that names the quantity: "Risk of dying, as more of your 11
-    organs test older than you." Before rendering, read every frame line as a
-    stranger: no noun phrase that parses two ways, no axis whose subject is
-    off-frame. The caption cannot rescue the frame — scrollers read the frame.
+    the same line that names the quantity. Before rendering, read every frame
+    line as a stranger: no noun phrase that parses two ways, no axis whose
+    subject is off-frame. The caption cannot rescue the frame — scrollers read
+    the frame.
+
+    And the stronger form (founder ruling, 2026-08-22): **the axis must be a
+    thing the viewer already owns in their head** — steps, sleep hours, their
+    brain, their heart rate — never a derived statistical quantity, however
+    honest. "How many of your 11 organs test old" parsed correctly after a
+    rewrite and STILL failed, because nobody owns a *count of aged organs*;
+    the same paper worked the moment the axis became one named organ ("how
+    old your brain tests"). A fix to the wording cannot rescue a variable the
+    viewer has no mental shelf for — reframe to the named thing, or drop it.
 14. **Width-gate region copy like any label (#6).** Region flags run ~17px/char
     (26px caps) and details ~12px/char (25px); both must fit inside
     `x(next.at) − x(at)`. "THE SWEET SPOT" overflowed a 2-hour span twice on
