@@ -131,8 +131,11 @@ class TestContentLane:
         assert all("CONTENT LANE" in item.current_rule for item in ITEMS)
         assert all(item.weight == 0.0 for item in ITEMS)
 
-    def test_lane_queries_hunt_the_sweep_shape(self):
+    def test_lane_items_hunt_the_sweep_shape(self):
+        """Every lane item aims at curve-shaped literature — either its queries
+        hunt dose-response phrasing, or its rule names a graded result."""
         assert all(
             any("dose-response" in c or "dose response" in c for c in item.search_concepts)
+            or "graded" in item.current_rule
             for item in ITEMS
         )

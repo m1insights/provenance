@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 
 from ..agenda import build_agenda
 from ..config import SubjectApp
-from ..content_agenda import lane_items
+from ..content_agenda import with_lane
 from ..models import Paper, Rejection, ResearchAgenda
 from ..sources import gather
 
@@ -93,9 +93,7 @@ async def sweep(
     # and deduplicated by id, because a cloud run's stored agenda already
     # carries the lane from the run that published it. The synthesist skips
     # `content.*` components, so nothing here can ever become a pull request.
-    extra = lane_items({item.component_id for item in agenda.items})
-    if extra:
-        agenda = agenda.model_copy(update={"items": agenda.items + extra})
+    agenda = with_lane(agenda)
     items = [
         item
         for item in agenda.items

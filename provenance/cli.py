@@ -87,7 +87,11 @@ def cmd_appraise(args: argparse.Namespace) -> int:
     from .store import firestore as store
 
     db = store.client()
-    agenda = build_agenda(_subject(args.subject))
+    # The lane rides along here for the same reason it does in the scout:
+    # without it, triage rejects every content-lane paper as irrelevant.
+    from .content_agenda import with_lane
+
+    agenda = with_lane(build_agenda(_subject(args.subject)))
 
     already = {doc.id for doc in db.collection(store.APPRAISALS).select([]).stream()}
     seen_rejects = {

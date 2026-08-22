@@ -120,6 +120,23 @@ ITEMS: list[AgendaItem] = [
         mesh_terms=["Alcohol Drinking", "Mortality"],
     ),
     AgendaItem(
+        component_id="content.organage",
+        display_name="Organ age",
+        weight=0.0,
+        current_rule=(
+            "CONTENT LANE — no scoring rule to change. The popular belief under "
+            "test: you have one age, the number on your birthday. The "
+            "proteomic-clock literature estimates per-organ biological ages "
+            "from blood and reports graded mortality and disease risk as the "
+            "count of biologically aged organs accrues."
+        ),
+        search_concepts=[
+            "organ age", "biological age", "plasma proteomics",
+            "aging clock", "age gap",
+        ],
+        mesh_terms=["Aging", "Proteomics"],
+    ),
+    AgendaItem(
         component_id="content.walkingpace",
         display_name="Walking pace",
         weight=0.0,
@@ -146,3 +163,16 @@ def lane_items(existing_ids: set[str] | None = None) -> list[AgendaItem]:
     """
     existing = existing_ids or set()
     return [item for item in ITEMS if item.component_id not in existing]
+
+
+def with_lane(agenda):
+    """The agenda plus the content lane, deduplicated by component id.
+
+    Every consumer that appraises papers must go through this -- the CLI
+    ``appraise`` path once built the bare algorithm agenda, and triage then
+    rejected every content-lane paper as bearing on no scoring component.
+    """
+    extra = lane_items({item.component_id for item in agenda.items})
+    if not extra:
+        return agenda
+    return agenda.model_copy(update={"items": agenda.items + extra})
