@@ -11,12 +11,13 @@ cannot ground them; x = population-percentile axis (quarter midpoints), counter
 "of 100 · ranked by daily movement". Awaiting founder post → then
 `python -m provenance content --mark doi:10.1136_bmj.l4570`.
 
-## 2. Steps after 60 — Circulation harmonized meta-analysis
-`doi:10.1161_circulationaha.122.061288` · Tier B · n=20,152 · 6 points.
-Older adults (60+): Q2/Q3/Q4 vs Q1 = −20% / −38% / −49% heart disease (c1–c3);
-younger adults ~flat (c4–c6, not significant). Angle: "Steps pay off MORE after
-60" — two-lane sweep or older-arm only. Same quartile-median gap as #1
-(`--redo` to ground step counts per quartile).
+## 2. Steps after 60 — Circulation harmonized meta-analysis — BUILT 2026-08-21
+`doi:10.1161_circulationaha.122.061288` · reel at
+`library/2026-08-21-steps-after-60/` ("After 60, a walk was never just a
+walk."). Older-arm only; younger-arm null in the caption, attributed. Step
+medians not in the abstract → percentile axis, counter "of 100 · ranked by
+daily steps". Awaiting founder post → then
+`python -m provenance content --mark doi:10.1161_circulationaha.122.061288`.
 
 ## 3. Resting heart rate — CMAJ meta-analysis
 `doi:10.1503_cmaj.150535` · Tier B · n=1,246,203 · real x-values, no gap.

@@ -1,6 +1,6 @@
 {
   "chart": "curve",
-  "title": "The gym was never the point.",
+  "title": "The workout was never the whole story.",
   "deck": "Risk of dying, compared with the least active 25% of adults",
   "counter_prefix": "",
   "counter_caption": "of 100 · ranked by daily movement",
@@ -44,7 +44,7 @@
       { "claim_id": "c6", "value_on_screen": "−73% at Q4 = HR 0.27 [0.23-0.32]", "quote": "0.27 (0.23 to 0.32) in the fourth quarter (most active)" }
     ],
     "copy_grounding": "'Any intensity counts' ← abstract: 'Any physical activity, regardless of intensity, was associated with lower risk of mortality'. 'Half the risk, one step up' ← c4 (−52% in the second quarter vs the first).",
-    "reveal_test": "Headline names the gym belief and withholds the replacement; the curve supplies it (total movement, any intensity) and the −73% endpoint is the completion payoff. 'THE BIG DROP' flag is on screen from t≈0.2s while the baseline segment holds — the stake lands before the plunge.",
+    "reveal_test": "Headline names the workout belief and withholds the rest of the story; the curve supplies it (total movement, any intensity) and the −73% endpoint is the completion payoff. 'THE BIG DROP' flag is on screen from t≈0.2s while the baseline segment holds — the stake lands before the plunge. Founder direction 2026-08-21: additive spin ('there is more than the workout'), never anti-gym — the audience trains.",
     "honesty": "Total-activity arm only. The MVPA arm (c1–c3: −36/−45/−48%) is weaker than the total arm and goes to the caption, explicitly attributed — it is the evidence FOR the headline, not a second curve."
   }
 }

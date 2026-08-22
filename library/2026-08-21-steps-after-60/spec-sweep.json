@@ -1,0 +1,51 @@
+{
+  "chart": "curve",
+  "title": "After 60, a walk was never just a walk.",
+  "deck": "Risk of heart disease after 60, vs the 25% who walk least",
+  "counter_prefix": "",
+  "counter_caption": "of 100 · ranked by daily steps",
+  "counter_step": 1,
+  "counter_decimals": 0,
+  "domain": [0, 100],
+  "y_domain": [0, 112],
+  "ticks": [
+    { "at": 12.5, "label": "fewest steps" },
+    { "at": 87.5, "label": "most steps" }
+  ],
+  "annotations": [
+    { "at": 0, "flag": "THE FIRST STEP UP", "detail": "A fifth of the risk gone" },
+    { "at": 45, "flag": "THE PAYOFF", "detail": "Half the risk at the top" }
+  ],
+  "series": [
+    {
+      "label": "Cardiovascular disease",
+      "points": [
+        [12.5, 100, "baseline"],
+        [37.5, 80, "−20%"],
+        [62.5, 62, "−38%"],
+        [87.5, 51, "−49%"]
+      ]
+    }
+  ],
+  "source": {
+    "authors": "Paluch et al.",
+    "journal": "Circulation",
+    "sample": "n=20,152",
+    "tier": "META-ANALYSIS"
+  },
+  "_provenance": {
+    "paper": "doi:10.1161_circulationaha.122.061288 · Paluch et al. 2022, Circulation · harmonized meta-analysis of 8 prospective device-measured cohorts, n=20,152, mean follow-up 6.2y, 1,523 CVD events",
+    "appraisal_tier": "B",
+    "axis": "The paper reports study-specific quartiles of device-measured daily steps; step counts per quartile are not in the abstract, so x = population percentile with points at quarter midpoints (12.5/37.5/62.5/87.5). The counter counts rank, not steps — nothing on screen implies step volumes.",
+    "stratum": "Curve is the OLDER-adult stratum (≥60) only, per the deck ('after 60'). n=20,152 on the source line is the whole meta-analysis; the abstract does not report the older stratum's n. The younger-adult arm (c4–c6: HR 0.79/0.90/0.95, all CIs crossing 1.0) is caption material, explicitly attributed.",
+    "reference": "Lowest quartile of daily steps among adults ≥60 — HR 1.00 by definition; the (12.5, 100, 'baseline') point is the comparator, not a reported estimate",
+    "claims": [
+      { "claim_id": "c1", "value_on_screen": "−20% at Q2 = HR 0.80 [0.69-0.93]", "quote": "For older adults, the HR for quartile 2 was 0.80 (95% CI, 0.69 to 0.93)" },
+      { "claim_id": "c2", "value_on_screen": "−38% at Q3 = HR 0.62 [0.52-0.74]", "quote": "0.62 for quartile 3 (95% CI, 0.52 to 0.74)" },
+      { "claim_id": "c3", "value_on_screen": "−49% at Q4 = HR 0.51 [0.41-0.63]", "quote": "and 0.51 for quartile 4 (95% CI, 0.41 to 0.63) compared with the lowest quartile." }
+    ],
+    "copy_grounding": "'A fifth of the risk gone' ← c1 (HR 0.80 = −20%). 'Half the risk at the top' ← c3 (HR 0.51 = −49%). Outcome named 'heart disease' in the deck ← CVD events defined as 'fatal and nonfatal coronary heart disease, stroke, and heart failure'.",
+    "reveal_test": "Headline names the walking-after-60 belief ('just a walk') and withholds what a walk actually buys; the curve supplies it and −49% is the completion payoff. 'THE FIRST STEP UP' flag is on screen from t≈0.2s while the baseline segment holds.",
+    "honesty": "Deltas shrink as steps rise (−20 → −18 → −11 percentage points of HR), so no copy claims the fall accelerates; 'THE PAYOFF / Half the risk at the top' states the endpoint, not a rate. Younger-arm null goes to the caption — never a second lane on this chart."
+  }
+}
