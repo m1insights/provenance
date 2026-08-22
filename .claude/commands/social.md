@@ -202,8 +202,15 @@ carousel cells, where a frame does not have to carry 12 seconds alone.
 > and an honest null has, by construction, nothing to reveal — the motion is
 > working as designed, which is exactly the problem. A null or equivalence
 > finding is true, valuable and on-brand, and it belongs in a **carousel or the
-> caption**. Reels get `sweep` or `grow`, where the number arrives with the
-> motion, the chart carries area and shape, and 2–3 annotations land mid-run.
+> caption**. Reels get `sweep` — ONLY `sweep` (founder ruling 2026-08-22: the winning
+> form is data RESOLVING as the reel runs; bars that arrive are not it).
+> `grow` and every other motion are carousel/companion material. When a
+> claim looks discrete, find the owned continuous axis behind it (peer
+> rank, age, hours) and sweep that — the brain-age reel turned three
+> discrete states into a curve over "of 100, your age, ranked by brain
+> age". The genre model beyond our own breakouts: datakatadka's hormones-
+> by-age reel — a counter sweeping a number the viewer owns (their age)
+> while named curves resolve under it.
 >
 > **Also prefer a universal-belief topic:** attack a number everyone has been
 > told to hit (10k steps, 8 glasses, 8 hours), not one that only speaks to
