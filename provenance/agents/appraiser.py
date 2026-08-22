@@ -80,8 +80,8 @@ relevant components, then the paper.
 
 For each claim you extract:
 - `statement`: the claim in plain language.
-- `quote`: a span copied EXACTLY from the title or abstract you were shown, \
-character for character. Do not paraphrase, do not tidy the wording, do not \
+- `quote`: a span copied EXACTLY from the title, abstract, or full text you \
+were shown, character for character. Do not paraphrase, do not tidy the wording, do not \
 join fragments from different sentences. This is checked against the source by \
 string comparison and a claim whose quote is not found is discarded.
 - `value` / `ci_low` / `ci_high`: the numeric result, ONLY when that exact \
@@ -118,6 +118,13 @@ throat-clearing. Say only what this paper found -- never what it implies for \
 the algorithm, which is the `alignment` field's job. Do not state a number here \
 that does not appear in one of your quotes.
 
+When a FULL TEXT section is shown, the abstract's headline results are only \
+the start: also extract the body's distinct quantitative results — organ-, \
+subgroup- or dose-specific effect sizes, and absolute event counts ("X of N \
+participants died") — each as its own claim with its own verbatim quote. \
+Prefer results a chart could draw. Up to 16 claims when the body supports \
+them; never restate one result as two claims.
+
 Be sceptical. Most papers do not justify changing a production algorithm.
 """
 
@@ -149,7 +156,7 @@ def _rules_block(items: list[AgendaItem]) -> str:
     )
 
 
-def _paper_block(paper: Paper) -> str:
+def _paper_block(paper: Paper, *, include_fulltext: bool = False) -> str:
     meta = " | ".join(
         part
         for part in (
@@ -159,7 +166,15 @@ def _paper_block(paper: Paper) -> str:
         )
         if part
     )
-    return f"TITLE: {paper.title}\nMETADATA: {meta}\n\nABSTRACT:\n{paper.abstract}"
+    block = f"TITLE: {paper.title}\nMETADATA: {meta}\n\nABSTRACT:\n{paper.abstract}"
+    if include_fulltext and paper.fulltext:
+        # Appraisal only — triage is a one-question relevance filter on a
+        # small model, and feeding it a 60k-char body drowns the question.
+        # Capped at 100k chars, far inside the appraiser's window; grounding
+        # verifies against the WHOLE stored text, so any quote the model saw
+        # will verify.
+        block += f"\n\nFULL TEXT:\n{paper.fulltext[:100_000]}"
+    return block
 
 
 def _agent(name: str, model_name: str, instruction: str, schema) -> LlmAgent:
@@ -367,7 +382,8 @@ async def appraise(
         async with semaphore:
             payload = await _run(
                 agent,
-                f"# CURRENT RULES\n{_rules_block(relevant)}\n\n# PAPER\n{_paper_block(paper)}",
+                f"# CURRENT RULES\n{_rules_block(relevant)}\n\n"
+                f"# PAPER\n{_paper_block(paper, include_fulltext=True)}",
             )
         if payload is None:
             return None, [

@@ -108,6 +108,8 @@ def verify(appraisal: Appraisal, paper: Paper) -> tuple[Appraisal, list[Rejectio
     an empty list, and the caller treats that as a rejected paper.
     """
     source = f"{paper.title}\n{paper.abstract}"
+    if paper.fulltext:
+        source = f"{source}\n{paper.fulltext}"
     kept: list[Claim] = []
     rejections: list[Rejection] = []
 

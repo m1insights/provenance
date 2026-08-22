@@ -38,7 +38,20 @@ count of aged organs" (contract #13, owned-axis rule); its ladder numbers are
 caption context at most. This brain reel is the paper's lead post. Awaiting
 founder post → then `python -m provenance content --mark doi:10.1038_s41591-025-03798-1`.
 
-## 5. Youthful trio — same paper, carousel NOT a reel
+## 5. NEXT FROM THE ORGAN PAPER (full-text claims now grounded, 2026-08-22)
+Fetched via the new `python -m provenance fulltext` lane; appraisal holds 11
+grounded claims. Space these out — one organ-paper post per week:
+- **Immune system** (c10/c11): "Your immune system has an age too" — youthful
+  immune −42% mortality, brain+immune together −56%. The hopeful post.
+- **Heart** (c3): heart testing older → +83% heart-failure risk per step of
+  heart aging. Per-SD units — needs an owned-axis translation before it can
+  sweep (peer-rank axis like the brain reel).
+- **Brain, raw incidence** (c12): over 17 years, 4.56% of aged-brain adults
+  developed Alzheimer's vs 0.35% of youthful-brain adults — 13× in raw people
+  terms; caption ammo for the brain-sweep reel or its own follow-up.
+- **Lung** (c5): lung aging → +39% COPD per SD. Weakest hook; hold.
+
+## 5b. Youthful trio — same paper, carousel NOT a reel
 c6–c8: youthful brain −40% / immune −42% / both −56% mortality. Three
 discrete groups, no continuous axis → `grow` carousel companion. Currently
 the caption flip of reel #5 — trim overlap if it becomes its own post.
