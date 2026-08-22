@@ -1,7 +1,7 @@
 {
   "chart": "curve",
   "title": "Your brain has its own age.",
-  "deck": "Risk of Alzheimer's disease, as your brain tests older",
+  "deck": "Risk of Alzheimer's disease, when your brain is older than you",
   "counter_prefix": "",
   "counter_caption": "of 100 · your age, ranked by brain age",
   "counter_step": 1,
@@ -16,16 +16,16 @@
   ],
   "ticks": [
     {
-      "at": 3,
-      "label": "tests youngest"
+      "at": 8,
+      "label": "younger than you"
     },
     {
       "at": 50,
-      "label": "typical"
+      "label": "your age"
     },
     {
-      "at": 97,
-      "label": "tests oldest"
+      "at": 92,
+      "label": "older than you"
     }
   ],
   "annotations": [
@@ -87,7 +87,7 @@
     ],
     "copy_grounding": "'Protection like the best genes' ← c2 ('similar to carrying two copies of APOE2'). 'Risk like the worst gene' ← c1 ('similar to carrying one copy of APOE4, the strongest genetic risk factor'). Region flags are places (THE YOUNG END / THE OLD END), details carry the gene story — marker values carry the figures, nothing restates them. Widths measured: region1 span 476px vs detail 360px; region2 span 344px vs flag 209px / detail 288px.",
     "reveal_test": "Headline names the premise, withholds what a brain's own age does; the counter climbs through peer rank while the curve stays low through 'typical', then bends up hard — 3.1× lands at the sweep's end as the payoff. Region flags carry the gene comparison mid-run.",
-    "cold_read": "Axis is a named organ the viewer owns, positioned the way school percentiles are ('of 100 people your age'). No counts, no z-scores, no derived quantity on the frame.",
+    "cold_read": "Founder direction 2026-08-22 v2: no test-speak on the frame — the state, not the method. 'Older than you / your age / younger than you' is the paper's construct (biological vs calendar age) in owned words; how it is measured (a blood test) lives in the caption. Ticks sit at 8/50/92 — inside the viewBox (a 15-char label at x=3 or 97 clips), labelling the axis regions, not the data points.",
     "honesty": "Three reported points; segments between are interpolation per the template contract — the low-flat-then-bend shape is drawn only through reported values. z↔percentile mapping is a mathematical identity, not a new estimate. Association in cohort data; APOE comparisons are the paper's own. Mortality trio (0.60/0.58/0.44) stays caption material."
   }
 }
