@@ -130,6 +130,11 @@ clinical population whose findings would not generalise, a diagnostic or \
 therapeutic question rather than a behaviour or physiological measure, or is \
 purely methodological.
 
+Components whose rule is marked `CONTENT LANE` play by a different rule: they \
+exist for publishable content, not for the algorithm, and relevance means only \
+that the paper bears on the popular belief stated in that rule. The \
+behaviour-or-measure restriction above does not apply to them.
+
 When `relevant: false`, give a one-clause `reason`. When true, list the \
 `component_ids` it touches, using the exact identifiers given.
 """
