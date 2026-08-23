@@ -26,6 +26,25 @@ def _fixtures():
     return paper, appraisal
 
 
+class _StubDb:
+    """Enough Firestore to satisfy the Sunday digest.
+
+    Without it this test passes six days a week and fails on the seventh: the
+    digest branch only runs on a Sunday, and it is the only part of ``_notify``
+    that touches the database.
+    """
+
+    class _Collection:
+        def stream(self):
+            return iter(())
+
+        def select(self, _fields):
+            return self
+
+    def collection(self, _name):
+        return self._Collection()
+
+
 class TestBriefingCarriesTheNightsPapers:
     def test_kept_papers_reach_briefing_email(self):
         """A regression test for nightly.py shadowing appraisals/papers with
@@ -40,7 +59,7 @@ class TestBriefingCarriesTheNightsPapers:
             briefing_email.return_value = ("subject", "<html></html>")
 
             _notify(
-                db=None, subject=None, fresh=[], prior=[],
+                db=_StubDb(), subject=None, fresh=[], prior=[],
                 run={}, appraisals=[appraisal], rejections=[],
                 papers={"doi:10.1_x": paper},
             )
