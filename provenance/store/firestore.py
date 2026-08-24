@@ -176,6 +176,22 @@ def save_agenda(agenda: ResearchAgenda, *, db: firestore.Client | None = None) -
     db.collection(AGENDAS).document(doc_id).set(_serialise(agenda), merge=True)
 
 
+def agenda_for_digest(
+    subject_key: str,
+    source_digest: str,
+    *,
+    db: firestore.Client | None = None,
+) -> ResearchAgenda | None:
+    """Return one published agenda without scanning unrelated versions."""
+    db = db or client()
+    doc_id = f"{subject_key}__{source_digest}"
+    snapshot = db.collection(AGENDAS).document(doc_id).get()
+    if not snapshot.exists:
+        return None
+    payload = snapshot.to_dict()
+    return ResearchAgenda.model_validate(payload) if payload else None
+
+
 def latest_agenda(
     subject_key: str, *, db: firestore.Client | None = None
 ) -> ResearchAgenda | None:

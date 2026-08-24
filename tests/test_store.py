@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from provenance.models import Appraisal, EvidenceTier, Rejection
+from provenance.models import Appraisal, EvidenceTier, Rejection, ResearchAgenda
 from provenance.store import firestore as store
 
 
@@ -126,3 +126,66 @@ def test_save_appraisal_wave_commit_failure_persists_neither_collection():
 
     assert db.documents[store.APPRAISALS] == {}
     assert db.documents[store.REJECTIONS] == {}
+
+
+class _LookupSnapshot:
+    def __init__(self, payload: dict | None):
+        self.exists = payload is not None
+        self._payload = payload
+
+    def to_dict(self) -> dict | None:
+        return self._payload
+
+
+class _LookupDocument:
+    def __init__(self, db: "_LookupDb", doc_id: str):
+        self.db = db
+        self.doc_id = doc_id
+
+    def get(self) -> _LookupSnapshot:
+        self.db.requested.append(self.doc_id)
+        return _LookupSnapshot(self.db.documents.get(self.doc_id))
+
+
+class _LookupCollection:
+    def __init__(self, db: "_LookupDb"):
+        self.db = db
+
+    def document(self, doc_id: str) -> _LookupDocument:
+        return _LookupDocument(self.db, doc_id)
+
+    def stream(self):
+        raise AssertionError("exact lookup must not scan the collection")
+
+
+class _LookupDb:
+    def __init__(self, documents: dict[str, dict] | None = None):
+        self.documents = dict(documents or {})
+        self.requested: list[str] = []
+
+    def collection(self, name: str) -> _LookupCollection:
+        assert name == store.AGENDAS
+        return _LookupCollection(self)
+
+
+def _stored_agenda() -> ResearchAgenda:
+    return ResearchAgenda(
+        subject_key="synqology",
+        algorithm_version="VI test",
+        source_digest="abc123",
+        items=[],
+    )
+
+
+def test_agenda_for_digest_reads_only_the_deterministic_document():
+    agenda = _stored_agenda()
+    doc_id = "synqology__abc123"
+    db = _LookupDb({doc_id: agenda.model_dump(mode="json")})
+    assert store.agenda_for_digest("synqology", "abc123", db=db) == agenda
+    assert db.requested == [doc_id]
+
+
+def test_agenda_for_digest_returns_none_when_document_is_absent():
+    db = _LookupDb()
+    assert store.agenda_for_digest("synqology", "missing", db=db) is None
+    assert db.requested == ["synqology__missing"]
