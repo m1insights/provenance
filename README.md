@@ -13,8 +13,10 @@ eleven weighted components.
 ## The idea
 
 Provenance is never handed a list of research topics. It **reads the subject
-application's own algorithm** — the prose specification and the Swift file the
-constants actually live in — and derives its research agenda from the code.
+application's own algorithm** — the prose specification plus both governing
+Swift implementations where the constants live — and derives its research
+agenda from the code. When relevant changes land on synqology's `launch`
+branch, the forthcoming CI workflow will regenerate and publish this agenda.
 
 The Vitality Index weights cardio at 16 points, scored over a 28-day window,
 crediting any day with at least 20 minutes of exercise. From that, the agenda
@@ -140,6 +142,7 @@ cp .env.example .env          # then fill in
 gcloud auth login             # credentials are borrowed from here if ADC is unavailable
 
 python -m provenance agenda --detail    # the algorithm, as the fleet understands it
+python -m provenance agenda --publish   # explicit Firestore synchronization; invoked by the forthcoming CI workflow
 python -m provenance sweep              # retrieve and persist new literature
 python -m provenance appraise           # triage, grade, verify grounding
 python -m provenance synthesise --show-gated
