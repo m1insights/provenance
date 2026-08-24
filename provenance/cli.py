@@ -93,23 +93,18 @@ def cmd_appraise(args: argparse.Namespace) -> int:
 
     agenda = with_lane(build_agenda(_subject(args.subject)))
 
-    already = {doc.id for doc in db.collection(store.APPRAISALS).select([]).stream()}
-    seen_rejects = {
-        doc.id.split("__")[0]
-        for doc in db.collection(store.REJECTIONS).select([]).stream()
-    }
-    done = already | seen_rejects
     # --redo runs ONLY the named papers back through the pipeline; the fresh
     # appraisal overwrites the stored one (save_appraisals keys on paper_id).
     redo = set(args.redo or [])
 
-    query = db.collection(store.PAPERS)
-    papers = [
-        paper
-        for doc in query.stream()
-        if (paper := Paper.model_validate(doc.to_dict()))
-        and (paper.doc_id in redo if redo else paper.doc_id not in done)
-    ]
+    if redo:
+        papers = [
+            paper
+            for doc in db.collection(store.PAPERS).stream()
+            if (paper := Paper.model_validate(doc.to_dict())) and paper.doc_id in redo
+        ]
+    else:
+        papers = store.pending_papers(db=db)
     if args.limit_papers:
         papers = papers[: args.limit_papers]
 

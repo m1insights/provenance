@@ -107,6 +107,8 @@ class Paper(BaseModel):
     #: grounding verifies quotes against it.
     fulltext: str = ""
     retrieved_at: datetime = Field(default_factory=_utcnow)
+    triaged_at: datetime | None = None
+    triage_agenda_digest: str = ""
 
     @staticmethod
     def make_id(*, doi: str = "", pmid: str = "", title: str = "") -> str:

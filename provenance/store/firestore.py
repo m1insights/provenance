@@ -179,6 +179,25 @@ def known_paper_ids(*, db: firestore.Client | None = None, limit: int | None = N
     return {doc.id for doc in query.stream()}
 
 
+def pending_papers(*, db: firestore.Client | None = None) -> list[Paper]:
+    db = db or client()
+    appraised = {
+        doc.id for doc in db.collection(APPRAISALS).select([]).stream()
+    }
+    rejected = {
+        payload["paper_id"]
+        for doc in db.collection(REJECTIONS).stream()
+        if (payload := (doc.to_dict() or {})).get("paper_id")
+    }
+    terminal = appraised | rejected
+    papers = [
+        Paper.model_validate(doc.to_dict())
+        for doc in db.collection(PAPERS).stream()
+        if doc.id not in terminal
+    ]
+    return sorted(papers, key=lambda p: (p.retrieved_at, p.doc_id))
+
+
 def load_appraisals_for_component(
     component_id: str, *, db: firestore.Client | None = None
 ) -> list[Appraisal]:
