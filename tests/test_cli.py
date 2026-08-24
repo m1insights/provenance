@@ -92,6 +92,26 @@ def test_agenda_without_publish_does_not_open_firestore(monkeypatch, capsys):
     assert "digest digest" in capsys.readouterr().out
 
 
+def test_agenda_publish_requires_local_sources_before_firestore(monkeypatch):
+    subject = SimpleNamespace(key="synqology", exists=lambda: False)
+
+    def unexpected(*_args, **_kwargs):
+        raise AssertionError("publication opened a downstream dependency")
+
+    monkeypatch.setattr(cli, "_subject", lambda _name: subject)
+    monkeypatch.setattr(store, "client", unexpected)
+    monkeypatch.setattr(cli, "source_digest", unexpected)
+    monkeypatch.setattr(cli, "build_agenda", unexpected)
+    monkeypatch.setattr(store, "save_agenda", unexpected)
+
+    with pytest.raises(FileNotFoundError, match="local agenda sources"):
+        cli.cmd_agenda(
+            SimpleNamespace(
+                subject="synqology", refresh=False, detail=False, publish=True
+            )
+        )
+
+
 def test_agenda_publish_reuses_exact_digest_without_gemini_or_write(
     monkeypatch, capsys
 ):

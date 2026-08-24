@@ -39,6 +39,10 @@ def cmd_agenda(args: argparse.Namespace) -> int:
     publication: str | None = None
 
     if args.publish:
+        if not subject.exists():
+            raise FileNotFoundError(
+                "cannot publish agenda: local agenda sources are unavailable"
+            )
         from .store import firestore as store
 
         db = store.client()
