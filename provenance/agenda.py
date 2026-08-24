@@ -2,7 +2,7 @@
 
 This is the load-bearing idea of the project. The fleet is never handed a list
 of topics to read about; it reads the algorithm -- the prose specification and
-the implementation the constants actually live in -- and works out what
+the implementation sources the constants actually live in -- and works out what
 literature would bear on it.
 
 A consequence worth stating plainly: change the algorithm and the research
@@ -33,9 +33,8 @@ INSTRUCTION = """\
 You are reading the source of a production health application to work out what \
 scientific literature would bear on its scoring algorithm.
 
-You will be given two documents:
-1. A prose specification of the scoring system.
-2. The implementation, where the numeric constants actually live.
+You will be given a prose specification and one or more implementation sources
+where the numeric constants actually live.
 
 For each scoring component, produce one agenda item:
 
@@ -76,11 +75,23 @@ are not in the source.
 
 
 def source_digest(subject: SubjectApp) -> str:
-    """Hash the algorithm sources. Any change invalidates the cached agenda."""
+    """Hash every source supplied to agenda extraction, in prompt order."""
     digest = hashlib.sha256()
-    for path in (subject.algorithm_doc, subject.algorithm_source):
+    for path in subject.agenda_sources:
         digest.update(path.read_bytes() if path.is_file() else b"")
     return digest.hexdigest()[:16]
+
+
+def _prompt_contents(subject: SubjectApp) -> list[str]:
+    labels = [
+        "Specification",
+        "Primary implementation",
+        *("Supporting implementation" for _ in subject.agenda_supporting_sources),
+    ]
+    return [
+        f"# {label}: {path.name}\n\n{path.read_text()}"
+        for label, path in zip(labels, subject.agenda_sources, strict=True)
+    ]
 
 
 def _cache_path(subject: SubjectApp, digest: str) -> Path:
@@ -131,7 +142,8 @@ def build_agenda(subject: SubjectApp, *, refresh: bool = False) -> ResearchAgend
         raise FileNotFoundError(
             f"{subject.key}: cannot read algorithm sources at "
             f"{subject.algorithm_source}, and no agenda has been published to "
-            f"Firestore. Run `python -m provenance agenda` locally first."
+            "Firestore. Publish one with `python -m provenance agenda --publish` "
+            "from a source checkout."
         )
 
     digest = source_digest(subject)
@@ -140,16 +152,11 @@ def build_agenda(subject: SubjectApp, *, refresh: bool = False) -> ResearchAgend
         log.info("agenda: reusing cache for digest %s", digest)
         return ResearchAgenda.model_validate_json(cached.read_text())
 
-    spec = subject.algorithm_doc.read_text()
+    contents = _prompt_contents(subject)
     source = subject.algorithm_source.read_text()
 
-    log.info(
-        "agenda: reading %s (%d lines) + %s (%d lines)",
-        subject.algorithm_doc.name,
-        spec.count("\n"),
-        subject.algorithm_source.name,
-        source.count("\n"),
-    )
+    for path in subject.agenda_sources:
+        log.info("agenda: reading %s (%d lines)", path.name, path.read_text().count("\n"))
 
     # Bind the client to a name. Calling `_client().models.generate_content(...)`
     # leaves the Client as a temporary, and CPython is free to finalise it --
@@ -157,10 +164,7 @@ def build_agenda(subject: SubjectApp, *, refresh: bool = False) -> ResearchAgend
     client = _client()
     response = client.models.generate_content(
         model=REASONING_MODEL,
-        contents=[
-            f"# Specification: {subject.algorithm_doc.name}\n\n{spec}",
-            f"# Implementation: {subject.algorithm_source.name}\n\n{source}",
-        ],
+        contents=contents,
         config=types.GenerateContentConfig(
             system_instruction=INSTRUCTION,
             response_mime_type="application/json",

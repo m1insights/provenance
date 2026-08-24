@@ -57,6 +57,8 @@ class SubjectApp:
     algorithm_doc: Path
     #: Implementation the constants actually live in. The Engineer edits this.
     algorithm_source: Path
+    #: Additional implementation sources that govern agenda extraction.
+    agenda_supporting_sources: tuple[Path, ...] = field(default_factory=tuple)
     #: In-repo files that must change together whenever the algorithm changes.
     #: The subject repository's own contributor rules make this mandatory.
     companion_files: tuple[Path, ...] = field(default_factory=tuple)
@@ -68,11 +70,26 @@ class SubjectApp:
     bundle_id: str = ""
     branch_prefix: str = "provenance/"
 
+    @property
+    def agenda_sources(self) -> tuple[Path, ...]:
+        return (
+            self.algorithm_doc,
+            self.algorithm_source,
+            *self.agenda_supporting_sources,
+        )
+
     def exists(self) -> bool:
-        return self.algorithm_doc.is_file() and self.algorithm_source.is_file()
+        return all(path.is_file() for path in self.agenda_sources)
 
 
-_SYNQ = Path("/Users/m1labs/Dev/apps/synqology/synq")
+def _synq_root() -> Path:
+    return Path(
+        os.getenv("SYNQOLOGY_REPO_PATH")
+        or "/Users/m1labs/Dev/apps/synqology/synq"
+    )
+
+
+_SYNQ = _synq_root()
 
 SYNQOLOGY = SubjectApp(
     key="synqology",
@@ -85,6 +102,9 @@ SYNQOLOGY = SubjectApp(
     bundle_id=os.getenv("SYNQOLOGY_BUNDLE_ID") or "com.m1insights.tapntrack",
     algorithm_doc=_SYNQ / "LONGEVITY_FEATURE_STACK.md",
     algorithm_source=_SYNQ / "tapntrack/Services/VitalityIndexCalculator.swift",
+    agenda_supporting_sources=(
+        _SYNQ / "tapntrack/Services/ShiftWorkAdjuster.swift",
+    ),
     companion_files=(
         _SYNQ / "LONGEVITY_FEATURE_STACK.md",
         _SYNQ / "tapntrack/Services/ShiftWorkAdjuster.swift",
