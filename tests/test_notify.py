@@ -281,6 +281,32 @@ class TestTheBriefingIsReadableWithoutADegree:
         assert "Analysis incomplete" not in subject
         assert "No papers published in the window" in html
 
+    @pytest.mark.parametrize(
+        ("work_counts", "processed"),
+        [
+            ({"triaged": 7, "appraisal_selected": 0}, 7),
+            ({"triaged": 0, "appraisal_selected": 4}, 4),
+        ],
+    )
+    def test_recovered_all_rejected_work_reports_backlog_processing(
+        self, work_counts, processed
+    ):
+        subject, html = self._brief(
+            [],
+            run_overrides={
+                "retrieved_new": 0,
+                "appraised": 0,
+                "appraisal_pending": 0,
+                **work_counts,
+            },
+        )
+
+        assert f"{processed} queued papers processed" in subject
+        assert "Recovered backlog work was reviewed" in html
+        assert "Nothing new to read" not in subject
+        assert "No papers published in the window" not in html
+        assert "Analysis incomplete" not in subject
+
 
 class TestSendingIsOptional:
     def test_unconfigured_mail_does_not_raise(self):

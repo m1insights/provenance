@@ -576,6 +576,10 @@ def briefing_email(
     new_findings = run.get("findings_new", 0) or 0
     read = run.get("retrieved_new", 0) or 0
     kept = run.get("appraised", 0) or 0
+    backlog_processed = max(
+        run.get("triaged", 0) or 0,
+        run.get("appraisal_selected", 0) or 0,
+    )
     appraisal_pending = run.get("appraisal_pending", 0) or 0
     pipeline_error = run.get("pipeline_error")
     pipeline_failed = bool(pipeline_error)
@@ -612,6 +616,13 @@ def briefing_email(
     elif read:
         headline = "Nothing survived triage"
         lede = "Papers came back, none of them bore on the rules being watched."
+    elif backlog_processed:
+        paper_word = "paper" if backlog_processed == 1 else "papers"
+        headline = f"{backlog_processed} queued {paper_word} processed"
+        lede = (
+            "Recovered backlog work was reviewed; none produced an appraisal "
+            "to keep."
+        )
     else:
         headline = "Nothing new to read"
         lede = "No papers published in the window that the agenda had not already seen."

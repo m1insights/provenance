@@ -101,6 +101,40 @@ def save_appraisals(appraisals: list[Appraisal], *, db: firestore.Client | None 
     )
 
 
+def save_appraisal_wave(
+    appraisals: list[Appraisal],
+    rejections: list[Rejection],
+    *,
+    db: firestore.Client | None = None,
+) -> int:
+    """Commit one appraisal wave and its rejection audit atomically.
+
+    Nightly appraisal waves contain at most three papers, so the complete set
+    is safely below Firestore's 500-write batch limit. Grounding can emit more
+    than one rejection for the same paper and stage; those records share the
+    canonical document identity and are coalesced before the batch is built.
+    """
+    db = db or client()
+    appraisal_docs = {
+        appraisal.paper_id: _serialise(appraisal) for appraisal in appraisals
+    }
+    rejection_docs = {
+        f"{rejection.paper_id}__{rejection.stage}": _serialise(rejection)
+        for rejection in rejections
+    }
+    written = len(appraisal_docs) + len(rejection_docs)
+    if not written:
+        return 0
+
+    batch = db.batch()
+    for doc_id, payload in appraisal_docs.items():
+        batch.set(db.collection(APPRAISALS).document(doc_id), payload, merge=True)
+    for doc_id, payload in rejection_docs.items():
+        batch.set(db.collection(REJECTIONS).document(doc_id), payload, merge=True)
+    batch.commit()
+    return written
+
+
 #: Fields a human owns. The fleet may recompute everything about a Finding --
 #: its statement, its confidence, its supporting papers -- but it may not
 #: recompute whether a person accepted it.

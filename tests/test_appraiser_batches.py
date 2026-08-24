@@ -99,6 +99,51 @@ def test_triage_batch_reraises_unexpected_errors(monkeypatch: pytest.MonkeyPatch
         asyncio.run(triage_batch([_paper("broken")], _agenda()))
 
 
+def test_triage_batch_stops_waiters_after_first_quota_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Only calls already inside the concurrency gate may finish after quota."""
+    _stub_agent(monkeypatch)
+    paper_ids = ["quota", "in-flight", "waiting-1", "waiting-2"]
+    entered: list[str] = []
+
+    async def exercise():
+        both_in_flight = asyncio.Event()
+        quota_observed = asyncio.Event()
+
+        async def fake_run(agent, prompt):
+            paper_id = next(
+                candidate
+                for candidate in paper_ids
+                if f"TITLE: {candidate}\n" in prompt
+            )
+            entered.append(paper_id)
+            if len(entered) == 2:
+                both_in_flight.set()
+            await both_in_flight.wait()
+            if paper_id == "quota":
+                quota_observed.set()
+                raise RuntimeError("HTTP 429 RESOURCE_EXHAUSTED")
+            await quota_observed.wait()
+            return {"relevant": True, "component_ids": ["activity"]}
+
+        monkeypatch.setattr(appraiser, "_run", fake_run)
+        return await asyncio.wait_for(
+            triage_batch([_paper(paper_id) for paper_id in paper_ids], _agenda(), max_concurrent=2),
+            timeout=1,
+        )
+
+    result = asyncio.run(exercise())
+
+    assert entered == ["quota", "in-flight"]
+    assert [paper.doc_id for paper in result.kept] == ["in-flight"]
+    assert [paper.doc_id for paper in result.deferred] == [
+        "quota",
+        "waiting-1",
+        "waiting-2",
+    ]
+
+
 def test_appraise_batch_preserves_success_and_rejection_on_quota(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -126,6 +171,21 @@ def test_appraise_batch_preserves_success_and_rejection_on_quota(
     assert result.rejections[0].reason_code == "no_appraisal"
     assert [paper.doc_id for paper in result.deferred] == ["quota"]
     assert is_quota_error(result.quota_error)
+
+
+def test_appraise_batch_reraises_unexpected_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Programming failures remain fatal in the appraisal batch API."""
+    _stub_agent(monkeypatch)
+
+    async def fake_run(agent, prompt):
+        raise TypeError("bad appraisal payload")
+
+    monkeypatch.setattr(appraiser, "_run", fake_run)
+
+    with pytest.raises(TypeError, match="bad appraisal payload"):
+        asyncio.run(appraise_batch([_paper("broken")], _agenda()))
 
 
 def test_appraise_batch_honours_max_concurrent(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -190,6 +250,65 @@ def test_appraise_batch_caps_caller_concurrency_at_three(
 
     assert len(result.appraisals) == 8
     assert max_active == 3
+
+
+def test_appraise_batch_stops_waiters_after_first_quota_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The hard three-call wave preserves in-flight work and skips its waiters."""
+    _stub_agent(monkeypatch)
+    paper_ids = [
+        "quota",
+        "in-flight-1",
+        "in-flight-2",
+        "waiting-1",
+        "waiting-2",
+    ]
+    entered: list[str] = []
+
+    async def exercise():
+        wave_in_flight = asyncio.Event()
+        quota_observed = asyncio.Event()
+
+        async def fake_run(agent, prompt):
+            paper_id = next(
+                candidate
+                for candidate in paper_ids
+                if f"TITLE: {candidate}\n" in prompt
+            )
+            entered.append(paper_id)
+            if len(entered) == 3:
+                wave_in_flight.set()
+            await wave_in_flight.wait()
+            if paper_id == "quota":
+                quota_observed.set()
+                raise RuntimeError("HTTP 429 RESOURCE_EXHAUSTED")
+            await quota_observed.wait()
+            return _appraisal_payload()
+
+        monkeypatch.setattr(appraiser, "_run", fake_run)
+        monkeypatch.setattr(
+            appraiser.grounding,
+            "verify",
+            lambda appraisal, paper: (appraisal, []),
+        )
+        return await asyncio.wait_for(
+            appraise_batch([_paper(paper_id) for paper_id in paper_ids], _agenda(), max_concurrent=3),
+            timeout=1,
+        )
+
+    result = asyncio.run(exercise())
+
+    assert entered == ["quota", "in-flight-1", "in-flight-2"]
+    assert [appraisal.paper_id for appraisal in result.appraisals] == [
+        "in-flight-1",
+        "in-flight-2",
+    ]
+    assert [paper.doc_id for paper in result.deferred] == [
+        "quota",
+        "waiting-1",
+        "waiting-2",
+    ]
 
 
 @pytest.mark.parametrize(

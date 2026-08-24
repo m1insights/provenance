@@ -348,17 +348,45 @@ class AppraisalBatch:
     quota_error: BaseException | None
 
 
+_DEFERRED_AFTER_QUOTA = object()
+
+
+async def _run_with_abort(
+    agent: LlmAgent,
+    prompt: str,
+    semaphore: asyncio.Semaphore,
+    abort: asyncio.Event,
+):
+    async with semaphore:
+        # Every coroutine is scheduled so results retain input order, but a
+        # waiter must re-check stage health after it actually earns a slot.
+        if abort.is_set():
+            return _DEFERRED_AFTER_QUOTA
+        try:
+            return await _run(agent, prompt)
+        except BaseException as exc:
+            if is_quota_error(exc):
+                # Set this before releasing the semaphore. Newly awakened
+                # waiters will observe it and never enter the provider call.
+                abort.set()
+            raise
+
+
 async def _triage_one(
     paper: Paper,
     agent: LlmAgent,
     rules: str,
     semaphore: asyncio.Semaphore,
-) -> tuple[Paper | None, Rejection | None]:
-    async with semaphore:
-        payload = await _run(
-            agent,
-            f"# SCORING COMPONENTS\n{rules}\n\n# PAPER\n{_paper_block(paper)}",
-        )
+    abort: asyncio.Event,
+) -> tuple[Paper | None, Rejection | None] | object:
+    payload = await _run_with_abort(
+        agent,
+        f"# SCORING COMPONENTS\n{rules}\n\n# PAPER\n{_paper_block(paper)}",
+        semaphore,
+        abort,
+    )
+    if payload is _DEFERRED_AFTER_QUOTA:
+        return _DEFERRED_AFTER_QUOTA
     if payload is None:
         # An unreadable verdict must not silently drop a paper; pass it to
         # the appraiser, which is the stricter judge anyway.
@@ -387,8 +415,9 @@ async def triage_batch(
     agent = _agent("triage", TRIAGE_MODEL, TRIAGE_INSTRUCTION, RelevanceVerdict)
     rules = _rules_block(agenda.items)
     semaphore = asyncio.Semaphore(max_concurrent)
+    abort = asyncio.Event()
     outcomes = await asyncio.gather(
-        *(_triage_one(paper, agent, rules, semaphore) for paper in papers),
+        *(_triage_one(paper, agent, rules, semaphore, abort) for paper in papers),
         return_exceptions=True,
     )
 
@@ -397,6 +426,9 @@ async def triage_batch(
     deferred: list[Paper] = []
     quota_error: BaseException | None = None
     for paper, outcome in zip(papers, outcomes, strict=True):
+        if outcome is _DEFERRED_AFTER_QUOTA:
+            deferred.append(paper)
+            continue
         if isinstance(outcome, BaseException):
             if not is_quota_error(outcome):
                 raise outcome
@@ -436,14 +468,18 @@ async def _appraise_one(
     by_id: dict[str, AgendaItem],
     agenda_items: list[AgendaItem],
     semaphore: asyncio.Semaphore,
-) -> tuple[Appraisal | None, list[Rejection]]:
+    abort: asyncio.Event,
+) -> tuple[Appraisal | None, list[Rejection]] | object:
     relevant = [by_id[c] for c in paper.matched_components if c in by_id] or agenda_items
-    async with semaphore:
-        payload = await _run(
-            agent,
-            f"# CURRENT RULES\n{_rules_block(relevant)}\n\n"
-            f"# PAPER\n{_paper_block(paper, include_fulltext=True)}",
-        )
+    payload = await _run_with_abort(
+        agent,
+        f"# CURRENT RULES\n{_rules_block(relevant)}\n\n"
+        f"# PAPER\n{_paper_block(paper, include_fulltext=True)}",
+        semaphore,
+        abort,
+    )
+    if payload is _DEFERRED_AFTER_QUOTA:
+        return _DEFERRED_AFTER_QUOTA
     if payload is None:
         return None, [
             Rejection(
@@ -505,9 +541,10 @@ async def appraise_batch(
     agent = _agent("appraiser", REASONING_MODEL, APPRAISER_INSTRUCTION, AppraisalDraft)
     by_id = {item.component_id: item for item in agenda.items}
     semaphore = asyncio.Semaphore(min(max_concurrent, 3))
+    abort = asyncio.Event()
     outcomes = await asyncio.gather(
         *(
-            _appraise_one(paper, agent, by_id, agenda.items, semaphore)
+            _appraise_one(paper, agent, by_id, agenda.items, semaphore, abort)
             for paper in papers
         ),
         return_exceptions=True,
@@ -518,6 +555,9 @@ async def appraise_batch(
     deferred: list[Paper] = []
     quota_error: BaseException | None = None
     for paper, outcome in zip(papers, outcomes, strict=True):
+        if outcome is _DEFERRED_AFTER_QUOTA:
+            deferred.append(paper)
+            continue
         if isinstance(outcome, BaseException):
             if not is_quota_error(outcome):
                 raise outcome

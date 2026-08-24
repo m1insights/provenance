@@ -115,8 +115,7 @@ def cmd_appraise(args: argparse.Namespace) -> int:
     kept, triaged_out = asyncio.run(triage(papers, agenda))
     appraisals, rejected = asyncio.run(appraise(kept, agenda))
 
-    store.save_appraisals(appraisals, db=db)
-    store.save_rejections(triaged_out + rejected, db=db)
+    store.save_appraisal_wave(appraisals, triaged_out + rejected, db=db)
 
     print(f"\n  tiers      {dict(collections.Counter(a.tier.value for a in appraisals))}")
     print(f"  alignment  {dict(collections.Counter(a.alignment.value for a in appraisals))}")

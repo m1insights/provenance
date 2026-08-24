@@ -33,14 +33,26 @@ def select_for_appraisal(
     selected_new = new_papers[:new_slots]
     selected_backlog = backlog_papers[:backlog_slots]
 
-    selected_backlog.extend(
-        backlog_papers[backlog_slots:backlog_slots + (new_slots - len(selected_new))]
-    )
-    selected_new.extend(
-        new_papers[new_slots:new_slots + (backlog_slots - len(selected_backlog))]
-    )
+    if len(selected_new) < new_slots:
+        selected_backlog.extend(
+            backlog_papers[
+                backlog_slots : backlog_slots + (new_slots - len(selected_new))
+            ]
+        )
+    if len(selected_backlog) < backlog_slots:
+        selected_new.extend(
+            new_papers[
+                new_slots : new_slots + (backlog_slots - len(selected_backlog))
+            ]
+        )
 
-    return sorted(
-        selected_new + selected_backlog,
-        key=lambda paper: (paper.retrieved_at, paper.doc_id),
-    )
+    # Keep each cohort's old-first order while alternating cohorts. Starting
+    # with backlog guarantees that a three-paper model wave includes both
+    # kinds whenever both are present, even if quota stops the run immediately.
+    selected: list[Paper] = []
+    for index in range(max(len(selected_backlog), len(selected_new))):
+        if index < len(selected_backlog):
+            selected.append(selected_backlog[index])
+        if index < len(selected_new):
+            selected.append(selected_new[index])
+    return selected[:limit]

@@ -55,13 +55,14 @@ TRIAGE_CONCURRENCY = 6
 APPRAISAL_WAVE_SIZE = 3
 APPRAISAL_CONCURRENCY = 3
 DEFAULT_APPRAISAL_LIMIT = 10
+QUOTA_PIPELINE_MESSAGE = "Model quota exhausted (HTTP 429)."
 
 
 def _record_pipeline_error(summary: dict, stage: str, exc: BaseException) -> None:
     summary["pipeline_error"] = {
         "stage": stage,
         "type": type(exc).__name__,
-        "message": str(exc)[:300],
+        "message": QUOTA_PIPELINE_MESSAGE,
     }
 
 
@@ -149,10 +150,12 @@ async def run(
                 wave, result.agenda, max_concurrent=APPRAISAL_CONCURRENCY
             )
 
-            # Persist partial successes and terminal rejections before deciding
-            # whether quota exhaustion prevents the next slice.
-            store.save_appraisals(outcome.appraisals, db=db)
-            store.save_rejections(outcome.rejections, db=db)
+            # The appraisal and every claim-level rejection are one terminal
+            # outcome. Do not expose either to later stages unless the entire
+            # audit wave commits.
+            store.save_appraisal_wave(
+                outcome.appraisals, outcome.rejections, db=db
+            )
             tonight_appraisals.extend(outcome.appraisals)
             tonight_rejections.extend(outcome.rejections)
 

@@ -144,13 +144,29 @@ class _Collection:
 
 
 class _Batch:
-    def __init__(self):
+    def __init__(self, owner: "_StatefulDb"):
+        self.owner = owner
         self.writes: list[tuple[_Document, dict, bool]] = []
 
     def set(self, document: _Document, payload: dict, merge: bool = False) -> None:
         self.writes.append((document, payload, merge))
 
     def commit(self) -> None:
+        collections = {document.collection for document, _payload, _merge in self.writes}
+        paper_ids = {
+            payload.get("paper_id")
+            for _document, payload, _merge in self.writes
+            if payload.get("paper_id")
+        }
+        target = self.owner.fail_appraisal_wave_for
+        if (
+            target is not None
+            and target in paper_ids
+            and store.REJECTIONS in collections
+            and (store.APPRAISALS in collections or collections == {store.REJECTIONS})
+        ):
+            self.owner.fail_appraisal_wave_for = None
+            raise RuntimeError("appraisal wave commit failed")
         for document, payload, merge in self.writes:
             document.set(payload, merge=merge)
 
@@ -158,7 +174,12 @@ class _Batch:
 class _StatefulDb:
     """Small Firestore double whose streams reflect every persisted write."""
 
-    def __init__(self, papers: list[Paper] | None = None):
+    def __init__(
+        self,
+        papers: list[Paper] | None = None,
+        *,
+        fail_appraisal_wave_for: str | None = None,
+    ):
         self._collections: dict[str, dict[str, dict]] = {
             store.PAPERS: {},
             store.APPRAISALS: {},
@@ -168,6 +189,7 @@ class _StatefulDb:
             "provenance_runs": {},
         }
         self.notification: dict | None = None
+        self.fail_appraisal_wave_for = fail_appraisal_wave_for
         for paper in papers or []:
             self.papers[paper.doc_id] = paper.model_dump(mode="json")
 
@@ -200,7 +222,7 @@ class _StatefulDb:
         return _Collection(self, name)
 
     def batch(self) -> _Batch:
-        return _Batch()
+        return _Batch(self)
 
 
 class _StubDb:
@@ -378,8 +400,8 @@ class TestNightlyQueue:
             for paper in call.args[0]
         ]
         assert selected == [
-            "old-0", "old-1", "old-2", "old-3", "old-4",
-            "new-0", "new-1", "new-2", "new-3", "new-4",
+            "old-0", "new-0", "old-1", "new-1", "old-2",
+            "new-2", "old-3", "new-3", "old-4", "new-4",
         ]
 
     def test_honours_the_configured_appraisal_limit(self):
@@ -502,7 +524,7 @@ class TestNightlyQueue:
         assert summary["pipeline_error"] == {
             "stage": "triage",
             "type": "_QuotaError",
-            "message": "429 RESOURCE_EXHAUSTED during triage",
+            "message": "Model quota exhausted (HTTP 429).",
         }
         assert db.papers[papers[0].doc_id]["triage_agenda_digest"] == "digest"
         assert f"{rejection.paper_id}__appraiser" in db.rejections
@@ -540,7 +562,7 @@ class TestNightlyQueue:
         assert summary["pipeline_error"] == {
             "stage": "appraisal",
             "type": "_QuotaError",
-            "message": "429 RESOURCE_EXHAUSTED during appraisal",
+            "message": "Model quota exhausted (HTTP 429).",
         }
         calls.appraise_batch.assert_awaited_once()
         calls.synthesise.assert_not_awaited()
@@ -551,12 +573,109 @@ class TestNightlyQueue:
         } == set(db.appraisals)
         assert db.saved_run == summary
 
+    def test_failed_first_appraisal_wave_remains_reproducible_on_retry(self):
+        paper = _paper("paper-0", triaged=True)
+        db = _StatefulDb(
+            [paper], fail_appraisal_wave_for=paper.doc_id
+        )
+        result = SweepResult(agenda=_agenda())
+        audit = Rejection(
+            paper_id=paper.doc_id,
+            title=paper.title,
+            stage="grounding",
+            reason_code="unsupported_quote",
+            reason="One claim failed source verification.",
+        )
+        attempts: list[list[str]] = []
+
+        async def appraise_with_audit(batch, _agenda, *, max_concurrent):
+            assert max_concurrent == 3
+            attempts.append([item.doc_id for item in batch])
+            return AppraisalBatch([_appraisal(batch[0].doc_id)], [audit], [], None)
+
+        with _pipeline(db, result, appraisal_side_effect=appraise_with_audit):
+            with pytest.raises(RuntimeError, match="appraisal wave commit failed"):
+                asyncio.run(run(SUBJECTS["synqology"]))
+
+        assert db.appraisals == {}
+        assert db.rejections == {}
+        assert [item.doc_id for item in store.pending_papers(db=db)] == [paper.doc_id]
+        assert db.notification is None
+        assert db.saved_run is None
+
+        with _pipeline(db, result, appraisal_side_effect=appraise_with_audit):
+            summary = asyncio.run(run(SUBJECTS["synqology"]))
+
+        assert attempts == [[paper.doc_id], [paper.doc_id]]
+        assert set(db.appraisals) == {paper.doc_id}
+        assert set(db.rejections) == {f"{paper.doc_id}__grounding"}
+        assert summary["appraisal_pending"] == 0
+        assert [item.paper_id for item in db.notification["appraisals"]] == [
+            paper.doc_id
+        ]
+        assert [item.paper_id for item in db.notification["rejections"]] == [
+            paper.doc_id
+        ]
+
+    def test_failed_later_appraisal_wave_leaves_only_that_wave_pending(self):
+        papers = [_paper(f"paper-{index}", triaged=True) for index in range(6)]
+        failed_wave_first = papers[3]
+        db = _StatefulDb(
+            papers, fail_appraisal_wave_for=failed_wave_first.doc_id
+        )
+        result = SweepResult(agenda=_agenda())
+        audit = Rejection(
+            paper_id=failed_wave_first.doc_id,
+            title=failed_wave_first.title,
+            stage="grounding",
+            reason_code="unsupported_quote",
+            reason="One claim failed source verification.",
+        )
+        attempts: list[list[str]] = []
+
+        async def appraise_with_later_audit(batch, _agenda, *, max_concurrent):
+            assert max_concurrent == 3
+            ids = [item.doc_id for item in batch]
+            attempts.append(ids)
+            rejections = [audit] if failed_wave_first.doc_id in ids else []
+            return AppraisalBatch(
+                [_appraisal(paper_id) for paper_id in ids], rejections, [], None
+            )
+
+        with _pipeline(db, result, appraisal_side_effect=appraise_with_later_audit):
+            with pytest.raises(RuntimeError, match="appraisal wave commit failed"):
+                asyncio.run(run(SUBJECTS["synqology"]))
+
+        assert set(db.appraisals) == {paper.doc_id for paper in papers[:3]}
+        assert db.rejections == {}
+        assert [item.doc_id for item in store.pending_papers(db=db)] == [
+            paper.doc_id for paper in papers[3:]
+        ]
+        assert db.notification is None
+
+        with _pipeline(db, result, appraisal_side_effect=appraise_with_later_audit):
+            summary = asyncio.run(run(SUBJECTS["synqology"]))
+
+        assert attempts == [
+            [paper.doc_id for paper in papers[:3]],
+            [paper.doc_id for paper in papers[3:]],
+            [paper.doc_id for paper in papers[3:]],
+        ]
+        assert set(db.appraisals) == {paper.doc_id for paper in papers}
+        assert set(db.rejections) == {f"{failed_wave_first.doc_id}__grounding"}
+        assert summary["appraisal_pending"] == 0
+        assert [item.paper_id for item in db.notification["appraisals"]] == [
+            paper.doc_id for paper in papers[3:]
+        ]
+
 
 class TestPipelineFailures:
     def test_synthesis_quota_is_fail_soft_but_uses_the_common_error_shape(self):
         db = _StatefulDb()
         result = SweepResult(agenda=_agenda())
-        quota = _QuotaError("429 RESOURCE_EXHAUSTED during synthesis")
+        quota = _QuotaError(
+            "429 RESOURCE_EXHAUSTED project=private-project resource=secret-resource"
+        )
 
         with _pipeline(db, result, synthesis_side_effect=quota):
             summary = asyncio.run(run(SUBJECTS["synqology"]))
@@ -564,8 +683,10 @@ class TestPipelineFailures:
         assert summary["pipeline_error"] == {
             "stage": "synthesis",
             "type": "_QuotaError",
-            "message": "429 RESOURCE_EXHAUSTED during synthesis",
+            "message": "Model quota exhausted (HTTP 429).",
         }
+        assert "private-project" not in str(summary)
+        assert "secret-resource" not in str(summary)
         assert summary["findings_new"] == 0
         assert summary["notified"] == {"sent": ["briefing"]}
         assert db.notification["run"]["pipeline_error"] == summary["pipeline_error"]
@@ -587,7 +708,7 @@ class TestPipelineFailures:
         [
             ("save_papers", [], ([], [])),
             ("save_rejections", [], ([], [])),
-            ("save_appraisals", [_paper("ready", triaged=True)], ([], [])),
+            ("save_appraisal_wave", [_paper("ready", triaged=True)], ([], [])),
             ("save_finding", [], ([_finding()], [])),
         ],
     )

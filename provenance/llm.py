@@ -14,6 +14,7 @@ returns 404 for a model that region reports as available.
 from __future__ import annotations
 
 import logging
+import re
 from functools import lru_cache
 
 from google.adk.models.google_llm import Gemini
@@ -23,25 +24,47 @@ from .config import settings
 
 log = logging.getLogger(__name__)
 
+_QUOTA_MESSAGE = re.compile(
+    r"(?:"
+    r"\bHTTP(?:\s+STATUS)?\s*[:=]?\s*429\b"
+    r"|\bSTATUS(?:\s+CODE)?\s*[:=]?\s*429\b"
+    r"|\b429\s+(?:TOO\s+MANY\s+REQUESTS|RESOURCE[_\s-]*EXHAUSTED|QUOTA\s+(?:EXCEEDED|EXHAUSTED))\b"
+    r"|\bRESOURCE[_\s-]*EXHAUSTED\b"
+    r"|\bQUOTA\s+(?:EXCEEDED|EXHAUSTED)\b"
+    r")",
+    re.IGNORECASE,
+)
+
+
+def _is_quota_status(value: object) -> bool:
+    if callable(value):
+        try:
+            value = value()
+        except Exception:
+            return False
+    if value is None:
+        return False
+    if isinstance(value, int) and not isinstance(value, bool):
+        return value == 429
+
+    normalized = re.sub(r"[^A-Z0-9]", "", str(value).upper())
+    return normalized == "429" or normalized.endswith("RESOURCEEXHAUSTED")
+
 
 def is_quota_error(exc: BaseException) -> bool:
     """Return whether a model-provider exception represents exhausted quota."""
-    if getattr(exc, "status_code", None) == 429:
-        return True
-
-    code = getattr(exc, "code", None)
-    if callable(code):
+    for attribute in ("status_code", "code", "status"):
         try:
-            if "RESOURCE_EXHAUSTED" in str(code()).upper():
+            if _is_quota_status(getattr(exc, attribute, None)):
                 return True
         except Exception:
-            pass
+            continue
 
     try:
-        message = str(exc).upper()
+        message = str(exc)
     except Exception:
         return False
-    return "429" in message or "RESOURCEEXHAUSTED" in message.replace("_", "")
+    return bool(_QUOTA_MESSAGE.search(message))
 
 
 @lru_cache(maxsize=8)
