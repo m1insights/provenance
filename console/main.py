@@ -2,9 +2,9 @@
 
 Two things happen here that happen nowhere else in the system:
 
-1. **A person decides.** Every draft pull request and every creative waits for
-   an explicit approval. The fleet can propose all night; nothing merges and
-   nothing posts without a click here.
+1. **A person decides.** Every draft pull request waits for an explicit
+   approval. The fleet can propose all night; nothing merges without a click
+   here.
 
 2. **A rejection is recorded with a reason**, and that reason is fed back to
    the agents as few-shot guidance on the next run. A system that is told "no"

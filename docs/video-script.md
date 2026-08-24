@@ -124,30 +124,25 @@ return 2.0
 
 **Show the mutation test.** Put the bug back, run the suite, three tests go red.
 
-## 3:05 – 3:20 · The gate refuses its own output
+## 3:05 – 3:20 · From grounded claims to the reel
 
-**On screen:** run the Storyteller live.
+**On screen:** show the ranked sweepable queue.
 
 ```
-python -m provenance storyteller --component mvpa
+python -m provenance content --sweepable
 ```
 
-> "The same evidence becomes social content. The model writes the words and
-> never a number — every figure is filled in from the verified claim.
->
-> Watch the log."
+> "The same grounded evidence becomes the content queue. This view ranks papers
+> whose data can actually be shown — at least three grounded points on one axis
+> for the sweep format."
 
-**When a gate fires, read the line aloud.** They fire often; if none does, show
-the recorded run where the first draft came back:
-*"Concentrated training sharply reduces cardiovascular risk"* — every figure
-grounded, and rejected twice over: an intensifier the result doesn't license,
-and a causal verb on cohort evidence.
+**Open** `library/*/spec-sweep.json` and expand its `_provenance` block.
 
-> "This is the part I care about. Getting a number wrong is the easy failure to
-> catch. Overstating how strong a finding is looks completely fine and is the
-> way health content actually goes wrong."
+> "A human content session chooses the words and chart. Every digit in the spec
+> maps back to a claim id and the verbatim quote that grounded it; the renderer
+> then draws that reviewed spec deterministically."
 
-**Then the rendered output:** the four slides and the reel.
+**Then play the reel.**
 
 ---
 

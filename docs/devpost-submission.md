@@ -8,9 +8,8 @@
 
 ## Elevator pitch (200 char)
 
-An agent fleet that reads new health research nightly, opens draft pull
-requests against a live app's scoring algorithm, and writes the content
-explaining it — every number traceable to a quoted source.
+An agent fleet reads health research nightly and opens grounded draft PRs;
+verified claims feed human-made charts where every digit traces to a quote.
 
 ---
 
@@ -58,20 +57,24 @@ Every night, Provenance:
    actual symbol in the live source, editing every file the project's own
    contributing rules require, and running the project's scoring test suite
    against the change.
-7. **Writes the social content** from the same evidence, through four gates.
+7. **Ranks the appraised papers for content** and flags the ones whose data can
+   be *shown* — dose-response curves that sweep. A human content session turns
+   those grounded claims into deterministic charts; every digit on screen
+   traces to a verified quote.
 8. **Waits for a human.** Nothing merges. Nothing posts. The PR link travels
    in an email, so nobody approves a change without reading the diff
    themselves.
 
-Steps 1–5 run unattended on Cloud Scheduler at 03:00. Step 6 — opening a pull
-request — is deliberately manual: a draft PR is cheap to close and still a
-notification, and one arriving nightly for the same finding trains its reader
-to ignore it. Every run writes a summary to `provenance_runs`, so what happened
-overnight is a record rather than an inference.
+Steps 1–5 and content ranking run unattended on Cloud Scheduler at 03:00. Step
+6 — opening a pull request — and the content session are deliberately manual.
+A draft PR is cheap to close and still a notification, and one arriving nightly
+for the same finding trains its reader to ignore it. Every run writes a summary
+to `provenance_runs`, so what happened overnight is a record rather than an
+inference.
 
 ## How I built it
 
-**Gemini 3.7 Flash** appraises, synthesises, engineers and writes.
+**Gemini 3.7 Flash** appraises, synthesises and engineers draft proposals.
 **Gemini 3.5 Flash-Lite** does first-pass relevance triage, where volume is
 high and the question is cheap.
 
@@ -89,26 +92,22 @@ it at 03:00. **Secret Manager** holds the GitHub and email credentials.
 Creatives are rendered deterministically: HTML and CSS through headless Chrome,
 frame-by-frame for motion, assembled with ffmpeg. No image model touches them.
 A diffusion model asked for "a chart showing a 15% reduction" returns something
-that looks like a chart and says something else.
+that looks like a chart and says something else. The renderer is operated by a
+person, not by the fleet.
 
 ## The design decision everything rests on
 
-**Gemini writes words. Code writes numbers.**
+**Grounded claims are the numeric contract.**
 
-The Storyteller's output schema has no numeric field. It chooses the angle, the
-claims to lean on and the shape of the chart; code fills in every figure from a
-claim that already survived grounding. The model can be wrong about emphasis,
-and the worst case is a badly-argued slide. It cannot be wrong about the number
-on the chart, because it never supplied one.
-
-Four gates then re-read the finished copy:
+`provenance/grounding.py` verifies that every claim's quote appears in the
+retrieved source and that its numeric value appears inside that quote. During
+the human `/social` session, values are copied from those claims into the spec;
+the spec's `_provenance` block maps every on-screen digit back to a claim id and
+verbatim quote.
 
 | Gate | Refuses |
 |---|---|
-| **Claims** | Any figure no appraised claim reports |
-| **Language** | Causal verbs on observational evidence; intensifiers |
-| **Structure** | Charts with fewer than two points; decks where fewer than three slides carry one |
-| **Readability** | Clinical vocabulary where a reader decides whether to keep reading |
+| **Grounding (code)** | A claim whose quote is absent from the source, or whose value is absent from its quote |
 
 ## Challenges
 
@@ -125,11 +124,6 @@ made no difference — values 0.98, 1.01, 0.99, 1.00 — and the chart auto-scal
 them across the full plot height into a dramatic zigzag, directly beneath a
 headline saying pace didn't matter. Charts now enforce a minimum domain spread.
 A chart may understate a difference; it may never manufacture one.
-
-**The language gate caught what the number gate structurally cannot.** Its
-first rejection was *"Concentrated training sharply reduces cardiovascular
-risk"* — every figure grounded, and still wrong twice: an intensifier the
-result doesn't license, and a causal verb on cohort evidence.
 
 **It would have re-proposed things I had already rejected.** Findings are keyed
 by a hash of their supporting papers, so a single new study changed the key and

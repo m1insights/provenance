@@ -220,7 +220,7 @@
 <p class="lede">Read top to bottom. The numbers on the arrows are from a real run last night.</p>
 
 <figure>
-<svg viewBox="0 0 700 1010" role="img" aria-label="Vertical flow: your Swift code feeds an agenda of 11 components, which drives a literature sweep of 507 papers, narrowed by triage to 49, appraised and grounded to 70 on file, synthesised into 1 finding, which forks into a draft pull request and social content, both stopping at a human decision that then opens a companion pull request in a second repository.">
+<svg viewBox="0 0 700 1010" role="img" aria-label="Vertical flow: your Swift code feeds an agenda of 11 components, which drives a literature sweep of 507 papers, narrowed by triage to 49 and appraised and grounded to 70 on file. Grounded appraisals feed a human-operated content workflow, while converged findings feed a draft pull request that stops at human review.">
   <defs>
     <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
@@ -291,7 +291,7 @@
     <!-- fork -->
     <line x1="350" y1="648" x2="350" y2="664" stroke="currentColor" stroke-width="1.3"/>
     <path d="M350,664 L350,672 Q350,680 340,680 L182,680 Q172,680 172,690 L172,700" fill="none" stroke="currentColor" stroke-width="1.3" marker-end="url(#ar)"/>
-    <path d="M350,664 L350,672 Q350,680 360,680 L518,680 Q528,680 528,690 L528,700" fill="none" stroke="currentColor" stroke-width="1.3" marker-end="url(#ar)"/>
+    <path d="M500,484 L676,484 L676,680 L528,680 L528,700" fill="none" stroke="currentColor" stroke-width="1.3" marker-end="url(#ar)"/>
 
     <rect x="42" y="702" width="260" height="66" rx="7" fill="var(--surface)" stroke="currentColor" stroke-width="1.2"/>
     <text x="172" y="724" text-anchor="middle" font-size="14" font-weight="600">Engineer</text>
@@ -299,16 +299,15 @@
     <text x="172" y="758" text-anchor="middle" font-size="11.5" fill="var(--ink-3)">draft PR · 11 edits · 51/51 tests pass</text>
 
     <rect x="398" y="702" width="260" height="66" rx="7" fill="var(--surface)" stroke="currentColor" stroke-width="1.2"/>
-    <text x="528" y="724" text-anchor="middle" font-size="14" font-weight="600">Storyteller</text>
-    <text x="528" y="742" text-anchor="middle" font-size="11.5" fill="var(--ink-3)">writes words, never numbers</text>
-    <text x="528" y="758" text-anchor="middle" font-size="11.5" fill="var(--ink-3)">4 gates → slides + reel</text>
+    <text x="528" y="724" text-anchor="middle" font-size="14" font-weight="600">Content queue → /social</text>
+    <text x="528" y="742" text-anchor="middle" font-size="11.5" fill="var(--ink-3)">human + Claude Code writes the spec</text>
+    <text x="528" y="758" text-anchor="middle" font-size="11.5" fill="var(--ink-3)">renderer → 1 reel in library/</text>
 
     <!-- to human -->
     <path d="M172,768 L172,796 Q172,806 182,806 L340,806 Q350,806 350,816 L350,834" fill="none" stroke="currentColor" stroke-width="1.3" marker-end="url(#ar)"/>
-    <path d="M528,768 L528,796 Q528,806 518,806 L360,806 Q350,806 350,816 L350,834" fill="none" stroke="currentColor" stroke-width="1.3"/>
 
     <rect x="170" y="836" width="360" height="58" rx="7" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="2"/>
-    <text x="350" y="859" text-anchor="middle" font-size="15" font-weight="600" fill="var(--accent)">YOU decide</text>
+    <text x="350" y="859" text-anchor="middle" font-size="15" font-weight="600" fill="var(--accent)">YOU decide on the pull request</text>
     <text x="350" y="878" text-anchor="middle" font-size="11.5" fill="var(--ink-2)">there is no merge function anywhere in this system</text>
 
     <line x1="350" y1="894" x2="350" y2="928" stroke="var(--accent)" stroke-width="1.6" marker-end="url(#ar-a)"/>
@@ -389,8 +388,8 @@
   <div class="stage">
     <div class="stage-n">08</div>
     <div>
-      <h3>Storyteller</h3>
-      <p>Turns the same evidence into slides and an animated reel. Its output form has nowhere to write a number — it picks the angle and the words, and code fills in every figure from a verified claim.</p>
+      <h3>Content workflow</h3>
+      <p><code>content --sweepable</code> ranks grounded appraisals whose data can be shown. A human + Claude Code <code>/social</code> session writes the spec and its <code>_provenance</code> block, then a person runs the deterministic renderer.</p>
     </div>
   </div>
 
@@ -404,21 +403,19 @@
 </div>
 
 <h2>Why you can trust the numbers</h2>
-<p class="lede">Six checks stand between a language model and something published under your name. Each is code with a test behind it, not an instruction in a prompt.</p>
+<p class="lede">Gemini reads and grounds the science; code verifies every number; a human-in-the-loop content session turns grounded claims into deterministic charts.</p>
 
 <table>
   <tr><th>Check</th><th>What it refuses</th></tr>
   <tr><td>Grounding</td><td>A quote that isn't in the paper; a number that isn't in the quote</td></tr>
-  <tr><td>Convergence</td><td>Acting on one study, or on three from the same lab</td></tr>
-  <tr><td>Claims</td><td>Any figure in the copy that no appraised study reports</td></tr>
-  <tr><td>Language</td><td>“Reduces” on a cohort study; “dramatically”, “breakthrough”</td></tr>
-  <tr><td>Structure</td><td>A chart with one data point; a deck that's mostly text cards</td></tr>
-  <tr><td>Readability</td><td>“Cardiovascular”, “mortality” — jargon where a reader decides to stop</td></tr>
+  <tr><td>Convergence</td><td>Changing the algorithm for one study, or for three from the same source</td></tr>
+  <tr><td>Evidence record</td><td>Every on-screen digit maps to a claim id and verbatim quote in the spec</td></tr>
+  <tr><td>Draft-only guardrail</td><td>An agent opening a non-draft pull request or merging a change</td></tr>
 </table>
 
 <div class="callout">
-  <h3>The one that surprised me</h3>
-  <p>The language gate's first rejection was <em>“Concentrated training sharply reduces cardiovascular risk.”</em> Every figure in it was grounded and verified. It was still wrong twice: “sharply” is an intensifier the study doesn't license, and “reduces” claims cause from a study that only shows association. A wrong number is easy to catch. Overstating how strong a finding is looks completely fine — and it's how health content actually goes wrong.</p>
+  <h3>The publishing boundary</h3>
+  <p>Nothing on screen was written by a model without a verbatim source. The renderer draws the reviewed spec deterministically, but it is operated by a person and does not post anything.</p>
 </div>
 
 <h2>The review I'm asking for</h2>

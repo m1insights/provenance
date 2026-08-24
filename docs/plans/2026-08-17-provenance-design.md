@@ -1,5 +1,8 @@
 # Provenance — design
 
+> **Historical note (2026-08-24):** The Storyteller was removed. Content is
+> human-in-the-loop via `/social`; the renderer is operated by a person.
+
 **Date:** 2026-08-17
 **For:** All Things Agentic Hackathon (Devpost) — submission deadline Aug 31, 2026 @ 5:00pm PDT
 **Track:** Taskmaster (complete workflow automation)

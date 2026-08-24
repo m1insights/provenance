@@ -7,7 +7,6 @@ from types import SimpleNamespace
 from provenance.guardrails.callbacks import (
     FORBIDDEN_TOOLS,
     enforce_draft_only,
-    require_grounded_numbers,
 )
 
 
@@ -75,28 +74,3 @@ class TestBranchConfinement:
             _tool("open_pull_request"), _pr_args(base="provenance/earlier"), None
         )
         assert result is not None and "target the trunk" in result["reason"]
-
-
-class TestUngroundedNumbers:
-    CLAIMS = {"c1": 0.82, "c2": 150.0, "c3": None}
-
-    def test_grounded_numbers_pass(self):
-        callback = require_grounded_numbers(self.CLAIMS)
-        args = {"headline": "150 minutes a week", "body": "hazard ratio 0.82"}
-        assert callback(_tool("render_creative"), args, None) is None
-
-    def test_invented_number_is_blocked(self):
-        """The failure this exists to prevent: a figure on a slide, from nowhere."""
-        callback = require_grounded_numbers(self.CLAIMS)
-        args = {"headline": "Cuts your risk by 43%"}
-        result = callback(_tool("render_creative"), args, None)
-        assert result is not None and "no verified source" in result["reason"]
-
-    def test_prose_without_numbers_passes(self):
-        callback = require_grounded_numbers(self.CLAIMS)
-        args = {"headline": "Bout length did not matter"}
-        assert callback(_tool("render_creative"), args, None) is None
-
-    def test_unrelated_tools_are_untouched(self):
-        callback = require_grounded_numbers(self.CLAIMS)
-        assert callback(_tool("find_symbol"), {"symbol": "x99"}, None) is None

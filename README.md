@@ -1,8 +1,8 @@
 # Provenance
 
-**An agent fleet that reads the literature, proposes algorithm changes as draft
-pull requests, and produces the content that explains them — with every number
-traceable to a quoted source.**
+**An agent fleet that reads the literature and proposes algorithm changes as
+draft pull requests, with a human content workflow built on the same grounded
+evidence.**
 
 Built for the All Things Agentic Hackathon. Subject application: **synqology**,
 a live iOS longevity app whose Vitality Index scores users out of 100 across
@@ -57,23 +57,26 @@ Cloud Scheduler (nightly)
       ▼
   APPRAISER  gemini-3.7-flash · GRADE-lite tier A–D, verbatim quote per claim
       ▼
-  GROUNDING  code, not a model: every quote must appear in the source
-      │
+  GROUNDING  code, not a model: every quote and value must appear in the source
+      ├── CONTENT ── ranked pool · sweep detector · "Reel-ready" email · --mark
+      │      └── /social (human + Claude Code)
+      │             → renderer/render.mjs (HTML → headless Chrome → ffmpeg)
+      │             → library/
       ▼
   SYNTHESIST arithmetic gate, then judgement — see "Convergence" below
-      ├──────────────────────┐
-      ▼                      ▼
-  ENGINEER              STORYTELLER
-  issue + DRAFT PR      creative spec → CLAIMS GATE → deterministic renderer
-      │                      │
-      └──────────┬───────────┘
-                 ▼
-          REVIEW CONSOLE — a human approves. Nothing merges or posts itself.
+      ▼
+  ENGINEER ── issue + DRAFT PR
+      ▼
+  REVIEW CONSOLE — a human approves the pull request. Nothing merges itself.
 ```
+
+**Gemini reads and grounds the science; code verifies every number; a
+human-in-the-loop content session turns grounded claims into deterministic
+charts. Nothing on screen was written by a model without a verbatim source.**
 
 ---
 
-## The contract: Gemini writes words, code writes numbers
+## The contract: grounded claims, verified numbers
 
 Every guarantee below is enforced in code and covered by tests, not requested
 in a prompt.

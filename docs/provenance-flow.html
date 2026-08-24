@@ -1,0 +1,573 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Provenance — How it works</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #071015;
+      --panel: #0d1921;
+      --panel-2: #101f29;
+      --line: #29404c;
+      --ink: #edf7f7;
+      --muted: #8fa7b2;
+      --teal: #5eead4;
+      --teal-soft: rgba(94, 234, 212, .12);
+      --blue: #7dd3fc;
+      --blue-soft: rgba(125, 211, 252, .11);
+      --amber: #fbbf24;
+      --amber-soft: rgba(251, 191, 36, .11);
+      --violet: #c4b5fd;
+      --red: #fda4af;
+      --radius: 17px;
+      --shadow: 0 22px 70px rgba(0, 0, 0, .28);
+    }
+
+    * { box-sizing: border-box; }
+
+    html { background: var(--bg); }
+
+    body {
+      margin: 0;
+      min-width: 320px;
+      background:
+        radial-gradient(circle at 14% 3%, rgba(94, 234, 212, .08), transparent 27rem),
+        radial-gradient(circle at 90% 36%, rgba(125, 211, 252, .06), transparent 30rem),
+        var(--bg);
+      color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    .page {
+      width: min(1480px, calc(100% - 48px));
+      margin: 0 auto;
+      padding: 56px 0 72px;
+    }
+
+    header {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 36px;
+      align-items: end;
+      padding-bottom: 31px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .eyebrow, .lane-label, .status, .tech, .step {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      text-transform: uppercase;
+      letter-spacing: .14em;
+    }
+
+    .eyebrow {
+      margin: 0 0 12px;
+      color: var(--teal);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    h1 {
+      max-width: 850px;
+      margin: 0;
+      font-size: clamp(38px, 5vw, 68px);
+      line-height: .98;
+      letter-spacing: -.045em;
+    }
+
+    .dek {
+      max-width: 780px;
+      margin: 18px 0 0;
+      color: var(--muted);
+      font-size: 19px;
+      line-height: 1.55;
+    }
+
+    .legend {
+      display: grid;
+      gap: 10px;
+      min-width: 245px;
+      padding: 18px 20px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: rgba(13, 25, 33, .72);
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+    .dot.deployed { background: var(--teal); box-shadow: 0 0 16px rgba(94, 234, 212, .55); }
+    .dot.operator { background: var(--blue); }
+    .dot.experimental { background: var(--amber); }
+
+    .diagram { margin-top: 34px; }
+
+    .lane {
+      position: relative;
+      padding: 28px;
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      background: rgba(10, 20, 27, .72);
+      box-shadow: var(--shadow);
+    }
+
+    .lane + .lane,
+    .lane + .fork { margin-top: 24px; }
+
+    .lane-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      margin-bottom: 22px;
+      font-size: 12px;
+      font-weight: 800;
+      color: var(--teal);
+    }
+
+    .lane-label::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: currentColor;
+      box-shadow: 0 0 14px currentColor;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 44px;
+      align-items: stretch;
+    }
+
+    .node {
+      position: relative;
+      min-height: 145px;
+      padding: 23px 24px 21px;
+      border: 1px solid #2a414d;
+      border-radius: var(--radius);
+      background: linear-gradient(145deg, var(--panel-2), var(--panel));
+    }
+
+    .node.deployed { border-top: 2px solid var(--teal); }
+    .node.operator { border-top: 2px solid var(--blue); background: linear-gradient(145deg, var(--blue-soft), var(--panel)); }
+    .node.experimental {
+      border: 1px dashed rgba(251, 191, 36, .62);
+      border-top: 2px solid var(--amber);
+      background: linear-gradient(145deg, var(--amber-soft), var(--panel));
+    }
+    .node.human { border-top: 2px solid var(--violet); }
+
+    .step {
+      margin-bottom: 12px;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 800;
+    }
+
+    .node h2 {
+      margin: 0;
+      font-size: 23px;
+      line-height: 1.12;
+      letter-spacing: -.025em;
+    }
+
+    .node p {
+      margin: 10px 0 0;
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.45;
+    }
+
+    .tech {
+      display: inline-block;
+      margin-top: 15px;
+      color: var(--teal);
+      font-size: 10px;
+      line-height: 1.4;
+      letter-spacing: .08em;
+    }
+
+    .operator .tech { color: var(--blue); }
+    .experimental .tech { color: var(--amber); }
+
+    .row .node:not(:last-child)::after {
+      content: "→";
+      position: absolute;
+      z-index: 2;
+      top: 50%;
+      right: -32px;
+      transform: translate(50%, -50%);
+      color: #58717e;
+      font-size: 28px;
+      font-weight: 300;
+    }
+
+    .turn {
+      display: block;
+      width: 100%;
+      height: 54px;
+      overflow: visible;
+    }
+
+    .turn path {
+      fill: none;
+      stroke: #58717e;
+      stroke-width: 2;
+      vector-effect: non-scaling-stroke;
+    }
+
+    .nightly {
+      border-color: rgba(94, 234, 212, .25);
+      background:
+        linear-gradient(rgba(94, 234, 212, .025), rgba(94, 234, 212, .025)),
+        rgba(10, 20, 27, .77);
+    }
+
+    .store {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 26px;
+      margin-top: 22px;
+      padding: 17px 20px;
+      border: 1px solid rgba(125, 211, 252, .28);
+      border-radius: 13px;
+      background: rgba(125, 211, 252, .055);
+    }
+
+    .store strong { font-size: 15px; }
+    .store span { color: var(--muted); font-size: 14px; line-height: 1.4; text-align: right; }
+
+    .fork {
+      position: relative;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 24px;
+      padding-top: 52px;
+    }
+
+    .fork::before {
+      content: "Grounded appraisals feed two downstream workflows";
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 9px 16px;
+      border: 1px solid rgba(196, 181, 253, .35);
+      border-radius: 999px;
+      background: #101923;
+      color: var(--violet);
+      font: 700 11px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
+      letter-spacing: .07em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .branch {
+      padding: 26px;
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      background: rgba(10, 20, 27, .74);
+      box-shadow: var(--shadow);
+    }
+
+    .branch.experimental-branch { border-style: dashed; border-color: rgba(251, 191, 36, .38); }
+
+    .branch-title {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .branch-title h3 { margin: 0; font-size: 22px; letter-spacing: -.02em; }
+
+    .status {
+      flex: none;
+      padding: 7px 9px;
+      border-radius: 7px;
+      font-size: 9px;
+      font-weight: 900;
+      letter-spacing: .1em;
+    }
+
+    .status.operator { color: var(--blue); background: var(--blue-soft); border: 1px solid rgba(125, 211, 252, .25); }
+    .status.experimental { color: var(--amber); background: var(--amber-soft); border: 1px solid rgba(251, 191, 36, .25); }
+
+    .branch-flow { display: grid; gap: 12px; }
+
+    .branch-flow .node { min-height: 121px; }
+
+    .branch-arrow {
+      height: 17px;
+      color: #58717e;
+      font-size: 20px;
+      line-height: 17px;
+      text-align: center;
+    }
+
+    .warning {
+      margin-top: 17px;
+      padding: 15px 17px;
+      border-left: 3px solid var(--amber);
+      background: rgba(251, 191, 36, .07);
+      color: #dbc98f;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .stack {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 24px;
+    }
+
+    .stack-item {
+      min-height: 92px;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      background: rgba(13, 25, 33, .73);
+    }
+
+    .stack-item b { display: block; margin-bottom: 7px; font-size: 14px; }
+    .stack-item span { color: var(--muted); font-size: 12px; line-height: 1.4; }
+
+    footer {
+      display: flex;
+      justify-content: space-between;
+      gap: 30px;
+      margin-top: 30px;
+      padding-top: 24px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    footer strong { color: var(--ink); }
+
+    @media (max-width: 980px) {
+      header { grid-template-columns: 1fr; }
+      .legend { grid-template-columns: repeat(3, 1fr); min-width: 0; }
+      .row { grid-template-columns: 1fr; gap: 15px; }
+      .row .node:not(:last-child)::after {
+        content: "↓";
+        top: auto;
+        right: 50%;
+        bottom: -22px;
+      }
+      .fork { grid-template-columns: 1fr; }
+      .stack { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 620px) {
+      .page { width: min(100% - 24px, 1480px); padding-top: 30px; }
+      .lane, .branch { padding: 18px; }
+      .legend { grid-template-columns: 1fr; }
+      .store { align-items: flex-start; flex-direction: column; }
+      .store span { text-align: left; }
+      .fork::before { width: 90%; text-align: center; white-space: normal; }
+      .stack { grid-template-columns: 1fr; }
+      footer { flex-direction: column; }
+    }
+
+    @media print {
+      body { background: #071015; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+      .page { width: 100%; padding: 18px; }
+      .lane, .branch { box-shadow: none; break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header>
+      <div>
+        <p class="eyebrow">Provenance · Evidence-to-code agent fleet</p>
+        <h1>How the research reaches the algorithm.</h1>
+        <p class="dek">A verified view of the system as it exists today: the research pipeline is deployed, code proposals are operator-triggered, and a human content session operates the local deterministic renderer.</p>
+      </div>
+      <aside class="legend" aria-label="Status legend">
+        <div class="legend-item"><span class="dot deployed"></span> Deployed nightly</div>
+        <div class="legend-item"><span class="dot operator"></span> Built, operator-triggered</div>
+        <div class="legend-item"><span class="dot experimental"></span> Human-operated / local</div>
+      </aside>
+    </header>
+
+    <section class="diagram" aria-label="Provenance system flow">
+      <section class="lane">
+        <div class="lane-label">When the synqology algorithm changes</div>
+        <div class="row">
+          <article class="node operator">
+            <div class="step">Source of truth</div>
+            <h2>synqology’s scoring system</h2>
+            <p>The live iOS Swift algorithm and its written Vitality Index specification.</p>
+            <span class="tech">Swift · iOS · 11 scoring components</span>
+          </article>
+          <article class="node operator">
+            <div class="step">Research agenda</div>
+            <h2>Gemini reads the rules</h2>
+            <p>It turns real thresholds—such as activity duration and weekly frequency—into targeted research questions.</p>
+            <span class="tech">Gemini 3.7 Flash · GenAI SDK</span>
+          </article>
+          <article class="node operator">
+            <div class="step">Published for the cloud job</div>
+            <h2>Agenda saved by source version</h2>
+            <p>A source-code fingerprint keeps the agenda tied to the exact algorithm version it describes.</p>
+            <span class="tech">Firestore · SHA-256 source digest</span>
+          </article>
+        </div>
+      </section>
+
+      <section class="lane nightly">
+        <div class="lane-label">The deployed nightly research loop</div>
+        <div class="row">
+          <article class="node deployed">
+            <div class="step">03:00 every night</div>
+            <h2>Cloud Scheduler starts Provenance</h2>
+            <p>The same tested Python pipeline runs as a managed Cloud Run Job.</p>
+            <span class="tech">Cloud Scheduler · Cloud Run Job</span>
+          </article>
+          <article class="node deployed">
+            <div class="step">Scout</div>
+            <h2>Search the literature</h2>
+            <p>Each algorithm rule drives searches across biomedical research sources; known papers are skipped.</p>
+            <span class="tech">PubMed · Europe PMC · DOI-first dedupe</span>
+          </article>
+          <article class="node deployed">
+            <div class="step">Triage</div>
+            <h2>Remove obvious noise</h2>
+            <p>A fast model answers one cheap question: does this paper genuinely bear on a scoring rule?</p>
+            <span class="tech">Gemini 3.5 Flash-Lite · Google ADK</span>
+          </article>
+        </div>
+
+        <svg class="turn" viewBox="0 0 1000 54" preserveAspectRatio="none" aria-hidden="true">
+          <defs>
+            <marker id="turn-arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="#58717e" stroke="none"></path>
+            </marker>
+          </defs>
+          <path d="M 835 0 V 24 H 165 V 49" marker-end="url(#turn-arrow)"></path>
+        </svg>
+
+        <div class="row">
+          <article class="node deployed">
+            <div class="step">Appraiser</div>
+            <h2>Grade the surviving studies</h2>
+            <p>Gemini assigns an evidence tier and extracts claims with a quotation from the source.</p>
+            <span class="tech">Gemini 3.7 Flash · ADK LlmAgent</span>
+          </article>
+          <article class="node deployed">
+            <div class="step">Grounding gates</div>
+            <h2>Code verifies every claim</h2>
+            <p>The quoted sentence must exist, and every attached number must appear inside that sentence.</p>
+            <span class="tech">Python · deterministic checks</span>
+          </article>
+          <article class="node deployed">
+            <div class="step">Synthesist</div>
+            <h2>Wait for convergence</h2>
+            <p>One paper is never enough. Multiple strong, distinct studies must challenge the same rule.</p>
+            <span class="tech">Arithmetic gate · Gemini 3.7 Flash</span>
+          </article>
+        </div>
+
+        <div class="store">
+          <strong>Firestore is the evidence ledger.</strong>
+          <span>Papers · appraisals · quotations · rejection reasons · findings · human decisions · nightly run summaries</span>
+        </div>
+      </section>
+
+      <section class="fork" aria-label="Downstream workflows fed by grounded appraisals">
+        <section class="branch">
+          <div class="branch-title">
+            <h3>Evidence → tested code proposal</h3>
+            <span class="status operator">Built · manual trigger</span>
+          </div>
+          <div class="branch-flow">
+            <article class="node operator">
+              <div class="step">Engineer</div>
+              <h2>Find the real Swift symbol</h2>
+              <p>Gemini reads the live repository through restricted, read-only tools and prepares coordinated edits.</p>
+              <span class="tech">Gemini 3.7 Flash · ADK FunctionTool</span>
+            </article>
+            <div class="branch-arrow" aria-hidden="true">↓</div>
+            <article class="node operator">
+              <div class="step">Backtest + proposal</div>
+              <h2>Open a draft pull request</h2>
+              <p>Code applies validated edits on an isolated branch, runs the iOS scoring tests, and opens a draft PR with evidence and dissent.</p>
+              <span class="tech">GitHub · xcodebuild · draft-only guardrail</span>
+            </article>
+            <div class="branch-arrow" aria-hidden="true">↓</div>
+            <article class="node operator">
+              <div class="step">Independent audit</div>
+              <h2>Claude reviews Gemini’s diff</h2>
+              <p>A separate local audit reports CLEAN, CONCERNS, or DEFECT. It can comment; it cannot edit or merge.</p>
+              <span class="tech">Claude Opus · local operator workflow</span>
+            </article>
+            <div class="branch-arrow" aria-hidden="true">↓</div>
+            <article class="node human">
+              <div class="step">Hard stop</div>
+              <h2>A human decides</h2>
+              <p>The Cloud Run review console records approval or rejection. There is no merge function in Provenance.</p>
+              <span class="tech">Cloud Run Service · human-in-the-loop</span>
+            </article>
+          </div>
+        </section>
+
+        <section class="branch experimental-branch">
+          <div class="branch-title">
+            <h3>Grounded claims → content library</h3>
+            <span class="status experimental">Human-operated · local</span>
+          </div>
+          <div class="branch-flow">
+            <article class="node experimental">
+              <div class="step">Content queue</div>
+              <h2>Rank data that can be shown</h2>
+              <p><code>content --sweepable</code> finds grounded dose-response claims, and the morning email flags Reel-ready papers.</p>
+              <span class="tech">Python · ranked pool · sweep detector</span>
+            </article>
+            <div class="branch-arrow" aria-hidden="true">↓</div>
+            <article class="node experimental">
+              <div class="step">/social session</div>
+              <h2>A human writes the reviewed spec</h2>
+              <p>A person working with Claude Code chooses the copy and chart, copying values from grounded claims and recording claim ids plus quotes in <code>_provenance</code>.</p>
+              <span class="tech">Human + Claude Code · evidence-linked JSON</span>
+            </article>
+            <div class="branch-arrow" aria-hidden="true">↓</div>
+            <article class="node experimental">
+              <div class="step">Renderer</div>
+              <h2>Produce the reel locally</h2>
+              <p>The reviewed JSON spec drives deterministic HTML charts and frame-by-frame MP4 rendering into <code>library/</code>.</p>
+              <span class="tech">HTML/CSS · Puppeteer · ffmpeg</span>
+            </article>
+          </div>
+          <div class="warning"><strong>Current boundary:</strong> the fleet ranks and grounds the evidence; a person operates <code>/social</code> and the renderer. The cloud image does not contain Chromium or ffmpeg, and nothing automatically posts to social media.</div>
+        </section>
+      </section>
+    </section>
+
+    <section class="stack" aria-label="Technology stack summary">
+      <div class="stack-item"><b>Models</b><span>Gemini 3.7 Flash<br>Gemini 3.5 Flash-Lite<br>Claude Opus audit</span></div>
+      <div class="stack-item"><b>Google AI</b><span>Agent Development Kit<br>Google GenAI SDK<br>Vertex AI</span></div>
+      <div class="stack-item"><b>Google Cloud</b><span>Cloud Run Job + Service<br>Cloud Scheduler<br>Firestore</span></div>
+      <div class="stack-item"><b>Evidence</b><span>PubMed<br>Europe PMC<br>Verbatim grounding</span></div>
+      <div class="stack-item"><b>Delivery</b><span>GitHub draft PRs<br>xcodebuild tests<br>Local deterministic renderer</span></div>
+    </section>
+
+    <footer>
+      <span><strong>Core principle:</strong> Gemini reads and grounds the science; code verifies every number; a human content session turns grounded claims into deterministic charts.</span>
+      <span>Verified against the repository · August 24, 2026</span>
+    </footer>
+  </main>
+</body>
+</html>

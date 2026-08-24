@@ -209,12 +209,10 @@
 </div>
 
 <div class="beat">
-  <div class="beat-head"><span class="tc">3:15</span><span class="what">The gate refuses its own output</span></div>
-  <div class="row"><span class="tag do">Run</span><code class="cmd">.venv/bin/python -m provenance storyteller --component mvpa --render</code></div>
-  <div class="row"><span class="tag say">Say</span><p class="say-text">The same evidence becomes social content. The model writes the words and never a number — every figure is filled in from a verified claim. Watch the log.</p></div>
-  <div class="row"><span class="tag note">If a gate fires</span><p>Read the rejection aloud. They fire on roughly half of runs.</p></div>
-  <div class="row"><span class="tag note">If none fires</span><p>Show the recorded one: <em>"concentrated training sharply reduces cardiovascular risk"</em> — every figure grounded, rejected twice: an intensifier the result doesn't license, and a causal verb on cohort evidence.</p></div>
-  <div class="row"><span class="tag say">Say</span><p class="say-text">This is the part I care about. Getting a number wrong is the easy failure to catch. Overstating how strong a finding is <em>looks completely fine</em> — and it's how health content actually goes wrong.</p></div>
+  <div class="beat-head"><span class="tc">3:15</span><span class="what">From grounded claims to the reel</span></div>
+  <div class="row"><span class="tag do">Run</span><code class="cmd">.venv/bin/python -m provenance content --sweepable</code></div>
+  <div class="row"><span class="tag screen">Screen</span><p>Open a <code>library/*/spec-sweep.json</code> file and expand its <code>_provenance</code> block, then play the reel.</p></div>
+  <div class="row"><span class="tag say">Say</span><p class="say-text">The same grounded evidence becomes a ranked content queue. A human content session chooses the words and the chart. Every digit in this spec maps to a claim id and the verbatim quote that grounded it; then the renderer draws the reviewed spec deterministically.</p></div>
 </div>
 
 <div class="beat">
@@ -229,7 +227,7 @@
 
 <div class="beat">
   <div class="row"><span class="tag note">GCP Console signed out</span><p>The Vertex AI logs and Cloud Run tabs need a live session — sign in before you start recording, not mid-take. A login redirect on camera is the one shot you can't cut around.</p></div>
-  <div class="row"><span class="tag note">Storyteller slow</span><p>It calls Gemini twice; ~40s is normal. Talk over it, or cut to the rendered slides you already have in <code>renderer/out-real/</code>.</p></div>
+  <div class="row"><span class="tag note">Content queue unavailable</span><p>The command needs access to the evidence store. If credentials fail, open the known <code>spec-sweep.json</code> and its <code>_provenance</code> block, then play the reel already in the same library folder.</p></div>
   <div class="row"><span class="tag note">Console 403</span><p>Your write cookie expired. POST the token to <code>/unlock</code> again — it's a 12-hour cookie.</p></div>
 </div>
 

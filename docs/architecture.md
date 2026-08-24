@@ -1,8 +1,8 @@
 # Architecture
 
-**Provenance** — an agent fleet that reads new health literature, proposes
-algorithm changes as draft pull requests, and produces the content explaining
-them. Every number it emits traces to a sentence quoted from a real abstract.
+**Provenance** is an agent fleet that reads new health literature and proposes
+algorithm changes as draft pull requests. A human content workflow uses the
+same grounded evidence to make deterministic charts.
 
 Subject application: **synqology**, a live iOS longevity app whose Vitality
 Index scores users out of 100 across eleven weighted components.
@@ -34,22 +34,21 @@ flowchart TB
     end
 
     SYNTH --> ENG
-    SYNTH --> STORY
+    GROUND --> CONTENT
 
     subgraph OUT["Two outputs, one evidence spine"]
         ENG["**Engineer**<br/>resolves the real symbol<br/>in the live repo"]
-        STORY["**Storyteller**<br/>writes words, never numbers"]
-        GATES["**Gates**: claims · language<br/>structure · readability"]
+        CONTENT["**Content queue**<br/>ranked pool · sweep detector<br/>Reel-ready email · --mark"]
+        SOCIAL["**/social session**<br/>human + Claude Code"]
         RENDER["**Renderer**<br/>HTML → headless Chrome → ffmpeg"]
-        STORY --> GATES --> RENDER
+        CONTENT --> SOCIAL --> RENDER
     end
 
     ENG --> GH["GitHub<br/>issue + DRAFT PR<br/>+ backtest"]
-    RENDER --> CREATIVES[("1080×1350 · 1080×1920")]
+    RENDER --> LIBRARY[("library/<br/>1 reel per post")]
 
     GH --> CONSOLE
-    CREATIVES --> CONSOLE
-    CONSOLE["**Review console** — Cloud Run<br/>a human approves"]
+    CONSOLE["**Review console** — Cloud Run<br/>a human approves the PR"]
     CONSOLE -->|"approve"| COMPANION["Companion PR<br/>held until the app ships"]
     CONSOLE -->|"rejection + reason"| FS
 
@@ -59,6 +58,10 @@ flowchart TB
     SYNTH <--> FS
     FS -.->|"few-shot memory"| SYNTH
 ```
+
+**Gemini reads and grounds the science; code verifies every number; a
+human-in-the-loop content session turns grounded claims into deterministic
+charts. Nothing on screen was written by a model without a verbatim source.**
 
 ---
 
@@ -143,18 +146,10 @@ Not "the model is told not to merge" — there is no `github_merge` in the
 toolset, and a `before_tool_callback` refuses any PR that is not `draft: true`
 on a `provenance/*` branch.
 
-**5 · Four gates stand between a model and a published claim.**
-
-| Gate | Refuses |
-|---|---|
-| Claims | A figure no appraised claim reports |
-| Language | Causal verbs on observational evidence; intensifiers |
-| Structure | Charts with <2 points; decks where <3 slides carry one |
-| Readability | Clinical vocabulary where a reader decides whether to continue |
-
-The language gate is the one that catches what the others cannot. Its first
-rejection was *"Concentrated training sharply reduces cardiovascular risk"* —
-every figure grounded, and still wrong twice.
+**5 · Every content spec keeps the evidence record.**
+Each spec's `_provenance` block maps every on-screen digit to its appraised
+claim id and verbatim quote. The renderer is deterministic and human-operated;
+it draws exactly the values in that reviewed spec.
 
 **6 · A reviewer's decision holds.**
 Findings are keyed by a hash of their supporting papers, so one new study would
@@ -268,10 +263,10 @@ bug now turns three tests red.
       ↓  convergence gate
   1 Finding      ·  10 components gated, with reasons
       ↓
-GitHub issue #1 + draft PR #2      4 rendered slides + 1 reel
-11 edits · 5 files · 51/51 tests   every figure from a verified claim
+GitHub issue #1 + draft PR #2      1 reel per post in library/
+11 edits · 5 files · 51/51 tests   every digit maps to a verified quote
       ↓                                        ↓
-              human approves in the console
+human approves the PR in console   human operates /social + renderer
 ```
 
 ---

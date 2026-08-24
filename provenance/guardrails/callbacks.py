@@ -86,36 +86,3 @@ def enforce_draft_only(tool, args: dict, tool_context) -> dict | None:
             )
 
     return None
-
-
-def require_grounded_numbers(claims_by_id: dict[str, float | None]):
-    """Build a callback that refuses copy containing unverified numbers.
-
-    Used by the Storyteller. Any digit appearing in generated copy must trace
-    to a claim value that survived grounding; otherwise the model has invented
-    a figure that would be rendered onto a slide as fact.
-    """
-    allowed = {abs(v) for v in claims_by_id.values() if v is not None}
-    number = re.compile(r"\d+(?:[.,]\d+)?")
-
-    def callback(tool, args: dict, tool_context) -> dict | None:
-        name = getattr(tool, "name", "") or getattr(tool, "__name__", "")
-        if name not in {"render_creative", "emit_creative_spec"}:
-            return None
-
-        text = " ".join(
-            str(value) for key, value in args.items() if isinstance(value, str)
-        )
-        found = {float(m.group(0).replace(",", "")) for m in number.finditer(text)}
-        ungrounded = {n for n in found if n not in allowed}
-        if ungrounded:
-            return _block(
-                f"Copy contains numbers with no verified source: "
-                f"{sorted(ungrounded)}. Every figure on a creative must come "
-                f"from an appraised claim. Reference the claim instead of "
-                f"writing the number.",
-                tool=name,
-            )
-        return None
-
-    return callback
