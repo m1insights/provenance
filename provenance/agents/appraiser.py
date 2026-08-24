@@ -504,7 +504,7 @@ async def appraise_batch(
     """Grade papers while preserving completed work across quota failures."""
     agent = _agent("appraiser", REASONING_MODEL, APPRAISER_INSTRUCTION, AppraisalDraft)
     by_id = {item.component_id: item for item in agenda.items}
-    semaphore = asyncio.Semaphore(max_concurrent)
+    semaphore = asyncio.Semaphore(min(max_concurrent, 3))
     outcomes = await asyncio.gather(
         *(
             _appraise_one(paper, agent, by_id, agenda.items, semaphore)

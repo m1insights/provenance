@@ -157,6 +157,41 @@ def test_appraise_batch_honours_max_concurrent(monkeypatch: pytest.MonkeyPatch) 
     assert max_active == 3
 
 
+def test_appraise_batch_caps_caller_concurrency_at_three(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _stub_agent(monkeypatch)
+    active = 0
+    max_active = 0
+
+    async def fake_run(agent, prompt):
+        nonlocal active, max_active
+        active += 1
+        max_active = max(max_active, active)
+        await asyncio.sleep(0)
+        await asyncio.sleep(0)
+        active -= 1
+        return _appraisal_payload()
+
+    monkeypatch.setattr(appraiser, "_run", fake_run)
+    monkeypatch.setattr(
+        appraiser.grounding,
+        "verify",
+        lambda appraisal, paper: (appraisal, []),
+    )
+
+    result = asyncio.run(
+        appraise_batch(
+            [_paper(f"paper-{index}") for index in range(8)],
+            _agenda(),
+            max_concurrent=4,
+        )
+    )
+
+    assert len(result.appraisals) == 8
+    assert max_active == 3
+
+
 @pytest.mark.parametrize(
     ("wrapper", "paper_id"),
     [(triage, "triage-quota"), (appraise, "appraise-quota")],
