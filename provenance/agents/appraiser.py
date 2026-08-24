@@ -19,6 +19,7 @@ import asyncio
 import json
 import re
 import logging
+from dataclasses import dataclass
 
 from google.adk.agents import LlmAgent
 from google.adk.runners import InMemoryRunner
@@ -26,7 +27,7 @@ from google.genai import types
 from pydantic import BaseModel
 
 from .. import grounding
-from ..llm import model as llm_model
+from ..llm import is_quota_error, model as llm_model
 from ..config import REASONING_MODEL, TRIAGE_MODEL
 from ..models import (
     AgendaItem,
@@ -331,114 +332,219 @@ async def summarise(
     return updated
 
 
+@dataclass
+class TriageBatch:
+    kept: list[Paper]
+    rejections: list[Rejection]
+    deferred: list[Paper]
+    quota_error: BaseException | None
+
+
+@dataclass
+class AppraisalBatch:
+    appraisals: list[Appraisal]
+    rejections: list[Rejection]
+    deferred: list[Paper]
+    quota_error: BaseException | None
+
+
+async def _triage_one(
+    paper: Paper,
+    agent: LlmAgent,
+    rules: str,
+    semaphore: asyncio.Semaphore,
+) -> tuple[Paper | None, Rejection | None]:
+    async with semaphore:
+        payload = await _run(
+            agent,
+            f"# SCORING COMPONENTS\n{rules}\n\n# PAPER\n{_paper_block(paper)}",
+        )
+    if payload is None:
+        # An unreadable verdict must not silently drop a paper; pass it to
+        # the appraiser, which is the stricter judge anyway.
+        return paper, None
+    verdict = RelevanceVerdict.model_validate(payload)
+    if not verdict.relevant:
+        return None, Rejection(
+            paper_id=paper.doc_id,
+            title=paper.title,
+            stage="appraiser",
+            reason_code="not_relevant",
+            reason=verdict.reason or "Does not bear on any scoring component.",
+        )
+    if verdict.component_ids:
+        paper.matched_components = verdict.component_ids
+    return paper, None
+
+
+async def triage_batch(
+    papers: list[Paper],
+    agenda: ResearchAgenda,
+    *,
+    max_concurrent: int = 6,
+) -> TriageBatch:
+    """Cheap relevance filter that defers only quota-limited papers."""
+    agent = _agent("triage", TRIAGE_MODEL, TRIAGE_INSTRUCTION, RelevanceVerdict)
+    rules = _rules_block(agenda.items)
+    semaphore = asyncio.Semaphore(max_concurrent)
+    outcomes = await asyncio.gather(
+        *(_triage_one(paper, agent, rules, semaphore) for paper in papers),
+        return_exceptions=True,
+    )
+
+    kept: list[Paper] = []
+    rejections: list[Rejection] = []
+    deferred: list[Paper] = []
+    quota_error: BaseException | None = None
+    for paper, outcome in zip(papers, outcomes, strict=True):
+        if isinstance(outcome, BaseException):
+            if not is_quota_error(outcome):
+                raise outcome
+            deferred.append(paper)
+            if quota_error is None:
+                quota_error = outcome
+            continue
+        kept_paper, rejection = outcome
+        if kept_paper is not None:
+            kept.append(kept_paper)
+        if rejection is not None:
+            rejections.append(rejection)
+
+    log.info(
+        "triage: %d in -> %d relevant, %d filtered, %d deferred",
+        len(papers),
+        len(kept),
+        len(rejections),
+        len(deferred),
+    )
+    return TriageBatch(kept, rejections, deferred, quota_error)
+
+
 async def triage(
     papers: list[Paper], agenda: ResearchAgenda
 ) -> tuple[list[Paper], list[Rejection]]:
     """Cheap relevance filter. Returns survivors and reasons for the rest."""
-    agent = _agent("triage", TRIAGE_MODEL, TRIAGE_INSTRUCTION, RelevanceVerdict)
-    rules = _rules_block(agenda.items)
-    semaphore = asyncio.Semaphore(_MAX_CONCURRENT)
+    result = await triage_batch(papers, agenda)
+    if result.quota_error is not None:
+        raise result.quota_error
+    return result.kept, result.rejections
 
-    async def one(paper: Paper):
-        async with semaphore:
-            payload = await _run(
-                agent,
-                f"# SCORING COMPONENTS\n{rules}\n\n# PAPER\n{_paper_block(paper)}",
-            )
-        if payload is None:
-            # An unreadable verdict must not silently drop a paper; pass it to
-            # the appraiser, which is the stricter judge anyway.
-            return paper, None
-        verdict = RelevanceVerdict.model_validate(payload)
-        if not verdict.relevant:
-            return None, Rejection(
+
+async def _appraise_one(
+    paper: Paper,
+    agent: LlmAgent,
+    by_id: dict[str, AgendaItem],
+    agenda_items: list[AgendaItem],
+    semaphore: asyncio.Semaphore,
+) -> tuple[Appraisal | None, list[Rejection]]:
+    relevant = [by_id[c] for c in paper.matched_components if c in by_id] or agenda_items
+    async with semaphore:
+        payload = await _run(
+            agent,
+            f"# CURRENT RULES\n{_rules_block(relevant)}\n\n"
+            f"# PAPER\n{_paper_block(paper, include_fulltext=True)}",
+        )
+    if payload is None:
+        return None, [
+            Rejection(
                 paper_id=paper.doc_id,
                 title=paper.title,
                 stage="appraiser",
-                reason_code="not_relevant",
-                reason=verdict.reason or "Does not bear on any scoring component.",
+                reason_code="no_appraisal",
+                reason="Model returned no parsable appraisal.",
             )
-        if verdict.component_ids:
-            paper.matched_components = verdict.component_ids
-        return paper, None
+        ]
 
-    outcomes = await asyncio.gather(*(one(p) for p in papers))
-    kept = [paper for paper, _ in outcomes if paper is not None]
-    rejected = [rejection for _, rejection in outcomes if rejection is not None]
-    log.info("triage: %d in -> %d relevant, %d filtered", len(papers), len(kept), len(rejected))
-    return kept, rejected
+    draft = AppraisalDraft.model_validate(payload)
+    appraisal = Appraisal(paper_id=paper.doc_id, **draft.model_dump())
+
+    # Distinguish "had nothing to claim" from "claimed things it could not
+    # support". Both end in rejection, but conflating them would make the
+    # rejection log lie about how often grounding actually fires -- and the
+    # log is the only evidence that this system filters anything at all.
+    if not appraisal.claims:
+        return None, [
+            Rejection(
+                paper_id=paper.doc_id,
+                title=paper.title,
+                stage="appraiser",
+                reason_code="no_quantitative_result",
+                reason=(
+                    draft.reasoning[:300]
+                    or "Reports no quantitative result that could bear on a threshold."
+                ),
+            )
+        ]
+
+    # The grounding check is the point of the whole exercise: claims that
+    # cannot be traced to words in the source do not survive.
+    verified, ground_rejections = grounding.verify(appraisal, paper)
+    if not verified.claims:
+        return None, ground_rejections + [
+            Rejection(
+                paper_id=paper.doc_id,
+                title=paper.title,
+                stage="grounding",
+                reason_code="no_grounded_claims",
+                reason=(
+                    f"All {len(appraisal.claims)} claim(s) failed verification "
+                    "against the source text."
+                ),
+            )
+        ]
+    return verified, ground_rejections
+
+
+async def appraise_batch(
+    papers: list[Paper],
+    agenda: ResearchAgenda,
+    *,
+    max_concurrent: int = 3,
+) -> AppraisalBatch:
+    """Grade papers while preserving completed work across quota failures."""
+    agent = _agent("appraiser", REASONING_MODEL, APPRAISER_INSTRUCTION, AppraisalDraft)
+    by_id = {item.component_id: item for item in agenda.items}
+    semaphore = asyncio.Semaphore(max_concurrent)
+    outcomes = await asyncio.gather(
+        *(
+            _appraise_one(paper, agent, by_id, agenda.items, semaphore)
+            for paper in papers
+        ),
+        return_exceptions=True,
+    )
+
+    appraisals: list[Appraisal] = []
+    rejections: list[Rejection] = []
+    deferred: list[Paper] = []
+    quota_error: BaseException | None = None
+    for paper, outcome in zip(papers, outcomes, strict=True):
+        if isinstance(outcome, BaseException):
+            if not is_quota_error(outcome):
+                raise outcome
+            deferred.append(paper)
+            if quota_error is None:
+                quota_error = outcome
+            continue
+        appraisal, paper_rejections = outcome
+        if appraisal is not None:
+            appraisals.append(appraisal)
+        rejections.extend(paper_rejections)
+
+    log.info(
+        "appraise: %d in -> %d appraised, %d rejected, %d deferred",
+        len(papers),
+        len(appraisals),
+        len(rejections),
+        len(deferred),
+    )
+    return AppraisalBatch(appraisals, rejections, deferred, quota_error)
 
 
 async def appraise(
     papers: list[Paper], agenda: ResearchAgenda
 ) -> tuple[list[Appraisal], list[Rejection]]:
     """Grade each paper and verify every claim against its source."""
-    agent = _agent("appraiser", REASONING_MODEL, APPRAISER_INSTRUCTION, AppraisalDraft)
-    by_id = {item.component_id: item for item in agenda.items}
-    semaphore = asyncio.Semaphore(_MAX_CONCURRENT)
-
-    async def one(paper: Paper):
-        relevant = [by_id[c] for c in paper.matched_components if c in by_id] or agenda.items
-        async with semaphore:
-            payload = await _run(
-                agent,
-                f"# CURRENT RULES\n{_rules_block(relevant)}\n\n"
-                f"# PAPER\n{_paper_block(paper, include_fulltext=True)}",
-            )
-        if payload is None:
-            return None, [
-                Rejection(
-                    paper_id=paper.doc_id,
-                    title=paper.title,
-                    stage="appraiser",
-                    reason_code="no_appraisal",
-                    reason="Model returned no parsable appraisal.",
-                )
-            ]
-
-        draft = AppraisalDraft.model_validate(payload)
-        appraisal = Appraisal(paper_id=paper.doc_id, **draft.model_dump())
-
-        # Distinguish "had nothing to claim" from "claimed things it could not
-        # support". Both end in rejection, but conflating them would make the
-        # rejection log lie about how often grounding actually fires -- and the
-        # log is the only evidence that this system filters anything at all.
-        if not appraisal.claims:
-            return None, [
-                Rejection(
-                    paper_id=paper.doc_id,
-                    title=paper.title,
-                    stage="appraiser",
-                    reason_code="no_quantitative_result",
-                    reason=(
-                        draft.reasoning[:300]
-                        or "Reports no quantitative result that could bear on a threshold."
-                    ),
-                )
-            ]
-
-        # The grounding check is the point of the whole exercise: claims that
-        # cannot be traced to words in the source do not survive.
-        verified, ground_rejections = grounding.verify(appraisal, paper)
-        if not verified.claims:
-            return None, ground_rejections + [
-                Rejection(
-                    paper_id=paper.doc_id,
-                    title=paper.title,
-                    stage="grounding",
-                    reason_code="no_grounded_claims",
-                    reason=(
-                        f"All {len(appraisal.claims)} claim(s) failed verification "
-                        "against the source text."
-                    ),
-                )
-            ]
-        return verified, ground_rejections
-
-    outcomes = await asyncio.gather(*(one(p) for p in papers))
-    appraisals = [a for a, _ in outcomes if a is not None]
-    rejections = [r for _, rs in outcomes for r in rs]
-    log.info(
-        "appraise: %d in -> %d appraised, %d rejected", len(papers), len(appraisals), len(rejections)
-    )
-    return appraisals, rejections
+    result = await appraise_batch(papers, agenda)
+    if result.quota_error is not None:
+        raise result.quota_error
+    return result.appraisals, result.rejections
