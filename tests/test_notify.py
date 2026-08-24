@@ -159,14 +159,15 @@ class TestTheBriefingIsReadableWithoutADegree:
         fields.update(overrides)
         return paper, Appraisal(**fields)
 
-    def _brief(self, pairs, **kwargs):
+    def _brief(self, pairs, *, run_overrides=None, **kwargs):
         from provenance.notify import MailConfig, briefing_email
         config = MailConfig(api_key="k", sender="a@b.c", recipient="d@e.f",
                             console_url="https://c.test", signing_key=KEY)
+        run = {"retrieved_new": 9, "appraised": len(pairs), "already_seen": 40,
+               "seconds": 62.0, "algorithm_version": "VI v2.11.0"}
+        run.update(run_overrides or {})
         return briefing_email(
-            {"retrieved_new": 9, "appraised": len(pairs), "already_seen": 40,
-             "seconds": 62.0, "algorithm_version": "VI v2.11.0"},
-            pairs, [], [], config, **kwargs,
+            run, pairs, [], [], config, **kwargs,
         )
 
     def test_a_kept_study_leads_with_plain_english(self):
@@ -237,6 +238,22 @@ class TestTheBriefingIsReadableWithoutADegree:
         _, html = self._brief([(paper, appraisal)])
         assert "No approvals are requested" in html
         assert "/review/" not in html
+
+    def test_synthesis_failure_never_claims_there_was_nothing_to_propose(self):
+        paper, appraisal = self._appraised()
+        subject, html = self._brief(
+            [(paper, appraisal)],
+            run_overrides={
+                "synthesis_error": {
+                    "type": "RuntimeError", "message": "429 RESOURCE_EXHAUSTED",
+                }
+            },
+        )
+
+        assert "Analysis incomplete" in subject
+        assert "analysis did not finish" in html
+        assert "nothing to propose" not in html
+        assert "watched and left alone tonight" not in html
 
 
 class TestSendingIsOptional:

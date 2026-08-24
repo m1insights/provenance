@@ -5,10 +5,20 @@ paper" is all the reader gets -- exactly the regression this pins.
 
 from __future__ import annotations
 
+import asyncio
 from unittest.mock import patch
 
-from provenance.models import Appraisal, Claim, EvidenceTier, Paper, SourceName
-from provenance.nightly import _notify
+from provenance.agents.scout import SweepResult
+from provenance.config import SUBJECTS
+from provenance.models import (
+    Appraisal,
+    Claim,
+    EvidenceTier,
+    Paper,
+    ResearchAgenda,
+    SourceName,
+)
+from provenance.nightly import _notify, run
 
 
 def _fixtures():
@@ -66,3 +76,64 @@ class TestBriefingCarriesTheNightsPapers:
 
             (_run, pairs, *_rest), _kwargs = briefing_email.call_args
             assert pairs == [(paper, appraisal)]
+
+
+class _RunDb:
+    """Firestore boundary for a complete run with an empty stored corpus."""
+
+    def __init__(self):
+        self.saved_run = None
+
+    class _Collection:
+        def __init__(self, owner, name):
+            self.owner = owner
+            self.name = name
+
+        def stream(self):
+            return iter(())
+
+        def document(self, _doc_id):
+            owner = self.owner
+            name = self.name
+
+            class _Document:
+                def set(self, payload):
+                    if name == "provenance_runs":
+                        owner.saved_run = dict(payload)
+
+            return _Document()
+
+    def collection(self, name):
+        return self._Collection(self, name)
+
+
+class TestSynthesisFailureIsFailSoft:
+    def test_quota_failure_still_sends_briefing_and_records_run(self):
+        """A model quota error must not make a completed reading night invisible."""
+        db = _RunDb()
+        agenda = ResearchAgenda(
+            subject_key="synqology", algorithm_version="VI test",
+            source_digest="digest", items=[],
+        )
+        result = SweepResult(agenda=agenda)
+
+        async def failed_synthesis(*_args, **_kwargs):
+            raise RuntimeError("429 RESOURCE_EXHAUSTED")
+
+        with patch("provenance.nightly.store.client", return_value=db), \
+             patch("provenance.nightly.store.known_paper_ids", return_value=set()), \
+             patch("provenance.nightly.store.save_agenda"), \
+             patch("provenance.nightly.store.save_papers"), \
+             patch("provenance.nightly.store.save_rejections"), \
+             patch("provenance.nightly.sweep", return_value=result), \
+             patch("provenance.nightly.synthesise", side_effect=failed_synthesis), \
+             patch("provenance.nightly.pr_health.sweep", return_value={}), \
+             patch("provenance.nightly._notify", return_value={"sent": ["briefing"]}):
+            summary = asyncio.run(run(SUBJECTS["synqology"]))
+
+        assert summary["synthesis_error"] == {
+            "type": "RuntimeError", "message": "429 RESOURCE_EXHAUSTED",
+        }
+        assert summary["findings_new"] == 0
+        assert summary["notified"] == {"sent": ["briefing"]}
+        assert db.saved_run == summary

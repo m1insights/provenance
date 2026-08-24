@@ -114,18 +114,34 @@ async def run(
     ]
     existing = {f.finding_id for f in prior}
 
-    findings, gated = await synthesise(
-        subject, result.agenda, all_appraisals, papers, prior_findings=prior
-    )
-    fresh = [f for f in findings if f.finding_id not in existing]
-    for finding in findings:
-        store.save_finding(finding, db=db)
-    store.save_rejections(gated, db=db)
-    summary |= {
-        "findings_total": len(findings),
-        "findings_new": len(fresh),
-        "components_gated": len(gated),
-    }
+    fresh: list[Finding] = []
+    try:
+        findings, gated = await synthesise(
+            subject, result.agenda, all_appraisals, papers, prior_findings=prior
+        )
+        fresh = [f for f in findings if f.finding_id not in existing]
+        for finding in findings:
+            store.save_finding(finding, db=db)
+        store.save_rejections(gated, db=db)
+        summary |= {
+            "findings_total": len(findings),
+            "findings_new": len(fresh),
+            "components_gated": len(gated),
+        }
+    except Exception as exc:
+        # Retrieval and appraisal have already been persisted. A transient model
+        # failure here must not erase the night's visible record or prevent the
+        # morning briefing; it only means no new proposal can safely be opened.
+        log.warning("nightly: synthesis failed: %s", exc)
+        summary |= {
+            "findings_total": len(prior),
+            "findings_new": 0,
+            "components_gated": None,
+            "synthesis_error": {
+                "type": type(exc).__name__,
+                "message": str(exc),
+            },
+        }
 
     # --- engineer ---------------------------------------------------------
     # Off by default. A draft pull request is cheap to close but it is still a

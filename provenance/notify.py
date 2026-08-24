@@ -576,8 +576,22 @@ def briefing_email(
     new_findings = run.get("findings_new", 0) or 0
     read = run.get("retrieved_new", 0) or 0
     kept = run.get("appraised", 0) or 0
+    synthesis_failed = bool(run.get("synthesis_error"))
 
-    if new_findings:
+    if synthesis_failed:
+        if kept:
+            detail = f"{kept} paper{'s' if kept != 1 else ''} kept"
+        elif read:
+            detail = f"{read} paper{'s' if read != 1 else ''} read"
+        else:
+            detail = "no conclusion recorded"
+        headline = f"Analysis incomplete — {detail}"
+        lede = (
+            "The literature sweep and appraisal completed, but analysis did not "
+            "finish. The evidence is saved and will be reconsidered on the next "
+            "run; no conclusion was made tonight."
+        )
+    elif new_findings:
         headline = f"{new_findings} new finding{'s' if new_findings > 1 else ''}"
         lede = (
             "Evidence converged on a rule in the algorithm. Nothing has been "
@@ -713,10 +727,15 @@ def briefing_email(
         )
 
     gated = run.get("components_gated", 0) or 0
+    run_outcome = (
+        "Synthesis did not finish, so no component-level conclusion was made. "
+        if synthesis_failed
+        else f"{gated} component{'s' if gated != 1 else ''} watched and left alone tonight. "
+    )
     footer = (
         f'<p style="{STYLE_MUTED}color:{INK3};margin:28px 0 0;padding-top:18px;'
         f'border-top:1px solid {LINE};">'
-        f"{gated} component{'s' if gated != 1 else ''} watched and left alone tonight. "
+        f"{run_outcome}"
         f"Run finished in {run.get('seconds', 0):.0f}s against "
         f"{_escape(run.get('algorithm_version', ''))}."
         f"<br>No approvals are requested in this email."
