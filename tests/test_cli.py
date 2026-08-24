@@ -4,10 +4,19 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
+import pytest
+
 from provenance import cli
 from provenance.agents import appraiser
 from provenance import content_agenda
-from provenance.models import Appraisal, EvidenceTier, Paper, Rejection, SourceName
+from provenance.models import (
+    Appraisal,
+    EvidenceTier,
+    Paper,
+    Rejection,
+    ResearchAgenda,
+    SourceName,
+)
 from provenance.store import firestore as store
 
 
@@ -57,6 +66,141 @@ def _rejection(paper_id: str) -> Rejection:
         reason_code="unsupported_quote",
         reason="Claim failed grounding.",
     )
+
+
+def _research_agenda(digest: str = "digest") -> ResearchAgenda:
+    return ResearchAgenda(
+        subject_key="synqology",
+        algorithm_version="VI test",
+        source_digest=digest,
+        items=[],
+    )
+
+
+def test_agenda_without_publish_does_not_open_firestore(monkeypatch, capsys):
+    agenda = _research_agenda()
+    monkeypatch.setattr(cli, "build_agenda", lambda _subject, refresh=False: agenda)
+    monkeypatch.setattr(
+        store,
+        "client",
+        lambda: (_ for _ in ()).throw(AssertionError("Firestore opened")),
+    )
+    result = cli.cmd_agenda(
+        SimpleNamespace(subject="synqology", refresh=False, detail=False, publish=False)
+    )
+    assert result == 0
+    assert "digest digest" in capsys.readouterr().out
+
+
+def test_agenda_publish_reuses_exact_digest_without_gemini_or_write(
+    monkeypatch, capsys
+):
+    agenda = _research_agenda()
+    db = object()
+    monkeypatch.setattr(store, "client", lambda: db)
+    monkeypatch.setattr(cli, "source_digest", lambda _subject: "digest")
+    monkeypatch.setattr(
+        store, "agenda_for_digest", lambda subject, digest, *, db: agenda
+    )
+    monkeypatch.setattr(
+        cli,
+        "build_agenda",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("Gemini called")),
+    )
+    monkeypatch.setattr(
+        store,
+        "save_agenda",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("write made")),
+    )
+    result = cli.cmd_agenda(
+        SimpleNamespace(subject="synqology", refresh=False, detail=False, publish=True)
+    )
+    assert result == 0
+    assert "publication: already current" in capsys.readouterr().out
+
+
+def test_agenda_publish_builds_and_saves_missing_digest(monkeypatch, capsys):
+    agenda = _research_agenda()
+    db = object()
+    saved: list[ResearchAgenda] = []
+    monkeypatch.setattr(store, "client", lambda: db)
+    monkeypatch.setattr(cli, "source_digest", lambda _subject: "digest")
+    monkeypatch.setattr(
+        store, "agenda_for_digest", lambda subject, digest, *, db: None
+    )
+    monkeypatch.setattr(cli, "build_agenda", lambda _subject, refresh=False: agenda)
+    monkeypatch.setattr(store, "save_agenda", lambda value, *, db: saved.append(value))
+    result = cli.cmd_agenda(
+        SimpleNamespace(subject="synqology", refresh=False, detail=False, publish=True)
+    )
+    assert result == 0
+    assert saved == [agenda]
+    assert "publication: published" in capsys.readouterr().out
+
+
+def test_agenda_refresh_skips_remote_hit_and_overwrites(monkeypatch, capsys):
+    agenda = _research_agenda()
+    db = object()
+    calls: list[bool] = []
+    monkeypatch.setattr(store, "client", lambda: db)
+    monkeypatch.setattr(cli, "source_digest", lambda _subject: "digest")
+    monkeypatch.setattr(
+        store,
+        "agenda_for_digest",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("refresh consulted remote cache")
+        ),
+    )
+    monkeypatch.setattr(
+        cli,
+        "build_agenda",
+        lambda _subject, refresh=False: calls.append(refresh) or agenda,
+    )
+    monkeypatch.setattr(store, "save_agenda", lambda value, *, db: None)
+    result = cli.cmd_agenda(
+        SimpleNamespace(subject="synqology", refresh=True, detail=False, publish=True)
+    )
+    assert result == 0
+    assert calls == [True]
+    assert "publication: refreshed" in capsys.readouterr().out
+
+
+def test_agenda_publish_propagates_firestore_failure(monkeypatch):
+    agenda = _research_agenda()
+    monkeypatch.setattr(store, "client", lambda: object())
+    monkeypatch.setattr(cli, "source_digest", lambda _subject: "digest")
+    monkeypatch.setattr(store, "agenda_for_digest", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(cli, "build_agenda", lambda _subject, refresh=False: agenda)
+    monkeypatch.setattr(
+        store,
+        "save_agenda",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("write failed")),
+    )
+    with pytest.raises(RuntimeError, match="write failed"):
+        cli.cmd_agenda(
+            SimpleNamespace(
+                subject="synqology", refresh=False, detail=False, publish=True
+            )
+        )
+
+
+def test_agenda_publish_propagates_generation_failure(monkeypatch):
+    monkeypatch.setattr(store, "client", lambda: object())
+    monkeypatch.setattr(cli, "source_digest", lambda _subject: "digest")
+    monkeypatch.setattr(store, "agenda_for_digest", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(
+        cli,
+        "build_agenda",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            RuntimeError("generation failed")
+        ),
+    )
+    with pytest.raises(RuntimeError, match="generation failed"):
+        cli.cmd_agenda(
+            SimpleNamespace(
+                subject="synqology", refresh=False, detail=False, publish=True
+            )
+        )
 
 
 def _configure_appraisal_cli(monkeypatch, db: _CliDb):

@@ -13,7 +13,7 @@ import logging
 import sys
 import textwrap
 
-from .agenda import build_agenda
+from .agenda import build_agenda, source_digest
 from .agents.scout import sweep
 from .config import SUBJECTS, SubjectApp
 
@@ -35,7 +35,25 @@ def _subject(name: str) -> SubjectApp:
 
 
 def cmd_agenda(args: argparse.Namespace) -> int:
-    agenda = build_agenda(_subject(args.subject), refresh=args.refresh)
+    subject = _subject(args.subject)
+    publication: str | None = None
+
+    if args.publish:
+        from .store import firestore as store
+
+        db = store.client()
+        digest = source_digest(subject)
+        agenda = None
+        if not args.refresh:
+            agenda = store.agenda_for_digest(subject.key, digest, db=db)
+        if agenda is None:
+            agenda = build_agenda(subject, refresh=args.refresh)
+            store.save_agenda(agenda, db=db)
+            publication = "refreshed" if args.refresh else "published"
+        else:
+            publication = "already current"
+    else:
+        agenda = build_agenda(subject, refresh=args.refresh)
     print(f"\n{agenda.algorithm_version}   digest {agenda.source_digest}   "
           f"{len(agenda.items)} components\n")
     for item in agenda.items:
@@ -46,6 +64,8 @@ def cmd_agenda(args: argparse.Namespace) -> int:
             for concept in item.search_concepts:
                 print(f"        · {concept}")
             print()
+    if publication:
+        print(f"  publication: {publication}")
     return 0
 
 
@@ -611,6 +631,11 @@ def main(argv: list[str] | None = None) -> int:
     agenda = sub.add_parser("agenda", help="show the agenda derived from the algorithm")
     agenda.add_argument("--refresh", action="store_true", help="ignore the cache")
     agenda.add_argument("--detail", action="store_true", help="show rules and search terms")
+    agenda.add_argument(
+        "--publish",
+        action="store_true",
+        help="publish this exact source digest to Firestore",
+    )
     agenda.set_defaults(func=cmd_agenda)
 
     sweep_cmd = sub.add_parser("sweep", help="run a literature sweep")
