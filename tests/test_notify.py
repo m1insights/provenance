@@ -7,6 +7,8 @@ one.
 
 from __future__ import annotations
 
+import pytest
+
 from provenance.notify import LINK_TTL_HOURS, sign, verify
 
 KEY = "a-console-write-token"
@@ -239,21 +241,45 @@ class TestTheBriefingIsReadableWithoutADegree:
         assert "No approvals are requested" in html
         assert "/review/" not in html
 
-    def test_synthesis_failure_never_claims_there_was_nothing_to_propose(self):
+    def test_capped_appraisal_backlog_is_healthy_and_queued(self):
+        paper, appraisal = self._appraised()
+        subject, html = self._brief(
+            [(paper, appraisal)] * 10,
+            run_overrides={"appraisal_pending": 23},
+        )
+
+        assert "Analysis incomplete" not in subject
+        assert "23 papers remain in the automatic appraisal queue." in html
+        assert "watched and left alone tonight" in html
+
+    @pytest.mark.parametrize("stage", ("triage", "appraisal", "synthesis"))
+    def test_pipeline_failure_never_claims_a_conclusion_and_retries_the_backlog(self, stage):
         paper, appraisal = self._appraised()
         subject, html = self._brief(
             [(paper, appraisal)],
             run_overrides={
-                "synthesis_error": {
+                "appraisal_pending": 23,
+                "pipeline_error": {
+                    "stage": stage,
                     "type": "RuntimeError", "message": "429 RESOURCE_EXHAUSTED",
                 }
             },
         )
 
         assert "Analysis incomplete" in subject
-        assert "analysis did not finish" in html
         assert "nothing to propose" not in html
         assert "watched and left alone tonight" not in html
+        assert "23" in html and "queued" in html
+        assert f"{stage} did not finish" in html.lower()
+        assert "no conclusion was made" in html.lower()
+        assert "retry automatically" in html.lower()
+
+    def test_a_quiet_successful_morning_is_not_incomplete(self):
+        subject, html = self._brief([], run_overrides={"retrieved_new": 0})
+
+        assert "Nothing new to read" in subject
+        assert "Analysis incomplete" not in subject
+        assert "No papers published in the window" in html
 
 
 class TestSendingIsOptional:

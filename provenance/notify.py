@@ -576,20 +576,25 @@ def briefing_email(
     new_findings = run.get("findings_new", 0) or 0
     read = run.get("retrieved_new", 0) or 0
     kept = run.get("appraised", 0) or 0
-    synthesis_failed = bool(run.get("synthesis_error"))
+    appraisal_pending = run.get("appraisal_pending", 0) or 0
+    pipeline_error = run.get("pipeline_error")
+    pipeline_failed = bool(pipeline_error)
+    failed_stage = (
+        str(pipeline_error.get("stage") or "analysis").replace("_", " ")
+        if pipeline_failed else ""
+    )
 
-    if synthesis_failed:
+    if pipeline_failed:
         if kept:
             detail = f"{kept} paper{'s' if kept != 1 else ''} kept"
         elif read:
             detail = f"{read} paper{'s' if read != 1 else ''} read"
         else:
             detail = "no conclusion recorded"
-        headline = f"Analysis incomplete — {detail}"
+        headline = f"Analysis incomplete — {failed_stage} did not finish"
         lede = (
-            "The literature sweep and appraisal completed, but analysis did not "
-            "finish. The evidence is saved and will be reconsidered on the next "
-            "run; no conclusion was made tonight."
+            f"{failed_stage.capitalize()} did not finish after {detail}. No conclusion "
+            "was made tonight; any pending papers will retry automatically."
         )
     elif new_findings:
         headline = f"{new_findings} new finding{'s' if new_findings > 1 else ''}"
@@ -623,6 +628,15 @@ def briefing_email(
         + _stat("seen before", str(run.get("already_seen", 0) or 0))
         + "</tr></table>"
     )
+    queue_html = ""
+    if appraisal_pending:
+        paper_word = "paper" if appraisal_pending == 1 else "papers"
+        remain = "remains" if appraisal_pending == 1 else "remain"
+        queue_html = (
+            f'<p style="{STYLE_MUTED}color:{INK3};margin:10px 0 0;">'
+            f"{appraisal_pending} {paper_word} {remain} in the automatic appraisal queue. "
+            "They are queued to retry automatically.</p>"
+        )
 
     # Strongest evidence first, and within a tier the papers that argue against
     # a current rule -- that ordering is the reader's attention budget spent on
@@ -728,8 +742,8 @@ def briefing_email(
 
     gated = run.get("components_gated", 0) or 0
     run_outcome = (
-        "Synthesis did not finish, so no component-level conclusion was made. "
-        if synthesis_failed
+        f"{failed_stage.capitalize()} did not finish, so no component-level conclusion was made. "
+        if pipeline_failed
         else f"{gated} component{'s' if gated != 1 else ''} watched and left alone tonight. "
     )
     footer = (
@@ -753,7 +767,7 @@ def briefing_email(
         f'font-weight:600;letter-spacing:-.02em;">{_escape(headline)}</h1>'
         f'<p style="font-size:15px;line-height:1.55;color:{INK2};margin:0 0 24px;">'
         f"{lede}</p>"
-        f"{stats}{sweep_html}{papers_html}{rejects_html}{pending_html}{footer}"
+        f"{stats}{queue_html}{sweep_html}{papers_html}{rejects_html}{pending_html}{footer}"
         f"</div>"
     )
     return (f"Provenance \u2014 {headline}", html)
