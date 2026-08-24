@@ -24,6 +24,26 @@ from .config import settings
 log = logging.getLogger(__name__)
 
 
+def is_quota_error(exc: BaseException) -> bool:
+    """Return whether a model-provider exception represents exhausted quota."""
+    if getattr(exc, "status_code", None) == 429:
+        return True
+
+    code = getattr(exc, "code", None)
+    if callable(code):
+        try:
+            if "RESOURCE_EXHAUSTED" in str(code()).upper():
+                return True
+        except Exception:
+            pass
+
+    try:
+        message = str(exc).upper()
+    except Exception:
+        return False
+    return "429" in message or "RESOURCEEXHAUSTED" in message.replace("_", "")
+
+
 @lru_cache(maxsize=8)
 def model(name: str) -> Gemini:
     """An ADK model handle wired to this project's credentials.
