@@ -21,12 +21,14 @@ from collections import Counter
 from datetime import datetime, timezone
 
 from .agenda import build_agenda
-from .agents.appraiser import appraise, triage
+from .agents.appraiser import appraise_batch, triage_batch
 from .agents.scout import sweep
 from . import health as pr_health
 from . import notify
 from .agents.synthesist import synthesise
+from .backlog import select_for_appraisal
 from .config import SUBJECTS, SubjectApp
+from .llm import is_quota_error
 from .models import Appraisal, Finding, FindingStatus, Paper
 from .store import firestore as store
 
@@ -42,6 +44,25 @@ DEFAULT_WINDOW_DAYS = 540
 #: Per source, per component. Eleven components across two sources is ~22
 #: queries a night, well inside both APIs' published limits.
 DEFAULT_LIMIT = 25
+
+#: Triage is cheap enough to drain the durable queue, but each wave is saved
+#: before the next starts so a later quota failure loses no completed verdicts.
+TRIAGE_WAVE_SIZE = 24
+TRIAGE_CONCURRENCY = 6
+
+#: Appraisal is the expensive stage. The batch API independently enforces this
+#: ceiling; the orchestration also slices at three to make every slice durable.
+APPRAISAL_WAVE_SIZE = 3
+APPRAISAL_CONCURRENCY = 3
+DEFAULT_APPRAISAL_LIMIT = 10
+
+
+def _record_pipeline_error(summary: dict, stage: str, exc: BaseException) -> None:
+    summary["pipeline_error"] = {
+        "stage": stage,
+        "type": type(exc).__name__,
+        "message": str(exc)[:300],
+    }
 
 
 async def run(
@@ -73,27 +94,81 @@ async def run(
     }
     log.info("nightly: %d new papers", len(result.papers))
 
-    # --- appraise ---------------------------------------------------------
+    # --- durable triage queue ---------------------------------------------
     tonight_appraisals: list[Appraisal] = []
-    tonight_rejections: list = []
-    if result.papers:
-        kept, triaged_out = await triage(result.papers, result.agenda)
-        appraisals, rejected = await appraise(kept, result.agenda)
-        tonight_appraisals = list(appraisals)
-        tonight_rejections = list(result.rejections) + list(triaged_out) + list(rejected)
-        store.save_appraisals(appraisals, db=db)
-        store.save_rejections(triaged_out + rejected, db=db)
-        summary |= {
-            "appraised": len(appraisals),
-            "tiers": dict(Counter(a.tier.value for a in appraisals)),
-            "alignment": dict(Counter(a.alignment.value for a in appraisals)),
-            "rejected": dict(
-                Counter(r.reason_code for r in triaged_out + rejected)
+    tonight_rejections: list = list(result.rejections)
+    pending = store.pending_papers(db=db)
+    summary["pending_before"] = len(pending)
+
+    agenda_digest = result.agenda.source_digest
+    ready = [
+        paper
+        for paper in pending
+        if paper.triaged_at is not None
+        and paper.triage_agenda_digest == agenda_digest
+    ]
+    needs_triage = [paper for paper in pending if paper not in ready]
+    triaged = 0
+
+    for start in range(0, len(needs_triage), TRIAGE_WAVE_SIZE):
+        wave = needs_triage[start : start + TRIAGE_WAVE_SIZE]
+        outcome = await triage_batch(
+            wave, result.agenda, max_concurrent=TRIAGE_CONCURRENCY
+        )
+        completed_at = datetime.now(timezone.utc)
+        for paper in outcome.kept:
+            paper.triaged_at = completed_at
+            paper.triage_agenda_digest = agenda_digest
+
+        # Both outcomes become durable before another model wave can begin.
+        store.save_papers(outcome.kept, db=db)
+        store.save_rejections(outcome.rejections, db=db)
+        ready.extend(outcome.kept)
+        tonight_rejections.extend(outcome.rejections)
+        triaged += len(outcome.kept) + len(outcome.rejections)
+
+        if outcome.quota_error is not None:
+            _record_pipeline_error(summary, "triage", outcome.quota_error)
+            break
+
+    summary["triaged"] = triaged
+
+    # --- bounded appraisal queue -----------------------------------------
+    selected: list[Paper] = []
+    if "pipeline_error" not in summary:
+        selected = select_for_appraisal(
+            ready,
+            new_ids={paper.doc_id for paper in result.papers},
+            limit=int(
+                os.getenv("PROVENANCE_APPRAISAL_LIMIT", DEFAULT_APPRAISAL_LIMIT)
             ),
-        }
-    else:
-        summary |= {"appraised": 0}
-        tonight_rejections = list(result.rejections)
+        )
+        for start in range(0, len(selected), APPRAISAL_WAVE_SIZE):
+            wave = selected[start : start + APPRAISAL_WAVE_SIZE]
+            outcome = await appraise_batch(
+                wave, result.agenda, max_concurrent=APPRAISAL_CONCURRENCY
+            )
+
+            # Persist partial successes and terminal rejections before deciding
+            # whether quota exhaustion prevents the next slice.
+            store.save_appraisals(outcome.appraisals, db=db)
+            store.save_rejections(outcome.rejections, db=db)
+            tonight_appraisals.extend(outcome.appraisals)
+            tonight_rejections.extend(outcome.rejections)
+
+            if outcome.quota_error is not None:
+                _record_pipeline_error(summary, "appraisal", outcome.quota_error)
+                break
+
+    summary |= {
+        "appraisal_selected": len(selected),
+        "appraised": len(tonight_appraisals),
+        "tiers": dict(Counter(a.tier.value for a in tonight_appraisals)),
+        "alignment": dict(Counter(a.alignment.value for a in tonight_appraisals)),
+        "rejected": dict(
+            Counter(r.reason_code for r in tonight_rejections[len(result.rejections) :])
+        ),
+    }
 
     # --- synthesise -------------------------------------------------------
     # Convergence is judged over the whole accumulated corpus, not tonight's
@@ -115,33 +190,48 @@ async def run(
     existing = {f.finding_id for f in prior}
 
     fresh: list[Finding] = []
-    try:
-        findings, gated = await synthesise(
-            subject, result.agenda, all_appraisals, papers, prior_findings=prior
-        )
-        fresh = [f for f in findings if f.finding_id not in existing]
-        for finding in findings:
-            store.save_finding(finding, db=db)
-        store.save_rejections(gated, db=db)
-        summary |= {
-            "findings_total": len(findings),
-            "findings_new": len(fresh),
-            "components_gated": len(gated),
-        }
-    except Exception as exc:
-        # Retrieval and appraisal have already been persisted. A transient model
-        # failure here must not erase the night's visible record or prevent the
-        # morning briefing; it only means no new proposal can safely be opened.
-        log.warning("nightly: synthesis failed: %s", exc)
+    if "pipeline_error" in summary:
         summary |= {
             "findings_total": len(prior),
             "findings_new": 0,
             "components_gated": None,
-            "synthesis_error": {
-                "type": type(exc).__name__,
-                "message": str(exc),
-            },
         }
+    else:
+        try:
+            findings, gated = await synthesise(
+                subject, result.agenda, all_appraisals, papers, prior_findings=prior
+            )
+        except Exception as exc:
+            # Only provider quota exhaustion is fail-soft. Programming and
+            # malformed-response errors remain fatal instead of being mislabeled
+            # as temporary capacity problems.
+            if not is_quota_error(exc):
+                raise
+            log.warning("nightly: synthesis failed: %s", exc)
+            _record_pipeline_error(summary, "synthesis", exc)
+            summary |= {
+                "findings_total": len(prior),
+                "findings_new": 0,
+                "components_gated": None,
+            }
+        else:
+            # Persistence is deliberately outside the fail-soft boundary. If a
+            # finding cannot be saved, engineering must not proceed from a result
+            # whose evidence record is missing or partial.
+            fresh = [f for f in findings if f.finding_id not in existing]
+            for finding in findings:
+                store.save_finding(finding, db=db)
+            store.save_rejections(gated, db=db)
+            tonight_rejections.extend(gated)
+            summary |= {
+                "findings_total": len(findings),
+                "findings_new": len(fresh),
+                "components_gated": len(gated),
+            }
+
+    # Re-read durable state after every completed write. Unselected work and
+    # quota-deferred papers naturally remain visible without an auxiliary queue.
+    summary["appraisal_pending"] = len(store.pending_papers(db=db))
 
     # --- engineer ---------------------------------------------------------
     # Off by default. A draft pull request is cheap to close but it is still a
