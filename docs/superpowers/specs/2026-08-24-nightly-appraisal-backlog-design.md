@@ -1,8 +1,12 @@
 # Durable Nightly Appraisal Backlog
 
-**Date:** 2026-08-24  
-**Status:** Proposed  
+**Date:** 2026-08-24
+**Status:** Implemented
 **Owner:** Provenance nightly pipeline
+
+**Deployed:** commit `3a73f09e33eba70eb6331fd8f93cfcac904c1d0b` as
+`sha256:5bf98b8754905dc0b434cbcd173866df441c9a57d2ecb9ce54168c719ab28557`;
+recovery execution `provenance-nightly-tz8mm` succeeded on 2026-08-24.
 
 ## Problem
 
