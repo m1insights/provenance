@@ -74,23 +74,34 @@ are not in the source.
 """
 
 
-def source_digest(subject: SubjectApp) -> str:
-    """Hash every source supplied to agenda extraction, in prompt order."""
-    digest = hashlib.sha256()
-    for path in subject.agenda_sources:
-        digest.update(path.read_bytes() if path.is_file() else b"")
-    return digest.hexdigest()[:16]
-
-
-def _prompt_contents(subject: SubjectApp) -> list[str]:
+def _labeled_sources(subject: SubjectApp) -> list[tuple[str, Path]]:
     labels = [
         "Specification",
         "Primary implementation",
         *("Supporting implementation" for _ in subject.agenda_supporting_sources),
     ]
+    return list(zip(labels, subject.agenda_sources, strict=True))
+
+
+def _prompt_payload(label: str, path: Path, source: str) -> str:
+    return f"# {label}: {path.name}\n\n{source}"
+
+
+def source_digest(subject: SubjectApp) -> str:
+    """Hash every labeled prompt payload, in prompt order."""
+    digest = hashlib.sha256()
+    for label, path in _labeled_sources(subject):
+        source = path.read_text() if path.is_file() else ""
+        payload = _prompt_payload(label, path, source).encode("utf-8")
+        digest.update(len(payload).to_bytes(8, byteorder="big"))
+        digest.update(payload)
+    return digest.hexdigest()[:16]
+
+
+def _prompt_contents(subject: SubjectApp) -> list[str]:
     return [
-        f"# {label}: {path.name}\n\n{path.read_text()}"
-        for label, path in zip(labels, subject.agenda_sources, strict=True)
+        _prompt_payload(label, path, path.read_text())
+        for label, path in _labeled_sources(subject)
     ]
 
 

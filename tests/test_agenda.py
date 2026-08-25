@@ -51,6 +51,27 @@ def test_source_digest_changes_for_every_governing_source(
     assert agenda.source_digest(subject) != before
 
 
+def test_source_digest_distinguishes_source_boundaries(tmp_path: Path):
+    left_root = tmp_path / "left"
+    right_root = tmp_path / "right"
+    left_root.mkdir()
+    right_root.mkdir()
+    left = _subject(left_root)
+    right = _subject(right_root)
+    left_contents = ("alphaX", "beta", "gamma")
+    right_contents = ("alpha", "Xbeta", "gamma")
+
+    for path, content in zip(left.agenda_sources, left_contents, strict=True):
+        path.write_text(content)
+    for path, content in zip(right.agenda_sources, right_contents, strict=True):
+        path.write_text(content)
+
+    assert b"".join(path.read_bytes() for path in left.agenda_sources) == b"".join(
+        path.read_bytes() for path in right.agenda_sources
+    )
+    assert agenda.source_digest(left) != agenda.source_digest(right)
+
+
 def test_prompt_contains_every_fingerprinted_source(tmp_path: Path):
     subject = _subject(tmp_path)
     contents = agenda._prompt_contents(subject)
