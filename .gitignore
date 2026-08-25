@@ -17,3 +17,7 @@ renderer/out/
 # social asset library: track specs/captions/readme, ignore media
 library/**/*.png
 library/**/frames/
+
+# brand-palette reel variants and their content live outside this repo
+vyvid/
+renderer/templates/reel-*.html

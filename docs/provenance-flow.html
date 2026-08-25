@@ -440,7 +440,7 @@
           <article class="node deployed">
             <div class="step">Scout</div>
             <h2>Search the literature</h2>
-            <p>Each algorithm rule drives searches across biomedical research sources; known papers are skipped.</p>
+            <p>Algorithm rules plus a content lane of folk-belief numbers drive the searches; known papers are skipped.</p>
             <span class="tech">PubMed · Europe PMC · DOI-first dedupe</span>
           </article>
           <article class="node deployed">
@@ -464,7 +464,7 @@
           <article class="node deployed">
             <div class="step">Appraiser</div>
             <h2>Grade the surviving studies</h2>
-            <p>Gemini assigns an evidence tier and extracts claims with a quotation from the source.</p>
+            <p>Gemini grades each study, pulls PubMed Central full text when available, and returns one verbatim quote per claim—including each tabulated dose point.</p>
             <span class="tech">Gemini 3.7 Flash · ADK LlmAgent</span>
           </article>
           <article class="node deployed">
@@ -476,7 +476,7 @@
           <article class="node deployed">
             <div class="step">Synthesist</div>
             <h2>Wait for convergence</h2>
-            <p>One paper is never enough. Multiple strong, distinct studies must challenge the same rule.</p>
+            <p>A Finding needs ≥3 distinct papers, ≥1 tier A/B study, and more than one DOI registrant challenging the same rule.</p>
             <span class="tech">Arithmetic gate · Gemini 3.7 Flash</span>
           </article>
         </div>
@@ -547,11 +547,12 @@
             <article class="node experimental">
               <div class="step">Renderer</div>
               <h2>Produce the reel locally</h2>
-              <p>The reviewed JSON spec drives deterministic HTML charts and frame-by-frame MP4 rendering into <code>library/</code>.</p>
-              <span class="tech">HTML/CSS · Puppeteer · ffmpeg</span>
+              <p>The reviewed JSON drives a 12-second, 1080×1920 reel at 30 fps: deterministic HTML charts captured frame by frame. No image model touches it.</p>
+              <span class="tech">HTML/CSS · Puppeteer · ffmpeg · local only</span>
             </article>
           </div>
-          <div class="warning"><strong>Current boundary:</strong> the fleet ranks and grounds the evidence; a person operates <code>/social</code> and the renderer. The cloud image does not contain Chromium or ffmpeg, and nothing automatically posts to social media.</div>
+          <div class="warning"><strong>Evidence record:</strong> 14 dated post folders hold the reviewed spec, reel, caption, and verification frames. One sweep reel reached ~84K views against a ~2K account baseline.</div>
+          <div class="warning"><strong>Current boundary:</strong> the fleet ranks and grounds the evidence; a person operates <code>/social</code> and the renderer. The cloud image has no Chromium or ffmpeg. Nothing posts itself; the founder handles audio and publishing.</div>
         </section>
       </section>
     </section>
@@ -559,8 +560,8 @@
     <section class="stack" aria-label="Technology stack summary">
       <div class="stack-item"><b>Models</b><span>Gemini 3.7 Flash<br>Gemini 3.5 Flash-Lite<br>Claude Opus audit</span></div>
       <div class="stack-item"><b>Google AI</b><span>Agent Development Kit<br>Google GenAI SDK<br>Vertex AI</span></div>
-      <div class="stack-item"><b>Google Cloud</b><span>Cloud Run Job + Service<br>Cloud Scheduler<br>Firestore</span></div>
-      <div class="stack-item"><b>Evidence</b><span>PubMed<br>Europe PMC<br>Verbatim grounding</span></div>
+      <div class="stack-item"><b>Google Cloud</b><span>Cloud Run Job + Service<br>Cloud Scheduler · Firestore<br>Secret Manager</span></div>
+      <div class="stack-item"><b>Evidence</b><span>PubMed · Europe PMC<br>PubMed Central full text<br>Verbatim grounding</span></div>
       <div class="stack-item"><b>Delivery</b><span>GitHub draft PRs<br>xcodebuild tests<br>Local deterministic renderer</span></div>
     </section>
 

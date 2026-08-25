@@ -15,6 +15,7 @@
  */
 
 import { spawn } from "node:child_process";
+import { readdirSync } from "node:fs";
 import { mkdir, readFile, rm } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -37,6 +38,14 @@ const FORMATS = {
   // into the Reel safe zone via a min-height media query.
   motionreel: { template: "motion.html", width: 1080, height: 1920, seconds: 12, fps: 30 },
 };
+
+// Optional brand-palette variants of `reel`: any templates/reel-<brand>.html is
+// registered as format `reel-<brand>` with the same engine and motion
+// contract. Brand templates and their content live outside this repository.
+for (const file of readdirSync(join(HERE, "templates"))) {
+  const match = /^reel-([a-z0-9-]+)\.html$/.exec(file);
+  if (match) FORMATS[`reel-${match[1]}`] = { ...FORMATS.reel, template: file };
+}
 
 function run(command, args) {
   return new Promise((ok, fail) => {

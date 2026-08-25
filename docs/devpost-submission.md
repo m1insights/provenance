@@ -6,186 +6,143 @@
 
 ---
 
-## Elevator pitch (200 char)
+## Elevator pitch (200 characters)
 
-An agent fleet reads health research nightly and opens grounded draft PRs;
-verified claims feed human-made charts where every digit traces to a quote.
-
----
+An agent fleet reads health research nightly, verifies every quantitative claim, and proposes tested changes to a live iOS health algorithm as human-reviewed draft pull requests.
 
 ## Inspiration
 
-I build synqology, a longevity app on the App Store. Its Vitality Index scores
-users out of 100 across eleven weighted components — sleep timing, cardio dose,
-VO₂ max percentile, heart-rate variability. Every threshold in it was chosen
-from published literature.
+I built **synqology**, an iOS longevity app whose Vitality Index scores users across eleven components, including sleep, cardiovascular activity, VO₂ max, and heart-rate variability. Every threshold in the algorithm came from published health research.
 
-That literature moves every week. One person maintains the algorithm, the
-backend, the marketing and the app. So the gap between "a relevant study was
-published" and "the algorithm reflects it" is however long it takes me to
-notice — which is unbounded, and I have no way to even measure it.
+But the literature changes constantly. As the person maintaining the algorithm, the app, and its content, I realized that the delay between “a relevant study was published” and “the product reflects that evidence” was simply however long it took me to notice.
 
-The obvious fix is an agent that reads papers. The reason nobody trusts that
-fix is that a language model summarising a clinical trial will, sooner or
-later, state a number the trial does not contain. So the interesting problem
-was never retrieval. It was building something whose output you could hand to a
-reviewer without checking it line by line.
+An agent that reads papers would be a start. But the problem is trust. A language model can easily hallucinate, misquote, or attach a real statistic to the wrong conclusion.
+
+That made the real challenge much more interesting than retrieval: could I build an agentic system whose work I could review and potentially act on without reconstructing every step myself?
+
+That became **Provenance**.
 
 ## What it does
 
+Provenance is an evidence-to-code agent fleet that reads new health research, identifies findings that could affect synqology’s scoring algorithm, and proposes tested changes to the live iOS repository.
+
+It is not given a static topic list. Provenance derives its research agenda from synqology’s specification and the Swift files that implement the scoring rules. If the algorithm credits a cardiovascular-activity day after 20 minutes and expects activity across three days each week, Provenance searches for evidence about bout duration, weekly frequency, and “weekend warrior” activity patterns—not merely papers saying exercise is beneficial.
+
+That agenda is now automated too. When a governing Vitality Index file changes on synqology’s production branch, GitHub Actions checks out the exact private source revision, authenticates to Google Cloud with a short-lived identity, derives the updated agenda with Gemini, and publishes it to Firestore. The nightly Cloud Run job consumes that published agenda. Retries for an unchanged source digest reuse the existing agenda without another model call, and the private Swift source never enters the Cloud Run image.
+
+The agenda also includes a content lane for familiar health claims people encounter every day: 10,000 steps, eight hours of sleep, coffee, income, resting heart rate, and similar numbers worth checking against the literature.
+
 Every night, Provenance:
 
-1. **Derives its own research agenda from the app's source code.** It reads
-   `LONGEVITY_FEATURE_STACK.md` and `VitalityIndexCalculator.swift` and works
-   out what literature bears on each constant. The Vitality Index credits a
-   cardio day at 20 minutes and wants 3 such days a week, so it goes hunting
-   for bout-duration and weekend-warrior studies — the work that could prove
-   that specific number wrong.
-2. **Retrieves and screens** from PubMed and Europe PMC, deduplicating on a
-   DOI-first identity so the same trial arriving as a preprint and as a journal
-   article counts once.
-3. **Appraises what survives** against a GRADE-lite rubric — design, sample
-   size, follow-up, tier A–D — and extracts claims, each carrying a sentence
-   quoted from the abstract.
-4. **Verifies that grounding in code.** The quoted span must appear in the
-   retrieved text, and any number attached to a claim must appear inside that
-   span.
-5. **Waits for convergence.** A Finding opens only when at least three distinct
-   papers challenge the same component, at least one is tier A or B, and they
-   come from more than one DOI registrant.
-6. **Opens a draft pull request** against the real repository, resolving the
-   actual symbol in the live source, editing every file the project's own
-   contributing rules require, and running the project's scoring test suite
-   against the change.
-7. **Ranks the appraised papers for content** and flags the ones whose data can
-   be *shown* — dose-response curves that sweep. A human content session turns
-   those grounded claims into deterministic charts; every digit on screen
-   traces to a verified quote.
-8. **Waits for a human.** Nothing merges. Nothing posts. The PR link travels
-   in an email, so nobody approves a change without reading the diff
-   themselves.
+1. Searches **PubMed** and **Europe PMC** against the algorithm-derived agenda.
+2. Deduplicates papers using a DOI-first identity.
+3. Uses **Gemini 3.5 Flash-Lite** for inexpensive relevance screening.
+4. Uses **Gemini 3.7 Flash** to assign a GRADE-inspired evidence tier, identify study design, sample size, and follow-up, and extract quantitative claims.
+5. Requires every claim to carry a sentence quoted verbatim from the retrieved paper.
+6. Pulls full text from PubMed Central when available, allowing claims to ground against results tables and the paper body rather than only the abstract.
+7. Verifies in code that the quotation exists and that every number attached to a claim appears inside that quoted passage.
+8. Records papers, appraisals, findings, rejections, and run outcomes in Firestore.
+9. Preserves unfinished work in a durable appraisal backlog. Each completed wave is saved before the next begins, so a quota interruption cannot erase earlier results or strand papers permanently.
+10. Sends a briefing that distinguishes “nothing qualified” from “analysis was incomplete,” including how much work remains queued.
 
-Steps 1–5 and content ranking run unattended on Cloud Scheduler at 03:00. Step
-6 — opening a pull request — and the content session are deliberately manual.
-A draft PR is cheap to close and still a notification, and one arriving nightly
-for the same finding trains its reader to ignore it. Every run writes a summary
-to `provenance_runs`, so what happened overnight is a record rather than an
-inference.
+For algorithm changes, a Finding opens only when at least three distinct papers challenge the same component, at least one is tier A or B, and the evidence comes from more than one DOI registrant. An operator can then invoke the Engineer, which resolves the real symbol in the live synqology repository, prepares the coordinated edits required by the project, runs the iOS scoring tests, and opens a **draft** pull request.
+
+Pull-request creation is deliberately not part of the unattended nightly run. There is no merge tool. A callback blocks non-draft pull requests and branches outside Provenance’s namespace. A human reviews every proposal.
+
+Provenance also supports a separate, manual content workflow built on the same grounded evidence. I run a custom Claude Code command, `/social`, inside the local Provenance repository. Claude and I select a grounded appraisal or Finding, choose the angle, and build a JSON animation specification. Every on-screen number is copied from a grounded claim, and the specification contains a `_provenance` record pairing each figure with its claim identifier and verbatim quotation.
+
+That reviewed specification is rendered locally and deterministically into a 12-second, 1080×1920 reel at 30 frames per second. The cloud agent fleet does not choose the story, write the animation specification, render media, or post anything. I add audio, review the finished reel, and publish it myself.
 
 ## How I built it
 
-**Gemini 3.7 Flash** appraises, synthesises and engineers draft proposals.
-**Gemini 3.5 Flash-Lite** does first-pass relevance triage, where volume is
-high and the question is cheap.
+I built Provenance around specialized roles using Google’s **Agent Development Kit**. ADK `LlmAgent` components handle appraisal, synthesis, and engineering. `FunctionTool` gives the Engineer tightly scoped, read-only navigation of the subject repository, while `before_tool_callback` enforces draft-only GitHub guardrails.
 
-**ADK** structures the fleet: `LlmAgent` per role, `FunctionTool` for the
-read-only repository navigation the Engineer uses, and `before_tool_callback`
-for the guardrails. The **GenAI SDK** handles the structured extraction that
-builds the agenda.
+**Gemini 3.5 Flash-Lite** performs the high-volume relevance pass. **Gemini 3.7 Flash** handles deeper scientific appraisal, synthesis, engineering, and the structured extraction that turns synqology’s source code into a versioned research agenda.
 
-**Vertex AI** serves both models, so there is no API key anywhere — the
-fleet's service account is the credential. **Firestore** is the evidence store: papers,
-appraisals, rejections, findings, decisions. **Cloud Run** hosts the review
-console as a service and the nightly fleet as a job. **Cloud Scheduler** starts
-it at 03:00. **Secret Manager** holds the GitHub and email credentials.
+Both models run through **Vertex AI**. The deployed system uses Google Cloud service identities, so no static Gemini API key is stored.
 
-Creatives are rendered deterministically: HTML and CSS through headless Chrome,
-frame-by-frame for motion, assembled with ffmpeg. No image model touches them.
-A diffusion model asked for "a chart showing a 15% reduction" returns something
-that looks like a chart and says something else. The renderer is operated by a
-person, not by the fleet.
+Agenda synchronization runs in **GitHub Actions**. A path-filtered workflow in the private synqology repository runs only when one of the three governing files changes on the `launch` production branch. It uses **Workload Identity Federation** to obtain a short-lived Google credential, calls an idempotent agenda-publication command, and leaves the last valid Firestore agenda intact if generation or publication fails.
 
-## The design decision everything rests on
+### The cloud system consists of
 
-**Grounded claims are the numeric contract.**
+- **Vertex AI** for Gemini 3.5 Flash-Lite and Gemini 3.7 Flash.
+- **Cloud Run Jobs** for the nightly research pipeline.
+- **Cloud Scheduler** to start the pipeline at 3:00 AM.
+- **Firestore** for agendas, papers, triage state, appraisals, quotations, rejection reasons, findings, run records, the durable backlog, and human decisions.
+- A **Cloud Run Service** for the pull-request review console.
+- **Secret Manager** for the credentials needed by GitHub and notifications.
+- **GitHub Actions** plus Google Cloud Workload Identity Federation for production-source-to-agenda synchronization without a long-lived cloud key.
 
-`provenance/grounding.py` verifies that every claim's quote appears in the
-retrieved source and that its numeric value appears inside that quote. During
-the human `/social` session, values are copied from those claims into the spec;
-the spec's `_provenance` block maps every on-screen digit back to a claim id and
-verbatim quote.
+The nightly workload is intentionally bounded. It appraises at most ten papers per run, processes at most three appraisal calls concurrently, and divides capacity between newly retrieved papers and the oldest backlog. Unused capacity is lent to the other group. Completed waves are committed atomically to Firestore; work that is not selected or hits a temporary quota limit remains pending for the next run.
 
-| Gate | Refuses |
-|---|---|
-| **Grounding (code)** | A claim whose quote is absent from the source, or whose value is absent from its quote |
+The content workflow is intentionally local and human-operated. I work with Claude Code through `/social` to select grounded evidence and construct the animation specification. That reviewed specification—not a visual prompt—is passed to a renderer built with **Node.js, Puppeteer, HTML, CSS, headless Chrome, and ffmpeg**.
 
-## Challenges
+Motion is captured frame by frame from an explicit progress value, making the same input specification produce the same visual output. No image model touches the chart, and no cloud Provenance agent operates the renderer.
 
-**Retrieval was returning noise, and it was my fault.** Early sweeps produced
-96% irrelevant results and not a single paper that challenged a constant. I had
-OR'd a broad MeSH heading with a long exact phrase: `"Exercise"[MeSH]` matches
-everything and `"physical activity dose response mortality"[tiab]` matches
-nothing, so every result arrived through the broad clause. ANDing them, with
-short searchable phrases and a study-design filter, took tier-A/B papers from 1
-to 35 and papers challenging a constant from 0 to 23.
+The core contract is:
 
-**A chart that lied about a null result.** One slide reported that walking pace
-made no difference — values 0.98, 1.01, 0.99, 1.00 — and the chart auto-scaled
-them across the full plot height into a dramatic zigzag, directly beneath a
-headline saying pace didn't matter. Charts now enforce a minimum domain spread.
-A chart may understate a difference; it may never manufacture one.
+> **Gemini reads and grounds the science. Code verifies every number. A human decides what becomes code and how the evidence is communicated.**
 
-**It would have re-proposed things I had already rejected.** Findings are keyed
-by a hash of their supporting papers, so a single new study changed the key and
-opened a fresh proposal for a question I had answered — my rejection taught it
-nothing, and it would have re-asked every time one more paper landed. That is
-precisely how a system like this trains its reviewer to stop reading it. A
-rejected component now stays quiet until five more challenging papers exist.
+## Challenges we ran into
 
-**Which then exposed an epidemiology error in my own rule.** I had listed
-"meta-analysis" as experimental, so two systematic reviews among twenty-one
-cohort studies silently licensed causal language. A meta-analysis inherits the
-design of what it pools; pooling buys precision, not causal warrant.
+The first major problem was retrieval quality. Early searches returned approximately 96% irrelevant results and no papers capable of challenging an algorithm constant. The fault was not the model; it was my query design.
 
-## The bug fifty-one green tests didn't catch
+I had combined a broad subject heading with a phrase so specific that nearly every result arrived through the broad clause. Rebuilding the searches around shorter phrases, study-design filters, and proper Boolean relationships dramatically increased the number of strong, relevant studies.
 
-Gemini writing changes to a production health app with only me as the check is
-not a position I take lightly — every diff gets read line by line before I
-decide, not skimmed against a green test suite. On the first real pull request
-it opened, that read found something the suite had already passed:
+The most important automation failure appeared after deployment. One nightly run retrieved and stored 217 papers, then identified 33 as relevant. Vertex AI returned a quota error before the appraisal results were persisted. The Cloud Run retry saw the papers as already known, skipped them, and left that work effectively stranded.
 
-```swift
-guard let schedule = schedule, schedule.isEnabled, schedule.isShiftWorker else { return 2.0 }
-return 2.0
-```
+The fix was not another retry. I changed pending appraisal work into durable Firestore state. Triage results are persisted before appraisal begins, appraisals are saved in small atomic waves, and unfinished papers remain discoverable on the next run. Quota exhaustion now stops additional model work, preserves completed results, skips downstream proposal generation, and sends an honest “analysis incomplete” briefing instead of claiming there was nothing to propose.
 
-Both branches identical. The guard was dead and shift workers had silently lost
-an accommodation the comment still described. Every test passed, and deleting
-the guard entirely would also have passed.
+Automating the research agenda exposed a different boundary. The nightly Cloud Run image cannot—and should not—contain synqology’s private source repository. Previously, publishing a new agenda depended on a local developer command. I moved that handoff to the private repository’s GitHub Actions workflow, where the source already exists, and used branch-restricted Workload Identity Federation instead of storing a Google service-account key.
 
-The obvious fix was worse. Restoring the old leniency ratio meant a denominator
-of 1.33 — and both consumers evaluate `min(creditDays, Int(d)) / d`, where the
-numerator truncates and the divisor does not. Every shift worker would have
-been capped at 0.75 of the Cardio score they earned, permanently, silently.
+Grounding against abstracts also proved insufficient for some of the most useful findings. Dose-response points and subgroup results often live in tables or the body of a paper. Provenance now retrieves available PubMed Central full text and extracts each tabulated point as a separate grounded claim rather than collapsing an entire curve into a highest-versus-lowest summary.
 
-Fixed at 1.0 with a **relational** test asserting the shift bar stays strictly
-easier than the default, because pinning each value separately is exactly what
-let them converge. Reintroducing the original bug now turns three tests red —
-verified by mutation, not assumed.
+Counting papers presented another subtle problem. When 22 papers supported a weekend-warrior finding, Provenance identified that nine were UK Biobank re-analyses. Twenty-two papers did not represent twenty-two independent populations, so that caveat went into the pull request.
 
-## Accomplishments
+I also discovered that a correct number can still produce a misleading chart. One locally rendered chart displayed values clustered around a null result—0.98, 1.01, 0.99, and 1.00—but stretched them across the full plotting area. Every value was accurate while the visual implied a dramatic effect. The local renderer now enforces a minimum domain spread so it cannot manufacture visual significance.
 
-It opened a pull request I would seriously consider merging. Twenty-two papers,
-twenty of them tier B, on whether concentrating weekly exercise into one or two
-days carries the same mortality benefit as spreading it out. Eleven edits
-across five files. Fifty-one of fifty-one scoring tests passing.
+Finally, I had to choose the correct boundary for content automation. Grounding can prove where a number came from, but it cannot decide which interpretation is useful, which framing is fair, or whether an animation communicates the evidence honestly. Provenance therefore ranks and supplies verified evidence; the `/social` session remains manual, and I remain responsible for the argument and the finished post.
 
-And it argued against itself, unprompted, twice: it noticed the proposed value
-would collapse a distinction my own code comment calls deliberate, and it
-computed that nine of the twenty-two studies are UK Biobank re-analyses — so
-twenty-two papers are not twenty-two replications. Both went in the pull
-request rather than being left for me to find.
+## Accomplishments that we're proud of
 
-## What I learned
+Provenance produced a pull request I would seriously consider merging into a live health product.
 
-The hard part of an agent that reads science is not reading. It is building
-something that refuses — and then discovering that your refusals encode your
-own mistaken assumptions, and having tests that catch that.
+Twenty-two papers converged on evidence that completing weekly exercise across one or two days is associated with mortality outcomes comparable to spreading it across more days. Provenance translated that finding into eleven coordinated edits across five files, updated the affected call sites and tests, and ran synqology’s scoring suite. All 51 tests passed.
 
-## What's next
+Reading the diff then uncovered an existing shift-worker accommodation whose two branches had silently become identical. The green suite had not caught it because both expected values had been updated independently to the same number.
 
-Cohort-overlap detection is a string search today and should read study
-metadata. The backtest reports test pass/fail and should report the score
-distribution shift across a real cohort. And the fleet currently reads one
-application's algorithm; the subject is a config object, so pointing it at a
-second app is a data change rather than a code change.
+The obvious repair—restoring the earlier ratio—would have introduced another error because the consuming code both truncated and divided by that value. I fixed the rule with a relational test asserting that the shift-worker threshold must remain strictly easier than the default. Reintroducing the original bug now causes three tests to fail.
+
+The production automation now closes two operational gaps as well. A relevant change to synqology’s production scoring sources automatically publishes the matching research agenda without my Mac being online, and a repeated publication for the same digest performs no duplicate Gemini generation. The nightly pipeline now carries incomplete evidence work safely across runs instead of losing it when a model quota is exhausted.
+
+The same grounded evidence system supports my manual content workflow. Fourteen dated evidence folders preserve the specification, rendered reel, caption, and verification frames for each post.
+
+One 10,000-steps dose-response reel reached approximately **84,000 views**, compared with an account baseline of roughly 2,000. A later reel that broke the format’s open-loop headline rule reached about 1,900. That contrast showed me the format—not simply the topic—was the lever, so the content queue now searches explicitly for sweep-shaped evidence.
+
+One recent reel, built on August 23, asks: **“The rich live longer. By how much?”** It animates a two-line race comparing men and women by income rank using Chetty et al.’s 2016 JAMA study: 1.4 billion person-years and 15 grounded claims, with every displayed number linked to a verified quotation.
+
+## What we learned
+
+The difficult part of building an agent that reads science is not getting it to read more. It is deciding what the system must refuse to infer, change, lose, or publish.
+
+A valid quotation is not enough if the reported number comes from another sentence. A real number is not enough if the surrounding interpretation implies causation the study cannot establish. A technically correct chart can still exaggerate a null result. Twenty-two papers can represent far fewer independent populations.
+
+I also learned that retryability is a data-model problem, not merely an infrastructure setting. If pending work exists only in the memory of one job, a retry can succeed operationally while silently losing the actual work. The durable backlog makes unfinished analysis explicit state.
+
+Human oversight works best as an architectural boundary, not a sentence in a prompt. Provenance cannot merge because the capability does not exist. The nightly run does not open pull requests by default. The cloud fleet cannot render or publish content. Rejection reasons and incomplete runs are persisted instead of disappearing.
+
+The agent did not replace my judgment. It brought the evidence, code, tests, caveats, operational state, and uncertainty to the exact place where that judgment could be useful.
+
+The most valuable behavior in the system is not generation. It is refusal—and recovery—with a reason.
+
+## What's next for Provenance: Evidence-to-Code Agent Fleet
+
+Cohort-overlap detection currently relies on study metadata and recognizable cohort names; I want to make it more systematic.
+
+The backtest currently reports test results, but it should also simulate how a proposed algorithm change affects score distributions across a representative user cohort.
+
+The content queue can already identify dose-response, J-shaped, graded, and per-unit evidence. Next, I want to improve its ability to recognize which grounded relationships will remain understandable when animated for a general audience—without moving the editorial decision out of human hands.
+
+Provenance currently follows one application’s algorithm. Because the subject is represented through configuration and source mappings, the next major step is applying the same evidence-to-code workflow to additional health products.
+
+Most importantly, I want to preserve the boundary at the center of the project: agents can search, appraise, propose, test, and explain their evidence—but a human remains responsible for deciding what becomes real.

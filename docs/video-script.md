@@ -37,19 +37,33 @@ python -m provenance agenda --detail
 > goes looking for bout-duration and weekend-warrior studies. Not 'exercise is
 > good for you' — the literature that could prove that specific number wrong."
 
-**Point at the screen:** the agenda is cached against a hash of those files.
+**Point at the screen:** the agenda is cached against a digest of those files.
 Edit the algorithm and the research agenda changes with it.
+
+**Then cut to GitHub → synq → Actions → "Publish Provenance agenda".** Show the
+green run, its step list ("Authenticate to Google Cloud", "Build and publish
+agenda"), and the summary block listing the eleven components.
+
+> "And that handoff is automatic now. Push a change to one of the three files
+> that govern the algorithm on the production branch, and GitHub Actions
+> publishes the new agenda to Firestore before the next nightly run. It gets a
+> short-lived Google credential for that one job — no key stored anywhere —
+> and the private Swift source never leaves that checkout. My Mac doesn't have
+> to be on."
 
 ---
 
 ## 1:00 – 1:45 · The filter, which is the trust surface
 
-**On screen:** the console's counters — 571 papers, 70 appraised, 515 rejected.
+**On screen:** the console's counters — 1,437 papers read, 288 appraised,
+1,174 rejected, 1 finding (as of Aug 25; run `python -m provenance status`
+right before recording — the 3:00 AM job moves these nightly).
 Keep the browser's address bar in frame here — the `.run.app` domain is the
 first proof this runs on Google Cloud, not a laptop. Then scroll the
 rejection reasons.
 
-> "Last night it read five hundred and seventy-one papers. Seventy survived.
+> "So far it has read one thousand four hundred and thirty-seven papers. Two
+> hundred and eighty-eight survived appraisal.
 >
 > Everything else is on file with a reason: not relevant, no quantitative
 > result, ungrounded claim, insufficient convergence. A system that discards
@@ -57,8 +71,9 @@ rejection reasons.
 
 **Then the grounding check, in the editor:**
 
-> "Every claim carries a sentence the model says appears in the abstract. Code
-> checks that it does. And separately, that the number attached to it appears
+> "Every claim carries a sentence the model says appears in the paper — the
+> abstract, or the PubMed Central full text when there is one. Code checks
+> that it does. And separately, that the number attached to it appears
 > in that same sentence — because a real quote with an invented effect size
 > beside it passes a quote check and fails this one."
 
@@ -165,16 +180,20 @@ python -m provenance content --sweepable
 this is the hackathon's required proof the backend actually runs on Google
 Cloud, not just a claim in the diagram. Timed to the words below:
 
-- On "Vertex AI" — the request logs, showing `gemini-3.7-flash` calls
-  actually landing (Console → Vertex AI → **Generative AI Studio** or
-  **Logs Explorer** filtered to `aiplatform.googleapis.com`).
+- On "Vertex AI" — Logs Explorer filtered to the `provenance-nightly` job
+  with the `Sending out request, model: gemini-3.7-flash, backend:
+  VERTEX_AI` lines visible (the Vertex data-access audit log is not enabled,
+  so an `aiplatform.googleapis.com` filter comes back empty — use the job log).
 - On "Cloud Run" — the Cloud Run **Jobs** list, `provenance-nightly`, with a
   completed execution open so the timestamp is visible on screen.
 - On "Cloud Scheduler" — the trigger firing `provenance-nightly` at 03:00.
+- On "GitHub Actions" — a two-second flash of the green "Publish Provenance
+  agenda" run from 0:45; the step list is enough.
 
 > "Gemini 3.7 Flash for appraisal, 3.5 Flash-Lite for triage. ADK for the
-> fleet. Vertex AI, Firestore, Cloud Run, Cloud Scheduler — no static API key
-> anywhere, the fleet's service account is the credential.
+> fleet. Vertex AI, Firestore, Cloud Run, Cloud Scheduler — and GitHub Actions
+> with a short-lived federated credential for the agenda. No static API key
+> anywhere; the fleet's service account is the credential.
 >
 > It reads the literature so the algorithm doesn't fall behind it. It shows its
 > working every time. And the most useful thing it does is refuse."
@@ -189,7 +208,12 @@ Cloud, not just a claim in the diagram. Timed to the words below:
 4. github.com/m1insights/synq — issue #1 and PR #2, scrolled to the diff
 5. The console, unlocked with the write token — address bar visible, not
    cropped, so the `.run.app` domain reads on camera
-6. Google Cloud Console, two tabs pre-loaded and signed in: Vertex AI request
-   logs, and Cloud Run → Jobs → `provenance-nightly` with a past execution
-   already open — this is the hard requirement ("must demonstrate the
-   backend is running on Google Cloud"), don't discover navigation live
+6. Google Cloud Console, signed in as the account that owns the project,
+   three tabs pre-loaded: Logs Explorer filtered to the `provenance-nightly`
+   job with `gemini-3.7-flash` request lines visible, Cloud Run → Jobs →
+   `provenance-nightly` → Executions (the 03:00 rows), and Cloud Scheduler
+   showing `provenance-nightly-0300` — this is the hard requirement ("must
+   demonstrate the backend is running on Google Cloud"), don't discover
+   navigation live
+7. github.com/m1insights/synq → Actions → the latest green "Publish Provenance
+   agenda" run, on the job page so the step list is visible
