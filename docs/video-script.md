@@ -15,9 +15,14 @@ scrolling past the eleven scoring components.
 > hundred across eleven components — sleep, cardio, VO2 max, heart rate
 > variability. Every threshold in it came from a paper.
 >
-> The literature moves every week. I maintain the algorithm, the marketing and
-> the app. So the gap between 'a relevant study was published' and 'the
-> algorithm knows about it' is however long it takes me to notice."
+> I'm a pharmacist by training, so I can read those papers. I'm also a solo
+> founder — I maintain the algorithm, the marketing, the support and the app —
+> so I can't read all of them. The literature moves every week, and the gap
+> between 'a relevant study was published' and 'the algorithm knows about it'
+> is however long it takes me to notice.
+>
+> And the same number that's wrong in the app is wrong in a reel, just faster.
+> So this had to be one evidence pipeline for both."
 
 ---
 
@@ -67,7 +72,11 @@ rejection reasons.
 >
 > Everything else is on file with a reason: not relevant, no quantitative
 > result, ungrounded claim, insufficient convergence. A system that discards
-> silently is indistinguishable from one that never looked."
+> silently is indistinguishable from one that never looked.
+>
+> Every morning it emails me a briefing — and it says which of two things
+> happened: nothing qualified, or it didn't get through everything. Those are
+> different, and it never pretends the second one is the first."
 
 **Then the grounding check, in the editor:**
 
@@ -157,7 +166,12 @@ python -m provenance content --sweepable
 > maps back to a claim id and the verbatim quote that grounded it; the renderer
 > then draws that reviewed spec deterministically."
 
-**Then play the reel.**
+**Then play the reel, and cut to the Instagram insights screenshot**
+(`~/Desktop/provenance-hackathon-screenshots/07-reel-insights-126k-views-cropped.png`).
+
+> "The first five reels built on this evidence have passed four hundred
+> thousand views on Instagram. All organic. Same pipeline, same grounding —
+> the number on screen is a number the code checked."
 
 ---
 
@@ -202,7 +216,8 @@ Cloud, not just a claim in the diagram. Timed to the words below:
 
 ## Things to have open before recording
 
-1. synqology App Store page
+1. synqology App Store page (or the Vitality Index screenshot at
+   `~/Desktop/provenance-hackathon-screenshots/10-synqology-vitality-index-cropped.png`)
 2. `LONGEVITY_FEATURE_STACK.md`
 3. Terminal in `provenance`, venv active
 4. github.com/m1insights/synq — issue #1 and PR #2, scrolled to the diff
@@ -217,3 +232,6 @@ Cloud, not just a claim in the diagram. Timed to the words below:
    navigation live
 7. github.com/m1insights/synq → Actions → the latest green "Publish Provenance
    agenda" run, on the job page so the step list is visible
+8. Preview: `07-reel-insights-126k-views-cropped.png` and the Chetty reel
+   (`library/2026-08-23-income-rich-live-longer/reel.mp4`) queued in QuickTime
+9. `docs/architecture.md` scrolled to the diagram — the closing shot

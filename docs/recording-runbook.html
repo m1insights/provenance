@@ -157,14 +157,15 @@
 <p class="lede">Windows in this order, left to right. The last one stays closed on purpose.</p>
 
 <div class="prep">
-  <label><input type="checkbox"><div><b>1 · App Store page for synqology</b><span>Safari. First shot of the video.</span></div></label>
+  <label><input type="checkbox"><div><b>1 · App Store page for synqology</b><span>Safari. First shot of the video — or the Vitality Index screenshot in <code>~/Desktop/provenance-hackathon-screenshots/</code>.</span></div></label>
   <label><input type="checkbox"><div><b>2 · <code>LONGEVITY_FEATURE_STACK.md</code></b><span>Scrolled to Section 3, the eleven components.</span></div></label>
   <label><input type="checkbox"><div><b>3 · Terminal in <code>~/Dev/provenance</code></b><span>Cleared. You'll run three commands from here.</span></div></label>
   <label><input type="checkbox"><div><b>4 · The console, unlocked</b><span>provenance-console-vwe3lj6lwq-uc.a.run.app — POST your write token to <code>/unlock</code> first so the buttons are live.</span></div></label>
   <label><input type="checkbox"><div><b>5 · GitHub: <code>synq#2</code>, on the Files changed tab</b><span>Scrolled to the diff, ready to point at the guard clause.</span></div></label>
   <label><input type="checkbox"><div><b>6 · Google Cloud Console, signed in as the project owner, three tabs pre-loaded</b><span>Logs Explorer filtered to the <code>provenance-nightly</code> job (the <code>gemini-3.7-flash</code> request lines), Cloud Run → Jobs → <code>provenance-nightly</code> → Executions (the 03:00 rows), and Cloud Scheduler showing <code>provenance-nightly-0300</code>. This is the hackathon's hard requirement — proof the backend runs on GCP. Don't navigate to it live.</span></div></label>
   <label><input type="checkbox"><div><b>7 · GitHub: <code>synq</code> → Actions → latest green <em>Publish Provenance agenda</em> run</b><span>On the job page, so the step list ("Authenticate to Google Cloud", "Build and publish agenda") is visible.</span></div></label>
-  <label><input type="checkbox"><div><b>8 · <code>docs/architecture.md</code>, scrolled to the diagram</b><span>Final shot.</span></div></label>
+  <label><input type="checkbox"><div><b>8 · Preview: Instagram insights screenshot + the Chetty reel</b><span><code>07-reel-insights-126k-views-cropped.png</code> open in Preview; <code>library/2026-08-23-income-rich-live-longer/reel.mp4</code> open in QuickTime, paused at frame one.</span></div></label>
+  <label><input type="checkbox"><div><b>9 · <code>docs/architecture.md</code>, scrolled to the diagram</b><span>Final shot.</span></div></label>
 </div>
 
 <h2>The eight beats</h2>
@@ -172,7 +173,7 @@
 <div class="beat">
   <div class="beat-head"><span class="tc">0:00</span><span class="what">The problem, as a fact about one person</span></div>
   <div class="row"><span class="tag screen">Screen</span><p>App Store page → cut to the feature stack scrolling past the eleven components.</p></div>
-  <div class="row"><span class="tag say">Say</span><p class="say-text">This is a longevity app I built. Its Vitality Index scores you out of a hundred across eleven components. Every threshold in it came from a paper. The literature moves every week — and I maintain the algorithm, the marketing and the app. So the gap between a study being published and the algorithm knowing about it is <em>however long it takes me to notice</em>.</p></div>
+  <div class="row"><span class="tag say">Say</span><p class="say-text">This is a longevity app I built. Its Vitality Index scores you out of a hundred across eleven components. Every threshold in it came from a paper. I'm a pharmacist by training, so I can read those papers — and a solo founder, so I can't read all of them. The literature moves every week, and the gap between a study being published and the algorithm knowing about it is <em>however long it takes me to notice</em>. And a wrong number in the app is the same wrong number in a reel, just faster — so this had to be one evidence pipeline for both.</p></div>
 </div>
 
 <div class="beat">
@@ -187,7 +188,7 @@
 <div class="beat">
   <div class="beat-head"><span class="tc">1:00</span><span class="what">The filter — the trust surface</span></div>
   <div class="row"><span class="tag screen">Screen</span><p>Console counters: <strong>1,437 papers read · 288 appraised · 1,174 rejected · 1 finding</strong> (as of Aug 25 — run <code>python -m provenance status</code> before recording; the 3 AM job moves these nightly). Scroll the rejection reasons.</p></div>
-  <div class="row"><span class="tag say">Say</span><p class="say-text">So far it has read one thousand four hundred and thirty-seven papers. Two hundred and eighty-eight survived appraisal. Everything else is on file with a reason — not relevant, no quantitative result, ungrounded claim. A system that discards silently is <em>indistinguishable from one that never looked</em>.</p></div>
+  <div class="row"><span class="tag say">Say</span><p class="say-text">So far it has read one thousand four hundred and thirty-seven papers. Two hundred and eighty-eight survived appraisal. Everything else is on file with a reason — not relevant, no quantitative result, ungrounded claim. A system that discards silently is <em>indistinguishable from one that never looked</em>. Every morning it emails me a briefing that says which of two things happened — nothing qualified, or it didn't get through everything — and it never pretends the second is the first.</p></div>
 </div>
 
 <div class="beat">
@@ -214,8 +215,8 @@
 <div class="beat">
   <div class="beat-head"><span class="tc">3:15</span><span class="what">From grounded claims to the reel</span></div>
   <div class="row"><span class="tag do">Run</span><code class="cmd">.venv/bin/python -m provenance content --sweepable</code></div>
-  <div class="row"><span class="tag screen">Screen</span><p>Open a <code>library/*/spec-sweep.json</code> file and expand its <code>_provenance</code> block, then play the reel.</p></div>
-  <div class="row"><span class="tag say">Say</span><p class="say-text">The same grounded evidence becomes a ranked content queue. A human content session chooses the words and the chart. Every digit in this spec maps to a claim id and the verbatim quote that grounded it; then the renderer draws the reviewed spec deterministically.</p></div>
+  <div class="row"><span class="tag screen">Screen</span><p>Open a <code>library/*/spec-sweep.json</code> file and expand its <code>_provenance</code> block, play the reel, then cut to the Instagram insights screenshot (<code>07-reel-insights-126k-views-cropped.png</code>).</p></div>
+  <div class="row"><span class="tag say">Say</span><p class="say-text">The same grounded evidence becomes a ranked content queue. A human content session chooses the words and the chart. Every digit in this spec maps to a claim id and the verbatim quote that grounded it; then the renderer draws the reviewed spec deterministically. The first five reels built this way have passed <em>four hundred thousand organic views</em> — every number on screen is one the code checked.</p></div>
 </div>
 
 <div class="beat">
