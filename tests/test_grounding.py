@@ -51,6 +51,14 @@ class TestQuoteCheck:
         quote = "We  followed 12,345 adults\n  for a median of 8.4 years"
         assert check_claim(_claim(quote=quote), ABSTRACT) is None
 
+    def test_lancet_middle_dot_decimal_passes(self):
+        """The Lancet typesets 'RR 1·33'; a model echoes '1.33'. Same number."""
+        lancet = "incident stroke (RR 1·33, 95% CI 1·11-1·61; p=0·002) for 55 h or more"
+        quote = "incident stroke (RR 1.33, 95% CI 1.11-1.61; p=0.002)"
+        assert check_claim(_claim(quote=quote, value=1.33), lancet) is None
+        # A spaced separator dot is not a decimal point and must not fold.
+        assert normalise("steps · sleep") == "steps · sleep"
+
     def test_paraphrase_fails(self):
         """The whole point: a plausible restatement is not a quote."""
         quote = "The relationship was unaffected by how long each bout lasted"

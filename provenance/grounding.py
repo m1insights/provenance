@@ -38,6 +38,12 @@ _EQUIVALENCES = {
 
 _WHITESPACE = re.compile(r"\s+")
 
+#: The Lancet family typesets the decimal point as a middle dot ("HR 1·33").
+#: A model echoing the span writes "1.33", and the number check parses only
+#: full stops -- so every Lancet claim failed grounding until this fold. Only a
+#: dot BETWEEN digits is a decimal point; a spaced "a · b" separator is not.
+_MIDDLE_DOT_DECIMAL = re.compile(r"(?<=\d)·(?=\d)")
+
 #: Integers and decimals, including the bare-decimal form abstracts favour for
 #: hazard ratios (".82"). Deliberately not scientific notation -- an abstract
 #: writing "1.2e-4" and a claim writing "0.00012" are not the same assertion
@@ -48,6 +54,7 @@ _NUMBER = re.compile(r"\d[\d,]*(?:\.\d+)?|\.\d+")
 def normalise(text: str) -> str:
     """Fold typography and spacing. Never folds words."""
     folded = unicodedata.normalize("NFKC", text)
+    folded = _MIDDLE_DOT_DECIMAL.sub(".", folded)
     for variant, plain in _EQUIVALENCES.items():
         folded = folded.replace(variant, plain)
     return _WHITESPACE.sub(" ", folded).strip().lower()

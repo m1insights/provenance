@@ -152,6 +152,167 @@ ITEMS: list[AgendaItem] = [
         ],
         mesh_terms=["Walking Speed", "Mortality"],
     ),
+    AgendaItem(
+        component_id="content.income",
+        display_name="Income and lifespan",
+        weight=0.0,
+        current_rule=(
+            "CONTENT LANE — no scoring rule to change. The popular belief under "
+            "test: everyone gets roughly the same lifespan — around 78 years in "
+            "the US — and how long you live comes down to genes and luck, not "
+            "money. The registry literature reports a graded, near-linear "
+            "association between household income rank and life expectancy "
+            "at 40, by sex, with the gap between the richest and poorest "
+            "widening over time."
+        ),
+        search_concepts=[
+            "income", "life expectancy", "income percentile",
+            "socioeconomic", "longevity",
+        ],
+        mesh_terms=["Income", "Life Expectancy"],
+    ),
+    # --- Added 2026-08-25: the pool ran thin on sweepable topics. Every item
+    # below is a number the viewer already owns (their bedtime, their blood
+    # pressure, their BMI, their working week), with a graded dose-response
+    # literature whose ABSTRACT tabulates ≥3 points — the shape behind the
+    # four 80K+ reels (steps, sleep hours, resting heart rate, income rank).
+    AgendaItem(
+        component_id="content.workhours",
+        display_name="Working hours",
+        weight=0.0,
+        current_rule=(
+            "CONTENT LANE — no scoring rule to change. The popular belief under "
+            "test: long hours are a career cost, not a health cost — if you are "
+            "young and fit, a 60-hour week is harmless. The pooled-cohort "
+            "literature reports a graded association between usual hours worked "
+            "per week (35–40 reference, 41–48, 49–54, 55+) and stroke and "
+            "coronary heart disease."
+        ),
+        search_concepts=[
+            "long working hours", "working hours", "hours per week",
+            "stroke", "coronary heart disease",
+        ],
+        mesh_terms=["Work Schedule Tolerance", "Workload"],
+    ),
+    AgendaItem(
+        component_id="content.bedtime",
+        display_name="Bedtime",
+        weight=0.0,
+        current_rule=(
+            "CONTENT LANE — no scoring rule to change. The popular belief under "
+            "test: it is the hours of sleep that count, not what time you fall "
+            "asleep. The accelerometer cohort literature reports a graded, "
+            "U-shaped association between sleep-onset time (before 10pm, 10–11pm, "
+            "11pm–midnight, after midnight) and incident cardiovascular disease."
+        ),
+        search_concepts=[
+            "sleep onset timing", "bedtime", "sleep timing",
+            "cardiovascular disease", "chronotype",
+        ],
+        mesh_terms=["Sleep", "Circadian Rhythm"],
+    ),
+    AgendaItem(
+        component_id="content.bloodpressure",
+        display_name="Blood pressure",
+        weight=0.0,
+        current_rule=(
+            "CONTENT LANE — no scoring rule to change. The popular belief under "
+            "test: 120/80 is 'normal' and anything under 140 is fine. The "
+            "literature reports graded cardiovascular risk across blood-pressure "
+            "categories (normal, elevated, stage 1, stage 2) including in young "
+            "adults, and trial meta-analyses report lower event rates at "
+            "achieved systolic levels well below 140."
+        ),
+        search_concepts=[
+            "blood pressure", "systolic blood pressure", "elevated blood pressure",
+            "cardiovascular events", "hypertension classification",
+        ],
+        mesh_terms=["Blood Pressure", "Hypertension"],
+    ),
+    AgendaItem(
+        component_id="content.bmi",
+        display_name="BMI",
+        weight=0.0,
+        current_rule=(
+            "CONTENT LANE — no scoring rule to change. The popular belief under "
+            "test: a BMI under 25 is healthy and the risk only starts above it. "
+            "The pooled-cohort literature reports a J-shaped association between "
+            "body-mass index and all-cause mortality, with the minimum in the "
+            "20–25 band and risk rising on both sides."
+        ),
+        search_concepts=[
+            "body mass index", "all-cause mortality", "dose-response",
+            "obesity", "underweight",
+        ],
+        mesh_terms=["Body Mass Index", "Mortality"],
+    ),
+    AgendaItem(
+        component_id="content.fruitveg",
+        display_name="Five a day",
+        weight=0.0,
+        current_rule=(
+            "CONTENT LANE — no scoring rule to change. The popular belief under "
+            "test: five portions of fruit and veg a day is the target, and more "
+            "is always better. The cohort meta-analysis literature reports a "
+            "dose-response for daily servings against mortality that flattens "
+            "around five servings."
+        ),
+        search_concepts=[
+            "fruit and vegetable", "servings per day", "all-cause mortality",
+            "dose-response", "fruit intake",
+        ],
+        mesh_terms=["Fruit", "Vegetables"],
+    ),
+    AgendaItem(
+        component_id="content.naps",
+        display_name="Naps",
+        weight=0.0,
+        current_rule=(
+            "CONTENT LANE — no scoring rule to change. The popular belief under "
+            "test: a nap is always good rest, and a longer one is better rest. "
+            "The dose-response meta-analysis literature reports no association "
+            "for short naps and rising cardiovascular and all-cause risk once "
+            "nap length passes about 40–60 minutes."
+        ),
+        search_concepts=[
+            "daytime napping", "nap duration", "cardiovascular disease",
+            "all-cause mortality", "dose-response",
+        ],
+        mesh_terms=["Sleep", "Mortality"],
+    ),
+    AgendaItem(
+        component_id="content.screentime",
+        display_name="TV hours",
+        weight=0.0,
+        current_rule=(
+            "CONTENT LANE — no scoring rule to change. The popular belief under "
+            "test: television is harmless downtime. The meta-analysis literature "
+            "reports graded associations per hour of daily TV viewing against "
+            "type 2 diabetes, cardiovascular disease, and all-cause mortality."
+        ),
+        search_concepts=[
+            "television viewing", "screen time", "hours per day",
+            "all-cause mortality", "type 2 diabetes",
+        ],
+        mesh_terms=["Television", "Sedentary Behavior"],
+    ),
+    AgendaItem(
+        component_id="content.lifting",
+        display_name="Strength training minutes",
+        weight=0.0,
+        current_rule=(
+            "CONTENT LANE — no scoring rule to change. The popular belief under "
+            "test: more time lifting is always better. The meta-analysis "
+            "literature reports a J-shaped dose-response for muscle-strengthening "
+            "minutes per week against mortality, with the maximum benefit around "
+            "30–60 minutes and no further gain — or a loss — beyond about 130."
+        ),
+        search_concepts=[
+            "muscle-strengthening", "resistance training", "minutes per week",
+            "all-cause mortality", "dose-response",
+        ],
+        mesh_terms=["Resistance Training", "Mortality"],
+    ),
 ]
 
 
