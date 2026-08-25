@@ -158,8 +158,9 @@ ITEMS: list[AgendaItem] = [
 def lane_items(existing_ids: set[str] | None = None) -> list[AgendaItem]:
     """The lane, minus anything already present.
 
-    A cloud run reads the agenda the last local run published, and that agenda
-    already carries the lane -- appending blindly would duplicate every item.
+    Cloud Run reads the latest agenda GitHub Actions published from synqology's
+    ``launch`` branch. That agenda already carries the lane, so appending
+    blindly would duplicate every item.
     """
     existing = existing_ids or set()
     return [item for item in ITEMS if item.component_id not in existing]

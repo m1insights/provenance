@@ -197,12 +197,9 @@ def latest_agenda(
 ) -> ResearchAgenda | None:
     """The most recently published agenda for a subject.
 
-    The agenda is derived from source files that live in a private repository
-    on a developer machine. A scheduled cloud run has no checkout of them and
-    no business cloning one, so it reads the agenda the last local run
-    published instead. That is not a staleness compromise: the agenda only
-    changes when the algorithm changes, and the algorithm changes where the
-    code is.
+    GitHub Actions derives and publishes the agenda when governing sources land
+    on synqology's ``launch`` branch. The scheduled Cloud Run job reads the
+    latest published agenda without checking out the private Swift sources.
     """
     db = db or client()
     docs = [
