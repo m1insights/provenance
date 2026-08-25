@@ -127,9 +127,9 @@ def build_agenda(subject: SubjectApp, *, refresh: bool = False) -> ResearchAgend
     algorithm change rather than one per nightly run.
     """
     if not subject.exists():
-        # No checkout here. A scheduled run in the cloud reads the agenda the
-        # last local run published rather than failing, because deriving it
-        # requires source that deliberately does not travel to a container.
+        # No checkout here. A scheduled run in the cloud reads the agenda that
+        # CI published rather than failing, because deriving it requires
+        # private source that deliberately does not travel to a container.
         from .store import firestore as store
 
         stored = store.latest_agenda(subject.key)

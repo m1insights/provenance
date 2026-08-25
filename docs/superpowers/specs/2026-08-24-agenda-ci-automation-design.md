@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-24
 
-**Status:** Proposed
+**Status:** Implemented
 
 **Repositories:** `m1insights/provenance`, `m1insights/synq`
 
@@ -12,9 +12,9 @@
 
 Provenance derives its research agenda from synqology's private Vitality Index
 sources. The deployed nightly job cannot read those sources, so it consumes the
-latest agenda published to Firestore. Today that publication depends on a local
-developer action, and the documented `python -m provenance agenda` command does
-not actually publish anything.
+latest agenda published to Firestore. Before this implementation, that
+publication depended on a local developer action, and the documented
+`python -m provenance agenda` command did not publish anything.
 
 Automate agenda publication whenever a governing Vitality Index source lands on
 the production branch. The automation must work while the developer Mac is
@@ -268,3 +268,24 @@ unchanged.
 - A failed publisher cannot remove or partially replace the last valid agenda.
 - The nightly job consumes the agenda digest produced by CI.
 - Documentation and CLI help describe the real publication behavior.
+
+## Verification
+
+- Initial diagnostic GitHub run `32789822072` authenticated successfully with
+  OIDC, then failed because of the same-day upstream `google-api-core 2.35.0`
+  Firestore routing regression. Reviewed hotfix commit
+  `7acd8b7b35500db5cbcdc7a0efd2530f60ec68c4` excludes that release and is
+  published on Provenance `main`.
+- GitHub run `32792349788` published the agenda from synq `launch` commit
+  `fca8b6efe263abca25ef710366900865770edb23` using Provenance publisher commit
+  `7acd8b7b35500db5cbcdc7a0efd2530f60ec68c4`.
+- The published agenda had digest `40af7de0ee3aee9f`, algorithm `VI v2.12.0`,
+  and 11 components. An exact Firestore read returned the same digest, version,
+  and count.
+- GitHub run `32792544850` reported `publication: already current`; its log had
+  no `agenda: reading` and no `generate_content`.
+- Existing nightly execution `provenance-nightly-9rknf` succeeded once in
+  3m53.61s and logged `agenda: no local sources; using published agenda for VI
+  v2.12.0 (digest 40af7de0ee3aee9f)`.
+- The nightly job remained generation 10 on image
+  `us-central1-docker.pkg.dev/sentinel-505814/cloud-run-source-deploy/provenance-nightly@sha256:5bf98b8754905dc0b434cbcd173866df441c9a57d2ecb9ce54168c719ab28557`.

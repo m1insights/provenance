@@ -16,7 +16,10 @@ Provenance is never handed a list of research topics. It **reads the subject
 application's own algorithm** — the prose specification plus both governing
 Swift implementations where the constants live — and derives its research
 agenda from the code. When relevant changes land on synqology's `launch`
-branch, the forthcoming CI workflow will regenerate and publish this agenda.
+branch, GitHub Actions authenticates to Google Cloud with OIDC, derives the
+agenda with Gemini, and publishes it to `provenance_agendas` for the nightly
+Cloud Run job. The private Swift source stays in the synqology CI checkout and
+never enters the Cloud Run image.
 
 The Vitality Index weights cardio at 16 points, scored over a 28-day window,
 crediting any day with at least 20 minutes of exercise. From that, the agenda
@@ -38,8 +41,8 @@ specific constant*.
 
 Change the algorithm and the agenda changes with it — it is cached against a
 digest of the source files, so editing the algorithm invalidates it
-automatically. Nobody has to remember to update a topic list, which means it
-cannot go stale.
+automatically. An exact-digest retry reuses the published agenda and skips
+Gemini.
 
 **System map:** https://claude.ai/code/artifact/80430eb1-ef05-4f9c-8ec9-f858b2db956d
 — the whole loop with real numbers on the arrows, and what each stage refuses.
@@ -49,9 +52,16 @@ cannot go stale.
 ## The pipeline
 
 ```
-Cloud Scheduler (nightly)
+synq launch push
       │
       ▼
+GitHub Actions (OIDC) ── Gemini ── provenance_agendas
+                                             │
+Cloud Scheduler (nightly) ───────────────────┤
+                                             ▼
+                               Cloud Run Job (nightly)
+                                             │
+                                             ▼
   SCOUT ──── PubMed · Europe PMC, one query dialect each, DOI-first dedupe
       ▼
   TRIAGE ─── gemini-3.5-flash-lite · relevance only, one cheap question
@@ -142,7 +152,7 @@ cp .env.example .env          # then fill in
 gcloud auth login             # credentials are borrowed from here if ADC is unavailable
 
 python -m provenance agenda --detail    # the algorithm, as the fleet understands it
-python -m provenance agenda --publish   # explicit Firestore synchronization; invoked by the forthcoming CI workflow
+python -m provenance agenda --publish   # explicit operator recovery for the automated Firestore synchronization
 python -m provenance sweep              # retrieve and persist new literature
 python -m provenance appraise           # triage, grade, verify grounding
 python -m provenance synthesise --show-gated

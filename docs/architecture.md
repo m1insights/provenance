@@ -13,15 +13,20 @@ Index scores users out of 100 across eleven weighted components.
 
 ```mermaid
 flowchart TB
-    SCHED["Cloud Scheduler<br/>nightly 03:00"] --> AGENDA
+    SYNQ["synq launch push"] --> CI["GitHub Actions<br/>OIDC"]
 
-    subgraph DERIVE["Agenda — derived from the app's own code"]
+    subgraph DERIVE["Agenda publication — private synqology CI checkout"]
         AGENDA["build_agenda()<br/>gemini-3.7-flash"]
-        SRC[("LONGEVITY_FEATURE_STACK.md<br/>VitalityIndexCalculator.swift")]
-        SRC --> AGENDA
-        AGENDA -->|"cached by source digest"| ITEMS["11 components<br/>current rule + search terms"]
+        SRC[("LONGEVITY_FEATURE_STACK.md<br/>VitalityIndexCalculator.swift<br/>ShiftWorkAdjuster.swift")]
+        SRC --> CI
+        CI -->|"new digest"| AGENDA
+        AGENDA -->|"publish by source digest"| AGENDAS[("Firestore<br/>provenance_agendas")]
+        CI -->|"exact digest: reuse<br/>skip Gemini"| AGENDAS
     end
 
+    SCHED["Cloud Scheduler<br/>nightly 03:00"] --> NIGHTLY["Cloud Run Job<br/>provenance-nightly"]
+    AGENDAS -->|"read published digest"| NIGHTLY
+    NIGHTLY --> ITEMS["11 components<br/>current rule + search terms"]
     ITEMS --> SCOUT
 
     subgraph FLEET["ADK agent fleet — Cloud Run"]
@@ -83,9 +88,10 @@ mvpa (Cardio) · 16pt · 28-day window
           · "accumulated physical activity"
 ```
 
-The agenda is cached against a SHA of those source files, so **editing the
-algorithm invalidates the research agenda automatically**. Nobody has to
-remember to update a topic list, which means it cannot go stale.
+The agenda is cached against a SHA of the complete source set, so **editing any
+governing source invalidates the research agenda automatically**. A push to
+synqology's `launch` branch publishes the new digest through GitHub Actions;
+an exact-digest retry reuses the Firestore document and skips Gemini.
 
 ---
 
@@ -176,11 +182,14 @@ production branch that can drift from the one under test.
 
 Two things about it are deliberate:
 
-**The cloud job does not read the algorithm.** It reads the agenda a local run
-published to Firestore. The subject application lives in a private repository
-and deriving the agenda from source is a developer-machine concern; the source
-does not travel to a container. Since the agenda only changes when the
-algorithm changes, and that happens where the code is, nothing goes stale.
+**The cloud job does not read the algorithm.** The deployed handoff is `synq`
+`launch` push → GitHub Actions/OIDC → Gemini → `provenance_agendas` → nightly
+Cloud Run. GitHub Actions reads the private source in the synqology checkout
+and publishes only the derived agenda; the private Swift source never enters
+the Cloud Run image. An exact-digest retry reads the existing Firestore
+document and skips Gemini. If the automated publisher needs operator recovery,
+run `python -m provenance agenda --publish` from a checkout containing the
+governing sources.
 
 **Opening pull requests is off on the schedule.** A draft PR is cheap to close
 and still a notification to a person. One arriving nightly for the same finding
