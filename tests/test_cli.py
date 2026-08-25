@@ -117,6 +117,8 @@ def test_agenda_publish_reuses_exact_digest_without_gemini_or_write(
 ):
     agenda = _research_agenda()
     db = object()
+    subject = SimpleNamespace(key="synqology", exists=lambda: True)
+    monkeypatch.setattr(cli, "_subject", lambda _name: subject)
     monkeypatch.setattr(store, "client", lambda: db)
     monkeypatch.setattr(cli, "source_digest", lambda _subject: "digest")
     monkeypatch.setattr(
@@ -143,6 +145,8 @@ def test_agenda_publish_builds_and_saves_missing_digest(monkeypatch, capsys):
     agenda = _research_agenda()
     db = object()
     saved: list[ResearchAgenda] = []
+    subject = SimpleNamespace(key="synqology", exists=lambda: True)
+    monkeypatch.setattr(cli, "_subject", lambda _name: subject)
     monkeypatch.setattr(store, "client", lambda: db)
     monkeypatch.setattr(cli, "source_digest", lambda _subject: "digest")
     monkeypatch.setattr(
@@ -162,6 +166,8 @@ def test_agenda_refresh_skips_remote_hit_and_overwrites(monkeypatch, capsys):
     agenda = _research_agenda()
     db = object()
     calls: list[bool] = []
+    subject = SimpleNamespace(key="synqology", exists=lambda: True)
+    monkeypatch.setattr(cli, "_subject", lambda _name: subject)
     monkeypatch.setattr(store, "client", lambda: db)
     monkeypatch.setattr(cli, "source_digest", lambda _subject: "digest")
     monkeypatch.setattr(
@@ -187,6 +193,8 @@ def test_agenda_refresh_skips_remote_hit_and_overwrites(monkeypatch, capsys):
 
 def test_agenda_publish_propagates_firestore_failure(monkeypatch):
     agenda = _research_agenda()
+    subject = SimpleNamespace(key="synqology", exists=lambda: True)
+    monkeypatch.setattr(cli, "_subject", lambda _name: subject)
     monkeypatch.setattr(store, "client", lambda: object())
     monkeypatch.setattr(cli, "source_digest", lambda _subject: "digest")
     monkeypatch.setattr(store, "agenda_for_digest", lambda *_args, **_kwargs: None)
@@ -205,6 +213,8 @@ def test_agenda_publish_propagates_firestore_failure(monkeypatch):
 
 
 def test_agenda_publish_propagates_generation_failure(monkeypatch):
+    subject = SimpleNamespace(key="synqology", exists=lambda: True)
+    monkeypatch.setattr(cli, "_subject", lambda _name: subject)
     monkeypatch.setattr(store, "client", lambda: object())
     monkeypatch.setattr(cli, "source_digest", lambda _subject: "digest")
     monkeypatch.setattr(store, "agenda_for_digest", lambda *_args, **_kwargs: None)
