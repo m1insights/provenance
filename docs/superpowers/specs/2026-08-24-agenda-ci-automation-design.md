@@ -271,21 +271,22 @@ unchanged.
 
 ## Verification
 
-- Initial diagnostic GitHub run `32789822072` authenticated successfully with
+- Historical diagnostic run `32789822072` authenticated successfully with
   OIDC, then failed because of the same-day upstream `google-api-core 2.35.0`
-  Firestore routing regression. Reviewed hotfix commit
-  `7acd8b7b35500db5cbcdc7a0efd2530f60ec68c4` excludes that release and is
-  published on Provenance `main`.
-- GitHub run `32792349788` published the agenda from synq `launch` commit
-  `fca8b6efe263abca25ef710366900865770edb23` using Provenance publisher commit
-  `7acd8b7b35500db5cbcdc7a0efd2530f60ec68c4`.
-- The published agenda had digest `40af7de0ee3aee9f`, algorithm `VI v2.12.0`,
+  Firestore routing regression. Hotfix commit
+  `7acd8b7b35500db5cbcdc7a0efd2530f60ec68c4` excluded that release; subsequent
+  broad-review fixes culminated in final deployed publisher commit
+  `f3669efc4bd492c09249ccbe5050f1ef15d53b05`.
+- First corrected GitHub run `32796091430` published the agenda from synq
+  `launch` commit `fca8b6efe263abca25ef710366900865770edb23`
+  using the final publisher commit.
+- The corrected agenda had digest `ebee29ff74af73f4`, algorithm `VI v2.12.0`,
   and 11 components. An exact Firestore read returned the same digest, version,
   and count.
-- GitHub run `32792544850` reported `publication: already current`; its log had
-  no `agenda: reading` and no `generate_content`.
-- Existing nightly execution `provenance-nightly-9rknf` succeeded once in
-  3m53.61s and logged `agenda: no local sources; using published agenda for VI
-  v2.12.0 (digest 40af7de0ee3aee9f)`.
+- Retry `32797106547` reported `publication: already current`; its log had no
+  source reads and no `generate_content`.
+- Existing nightly execution `provenance-nightly-g9j6v` succeeded once in
+  4m2.57s and logged `agenda: no local sources; using published agenda for VI
+  v2.12.0 (digest ebee29ff74af73f4)`.
 - The nightly job remained generation 10 on image
   `us-central1-docker.pkg.dev/sentinel-505814/cloud-run-source-deploy/provenance-nightly@sha256:5bf98b8754905dc0b434cbcd173866df441c9a57d2ecb9ce54168c719ab28557`.
