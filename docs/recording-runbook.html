@@ -106,6 +106,10 @@
   .tag.do { color: var(--live); }
   .tag.say { color: var(--say); }
   .tag.note { color: var(--warn); }
+  .tag.flip { color: var(--live); }
+  .row.flip { background: var(--sunk); border-left: 3px solid var(--live); border-radius: 0 7px 7px 0; padding: 9px 12px; margin-left: -12px; }
+  .row.flip p { color: var(--ink); font-weight: 600; }
+  .row.flip p small { display: block; font-weight: 400; color: var(--ink-2); margin-top: 2px; }
 
   .row p { margin: 0; font-size: 15.5px; color: var(--ink-2); }
   .say-text {
@@ -154,76 +158,96 @@
 </div>
 
 <h2>Before you record</h2>
-<p class="lede">Windows in this order, left to right. The last one stays closed on purpose.</p>
+<p class="lede">Eleven windows, numbered W1–W11. The beats below say exactly which one to flip to and when.</p>
 
 <div class="prep">
-  <label><input type="checkbox"><div><b>1 · App Store page for synqology</b><span>Safari. First shot of the video — or the Vitality Index screenshot in <code>~/Desktop/provenance-hackathon-screenshots/</code>.</span></div></label>
-  <label><input type="checkbox"><div><b>2 · <code>LONGEVITY_FEATURE_STACK.md</code></b><span>Scrolled to Section 3, the eleven components.</span></div></label>
-  <label><input type="checkbox"><div><b>3 · Terminal in <code>~/Dev/provenance</code></b><span>Cleared. You'll run three commands from here.</span></div></label>
-  <label><input type="checkbox"><div><b>4 · The console, unlocked</b><span>provenance-console-vwe3lj6lwq-uc.a.run.app — POST your write token to <code>/unlock</code> first so the buttons are live.</span></div></label>
-  <label><input type="checkbox"><div><b>5 · GitHub: <code>synq#2</code>, on the Files changed tab</b><span>Scrolled to the diff, ready to point at the guard clause.</span></div></label>
-  <label><input type="checkbox"><div><b>6 · Google Cloud Console, signed in as the project owner, three tabs pre-loaded</b><span>Logs Explorer filtered to the <code>provenance-nightly</code> job (the <code>gemini-3.7-flash</code> request lines), Cloud Run → Jobs → <code>provenance-nightly</code> → Executions (the 03:00 rows), and Cloud Scheduler showing <code>provenance-nightly-0300</code>. This is the hackathon's hard requirement — proof the backend runs on GCP. Don't navigate to it live.</span></div></label>
-  <label><input type="checkbox"><div><b>7 · GitHub: <code>synq</code> → Actions → latest green <em>Publish Provenance agenda</em> run</b><span>On the job page, so the step list ("Authenticate to Google Cloud", "Build and publish agenda") is visible.</span></div></label>
-  <label><input type="checkbox"><div><b>8 · Preview: Instagram insights screenshot + the Chetty reel</b><span><code>07-reel-insights-126k-views-cropped.png</code> open in Preview; <code>library/2026-08-23-income-rich-live-longer/reel.mp4</code> open in QuickTime, paused at frame one.</span></div></label>
-  <label><input type="checkbox"><div><b>9 · <code>docs/architecture.md</code>, scrolled to the diagram</b><span>Final shot.</span></div></label>
+  <label><input type="checkbox"><div><b>W1 · App Store page for synqology</b><span>Safari — or <code>10-synqology-vitality-index-cropped.png</code> in Preview. First shot.</span></div></label>
+  <label><input type="checkbox"><div><b>W2 · <code>LONGEVITY_FEATURE_STACK.md</code> in Chrome</b><span><code>file:///Users/m1labs/Dev/apps/synqology/synq/LONGEVITY_FEATURE_STACK.md</code>, Cmd+F <code>## 3. Vitality Index</code> so the eleven components are on screen.</span></div></label>
+  <label><input type="checkbox"><div><b>W3 · Terminal in <code>~/Dev/provenance</code></b><span>Cleared, venv active. Three commands run from here.</span></div></label>
+  <label><input type="checkbox"><div><b>W4 · The review console</b><span>provenance-console-vwe3lj6lwq-uc.a.run.app — address bar visible. Unlocking is optional; the finding already reads APPROVED.</span></div></label>
+  <label><input type="checkbox"><div><b>W5 · GitHub <code>synq#2</code>, Conversation tab</b><span>Scrolled to "Summary of Changes" — the evidence table and the 51/51 backtest line are below it.</span></div></label>
+  <label><input type="checkbox"><div><b>W6 · GitHub <code>synq#2</code>, Files changed on commit <code>0ab75bc</code></b><span>Second tab. <code>ShiftWorkAdjuster.swift</code> guard clause on screen (lines 64–66); the test file is one click down the file tree.</span></div></label>
+  <label><input type="checkbox"><div><b>W7 · GitHub Actions job page</b><span>Latest green <em>Publish Provenance agenda</em> run — step list visible.</span></div></label>
+  <label><input type="checkbox"><div><b>W8 · Google Cloud Console, three tabs, signed in as info@m1labs.io</b><span>Logs Explorer (gemini request lines) · Cloud Run → Jobs → provenance-nightly → Executions · Cloud Scheduler. Hard requirement. Don't navigate live.</span></div></label>
+  <label><input type="checkbox"><div><b>W9 · QuickTime + Preview</b><span>Chetty reel paused at frame one; <code>07-reel-insights-126k-views-cropped.png</code> open.</span></div></label>
+  <label><input type="checkbox"><div><b>W10 · VS Code on <code>provenance/grounding.py</code></b><span>Optional. Only for the 1:15 grounding line — cut it if you're over time.</span></div></label>
+  <label><input type="checkbox"><div><b>W11 · <code>docs/architecture.md</code> rendered on GitHub</b><span>github.com/m1insights/provenance/blob/main/docs/architecture.md — diagram on screen. Final shot.</span></div></label>
 </div>
 
 <h2>The eight beats</h2>
+<p class="lede">Every green <strong>FLIP</strong> row is a window change. Say the line above it, flip, then say the line below it. If a beat has no FLIP row, stay where you are.</p>
 
 <div class="beat">
   <div class="beat-head"><span class="tc">0:00</span><span class="what">The problem, as a fact about one person</span></div>
-  <div class="row"><span class="tag screen">Screen</span><p>App Store page → cut to the feature stack scrolling past the eleven components.</p></div>
-  <div class="row"><span class="tag say">Say</span><p class="say-text">This is a longevity app I built. Its Vitality Index scores you out of a hundred across eleven components. Every threshold in it came from a paper. I'm a pharmacist by training, so I can read those papers — and a solo founder, so I can't read all of them. The literature moves every week, and the gap between a study being published and the algorithm knowing about it is <em>however long it takes me to notice</em>. And a wrong number in the app is the same wrong number in a reel, just faster — so this had to be one evidence pipeline for both.</p></div>
+  <div class="row flip"><span class="tag flip">Flip</span><p>W1 — App Store page (or the Vitality Index screenshot)<small>Hit record on this.</small></p></div>
+  <div class="row"><span class="tag say">Say</span><p class="say-text">This is a longevity app I built. Its Vitality Index scores you out of a hundred across eleven components.</p></div>
+  <div class="row flip"><span class="tag flip">Flip</span><p>W2 — LONGEVITY_FEATURE_STACK.md, Section 3<small>Scroll slowly down the eleven components while you talk.</small></p></div>
+  <div class="row"><span class="tag say">Say</span><p class="say-text">Every threshold in it came from a paper. I'm a pharmacist by training, so I can read those papers — and a solo founder, so I can't read all of them. The literature moves every week, and the gap between a study being published and the algorithm knowing about it is <em>however long it takes me to notice</em>. And a wrong number in the app is the same wrong number in a reel, just faster — so this had to be one evidence pipeline for both.</p></div>
 </div>
 
 <div class="beat">
   <div class="beat-head"><span class="tc">0:30</span><span class="what">It reads your code to decide what to research</span></div>
+  <div class="row flip"><span class="tag flip">Flip</span><p>W3 — Terminal</p></div>
   <div class="row"><span class="tag do">Run</span><code class="cmd">.venv/bin/python -m provenance agenda --detail</code></div>
   <div class="row"><span class="tag say">Say</span><p class="say-text">Provenance is never told what to research. It reads the algorithm's own source and works out what literature would bear on it. Cardio credits a day at twenty minutes and wants three days a week — so it goes hunting for bout-duration and weekend-warrior studies. Not <em>exercise is good for you</em>. The literature that could prove <em>that specific number</em> wrong.</p></div>
   <div class="row"><span class="tag note">Beat</span><p>Pause on the mvpa block. Let them read the search terms.</p></div>
-  <div class="row"><span class="tag screen">Screen</span><p>Cut to GitHub → Actions → <em>Publish Provenance agenda</em>: the green run, the step list, the eleven-component summary.</p></div>
+  <div class="row flip"><span class="tag flip">Flip</span><p>W7 — GitHub Actions job page<small>Point at "Authenticate to Google Cloud" and "Build and publish agenda".</small></p></div>
   <div class="row"><span class="tag say">Say</span><p class="say-text">And that handoff is automatic now. Push a change to one of the three files that govern the algorithm on the production branch, and GitHub Actions publishes the new agenda before the next nightly run — with a short-lived Google credential for that one job, no key stored anywhere. The private Swift source never leaves that checkout. <em>My Mac doesn't have to be on.</em></p></div>
 </div>
 
 <div class="beat">
   <div class="beat-head"><span class="tc">1:00</span><span class="what">The filter — the trust surface</span></div>
-  <div class="row"><span class="tag screen">Screen</span><p>Console counters: <strong>1,437 papers read · 288 appraised · 1,174 rejected · 1 finding</strong> (as of Aug 25 — run <code>python -m provenance status</code> before recording; the 3 AM job moves these nightly). Scroll the rejection reasons.</p></div>
+  <div class="row flip"><span class="tag flip">Flip</span><p>W4 — Review console<small>Address bar in frame — the .run.app domain is the first Google Cloud proof.</small></p></div>
+  <div class="row"><span class="tag screen">Screen</span><p>Counters: <strong>1,437 papers read · 288 appraised · 1,174 rejected · 1 finding</strong> (as of Aug 25 — run <code>python -m provenance status</code> before recording; the 3 AM job moves these nightly). Point at the Rejected counter on "with a reason".</p></div>
   <div class="row"><span class="tag say">Say</span><p class="say-text">So far it has read one thousand four hundred and thirty-seven papers. Two hundred and eighty-eight survived appraisal. Everything else is on file with a reason — not relevant, no quantitative result, ungrounded claim. A system that discards silently is <em>indistinguishable from one that never looked</em>. Every morning it emails me a briefing that says which of two things happened — nothing qualified, or it didn't get through everything — and it never pretends the second is the first.</p></div>
+  <div class="row flip"><span class="tag flip">Flip</span><p>W10 — VS Code, provenance/grounding.py<small>Optional. Skip this flip and the line below if you're over time.</small></p></div>
+  <div class="row"><span class="tag say">Say</span><p class="say-text">Every claim carries a sentence the model says appears in the paper. Code checks that it does — and separately, that the number attached to it appears in that same sentence. A real quote with an invented effect size beside it passes a quote check and <em>fails this one</em>.</p></div>
 </div>
 
 <div class="beat">
   <div class="beat-head"><span class="tc">1:30</span><span class="what">It changed the app</span></div>
-  <div class="row"><span class="tag screen">Screen</span><p><code>synq#2</code>, Files changed tab. Scroll the evidence table, then the backtest line.</p></div>
+  <div class="row flip"><span class="tag flip">Flip</span><p>W5 — synq#2, Conversation tab<small>Scroll through the evidence table to the backtest line while you talk.</small></p></div>
   <div class="row"><span class="tag say">Say</span><p class="say-text">Twenty-two papers converged: hitting your weekly exercise across one or two days tracks with the same mortality outcomes as spreading it out. That contradicts a constant in my code. So it opened this — eleven edits across five files, and it ran my scoring suite against the change. Fifty-one of fifty-one. That number is from xcodebuild, <em>not from a model</em>.</p></div>
+  <div class="row"><span class="tag screen">Screen</span><p>Scroll to the UK Biobank caveat in the PR body.</p></div>
   <div class="row"><span class="tag say">Say</span><p class="say-text">And it worked out on its own that nine of the twenty-two studies are UK Biobank re-analyses. So twenty-two papers is not twenty-two replications. It put that in the pull request <em>instead of leaving me to find it</em>.</p></div>
 </div>
 
 <div class="beat">
   <div class="beat-head"><span class="tc">2:15</span><span class="what">Reading the diff myself ← the one that lands</span></div>
   <div class="row"><span class="tag say">Say</span><p class="say-text">I don't approve a change to a health app off a green test suite. I read every diff myself before deciding. Here's what that caught on the first real one.</p></div>
-  <div class="row"><span class="tag screen">Screen</span><p>Scroll to the guard clause on <code>synq#2</code>. Show the two-line function.</p></div>
+  <div class="row flip"><span class="tag flip">Flip</span><p>W6 — synq#2, Files changed, ShiftWorkAdjuster.swift<small>The guard clause: <code>guard … else { return 2.0 }</code> followed by <code>return 2.0</code>.</small></p></div>
   <div class="row"><span class="tag say">Say</span><p class="say-text">Both branches return the same number. The guard does nothing — and shift workers, people on disrupted schedules, quietly lost an accommodation the comment still says they have. Fifty-one tests passed on this. Both assertions had been updated to the new value, so you could <em>delete the whole thing</em> and the suite stays green. Only reading it catches that.</p></div>
 </div>
 
 <div class="beat">
   <div class="beat-head"><span class="tc">2:45</span><span class="what">The trap — best 20 seconds you have</span></div>
+  <div class="row"><span class="tag screen">Screen</span><p>Stay on W6. Hover the doc comment above the function — "1.33 would cap the day factor at 1/1.33 = 0.75".</p></div>
   <div class="row"><span class="tag say">Say</span><p class="say-text">The obvious fix is to restore the old ratio, which means a denominator of one point three three. That would have been <em>worse</em>. The code divides by it and truncates it to an integer — so every shift worker gets capped at seventy-five percent of the score they earned. Permanently. And no test fails.</p></div>
+  <div class="row flip"><span class="tag flip">Flip</span><p>W6 — click ShiftWorkAdjusterTests.swift in the file tree<small>Land on <code>mvpaDenominatorGivesShiftWorkersAStrictlyEasierBar</code>.</small></p></div>
   <div class="row"><span class="tag say">Say</span><p class="say-text">It's one point zero now, with a test asserting the shift bar stays <em>strictly</em> easier than the default — because pinning each number separately is exactly what let them collide.</p></div>
-  <div class="row"><span class="tag note">Optional</span><p>If you have the time: put the bug back and run the suite. Three tests go red on camera. Cut it if you're over.</p></div>
+  <div class="row"><span class="tag note">Optional</span><p>If you have the time: flip to Xcode, put the bug back, run the suite. Three tests go red on camera. Cut it if you're over.</p></div>
 </div>
 
 <div class="beat">
   <div class="beat-head"><span class="tc">3:15</span><span class="what">From grounded claims to the reel</span></div>
+  <div class="row flip"><span class="tag flip">Flip</span><p>W3 — Terminal</p></div>
   <div class="row"><span class="tag do">Run</span><code class="cmd">.venv/bin/python -m provenance content --sweepable</code></div>
-  <div class="row"><span class="tag screen">Screen</span><p>Open a <code>library/*/spec-sweep.json</code> file and expand its <code>_provenance</code> block, play the reel, then cut to the Instagram insights screenshot (<code>07-reel-insights-126k-views-cropped.png</code>).</p></div>
-  <div class="row"><span class="tag say">Say</span><p class="say-text">The same grounded evidence becomes a ranked content queue. A human content session chooses the words and the chart. Every digit in this spec maps to a claim id and the verbatim quote that grounded it; then the renderer draws the reviewed spec deterministically. The first five reels built this way have passed <em>four hundred thousand organic views</em> — every number on screen is one the code checked.</p></div>
+  <div class="row"><span class="tag say">Say</span><p class="say-text">The same grounded evidence becomes a ranked content queue — papers whose data can actually be drawn.</p></div>
+  <div class="row"><span class="tag do">Run</span><code class="cmd">jq ._provenance library/2026-08-23-income-rich-live-longer/spec-sweep.json</code></div>
+  <div class="row"><span class="tag say">Say</span><p class="say-text">A human content session chooses the words and the chart. Every digit in this spec maps to a claim id and the verbatim quote that grounded it; then the renderer draws the reviewed spec deterministically.</p></div>
+  <div class="row flip"><span class="tag flip">Flip</span><p>W9 — QuickTime, press play<small>Let the reel run ~5 seconds, then flip to Preview.</small></p></div>
+  <div class="row flip"><span class="tag flip">Flip</span><p>W9 — Preview, the Instagram insights screenshot</p></div>
+  <div class="row"><span class="tag say">Say</span><p class="say-text">The first five reels built this way have passed <em>four hundred thousand organic views</em> — every number on screen is one the code checked.</p></div>
 </div>
 
 <div class="beat">
   <div class="beat-head"><span class="tc">3:40</span><span class="what">The human, and the close</span></div>
-  <div class="row"><span class="tag screen">Screen</span><p>Console showing the mvpa finding, <strong>approved</strong>. Then the architecture diagram.</p></div>
+  <div class="row flip"><span class="tag flip">Flip</span><p>W4 — Review console, the mvpa finding marked APPROVED</p></div>
   <div class="row"><span class="tag say">Say</span><p class="say-text">Nothing merges. There is no merge function in this codebase — not a rule in a prompt, an <em>absent tool</em>. I approve or I reject, and a rejection goes back to the agents as guidance.</p></div>
-  <div class="row"><span class="tag say">Say</span><p class="say-text">Gemini for appraisal, ADK for the fleet, Firestore, Cloud Run, Cloud Scheduler — and GitHub Actions with a short-lived federated credential for the agenda. No static API key anywhere; the fleet's service account is the credential. It reads the literature so the algorithm doesn't fall behind it. It shows its working every time. And the most useful thing it does is <em>refuse</em>.</p></div>
+  <div class="row flip"><span class="tag flip">Flip</span><p>W8 — Cloud Console, one tab per word<small>On "Gemini" → Logs Explorer. On "Cloud Run" → the Executions list. On "Cloud Scheduler" → the Scheduler job. On "GitHub Actions" → W7 for two seconds.</small></p></div>
+  <div class="row"><span class="tag say">Say</span><p class="say-text">Gemini for appraisal, ADK for the fleet, Firestore, Cloud Run, Cloud Scheduler — and GitHub Actions with a short-lived federated credential for the agenda. No static API key anywhere; the fleet's service account is the credential.</p></div>
+  <div class="row flip"><span class="tag flip">Flip</span><p>W11 — architecture diagram<small>Hold it through the last line. Stop recording after a two-second beat.</small></p></div>
+  <div class="row"><span class="tag say">Say</span><p class="say-text">It reads the literature so the algorithm doesn't fall behind it. It shows its working every time. And the most useful thing it does is <em>refuse</em>.</p></div>
 </div>
 
 <h2>If a take goes wrong</h2>
