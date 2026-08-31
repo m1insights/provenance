@@ -14,7 +14,7 @@ service-account*.json
 renderer/node_modules/
 renderer/out/
 
-# social asset library: track specs/captions/readme, ignore media
+# the content library and /social playbook are proprietary and stay local
 library/**/*.png
 library/**/frames/
 
@@ -22,3 +22,9 @@ library/**/frames/
 vyvid/
 renderer/templates/reel-*.html
 library/**/voice/*.wav
+library/
+.claude/commands/social.md
+renderer/templates/
+docs/design-brief.md
+design/reference/
+design/compare/

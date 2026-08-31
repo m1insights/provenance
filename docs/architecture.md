@@ -7,6 +7,8 @@ same grounded evidence to make deterministic charts.
 Subject application: **synqology**, a live iOS longevity app whose Vitality
 Index scores users out of 100 across eleven weighted components.
 
+![System architecture](architecture.png)
+
 ---
 
 ## The loop

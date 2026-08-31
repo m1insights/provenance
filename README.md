@@ -8,6 +8,8 @@ Built for the All Things Agentic Hackathon. Subject application: **synqology**,
 a live iOS longevity app whose Vitality Index scores users out of 100 across
 eleven weighted components.
 
+![System architecture](docs/architecture.png)
+
 ---
 
 ## The idea
