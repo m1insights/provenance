@@ -161,11 +161,21 @@ python -m provenance synthesise --show-gated
 python -m provenance status
 ```
 
-Tests:
+## Reproducible testing
+
+The full suite — grounding checks, convergence gates, the draft-only guardrail
+— runs offline with **no cloud credentials and no `.env`**:
 
 ```bash
-python -m pytest tests/ -q
+uv venv --python 3.12 .venv
+VIRTUAL_ENV=.venv uv pip install -r requirements.txt
+.venv/bin/python -m pytest tests/ -q     # 215 tests, ~1 second
 ```
+
+The live pipeline (previous section) needs Google Cloud access; the review
+console is browsable read-only at
+https://provenance-console-vwe3lj6lwq-uc.a.run.app — approve/reject requires a
+write token that stays with the operator.
 
 ---
 
