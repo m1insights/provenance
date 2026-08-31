@@ -21,3 +21,4 @@ library/**/frames/
 # brand-palette reel variants and their content live outside this repo
 vyvid/
 renderer/templates/reel-*.html
+library/**/voice/*.wav

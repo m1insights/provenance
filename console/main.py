@@ -153,6 +153,23 @@ def _esc(text: str) -> str:
     )
 
 
+def _truncate(text: str, limit: int) -> str:
+    """Cut ``text`` to ``limit`` chars on a word boundary, marking the cut.
+
+    A hard character-count slice can stop mid-word or mid-sentence and reads
+    as broken text, not a deliberate summary. Back up to the last space and
+    append an ellipsis so a truncated string always looks intentional.
+    """
+    text = str(text or "")
+    if len(text) <= limit:
+        return text
+    cut = text[:limit].rstrip()
+    boundary = cut.rfind(" ")
+    if boundary > 0:
+        cut = cut[:boundary]
+    return cut.rstrip(".,;:—-") + "…"
+
+
 def _evidence_table(finding: Finding, appraisals, papers) -> str:
     rows = [
         (appraisals[pid], papers[pid])
@@ -210,8 +227,8 @@ def _finding_card(
     <div class="card">
       <div class="meta">{_esc(finding.component_id)} · confidence
         {finding.confidence:.2f} · {_esc(tiers)}</div>
-      <h2>{_esc(finding.statement[:160])}</h2>
-      <div class="stmt"><b>Currently:</b> {_esc(finding.current_behavior[:300])}</div>
+      <h2>{_esc(finding.statement)}</h2>
+      <div class="stmt"><b>Currently:</b> {_esc(_truncate(finding.current_behavior, 300))}</div>
       {changes}
       <div class="links">{" ".join(links)}</div>
       {_evidence_table(finding, appraisals, papers)}
@@ -236,8 +253,8 @@ def _finding_card(
     <div class="card">
       <div class="meta">{_esc(finding.component_id)} · confidence
         {finding.confidence:.2f} · {_esc(tiers)}</div>
-      <h2>{_esc(finding.statement[:160])}</h2>
-      <div class="stmt"><b>Currently:</b> {_esc(finding.current_behavior[:300])}</div>
+      <h2>{_esc(finding.statement)}</h2>
+      <div class="stmt"><b>Currently:</b> {_esc(_truncate(finding.current_behavior, 300))}</div>
       {changes}
       <div class="links">{" ".join(links)}</div>
       {_evidence_table(finding, appraisals, papers)}
