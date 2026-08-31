@@ -1,32 +1,29 @@
-# Demo video — 4 minutes
+# Demo video — ~2.5 minutes
 
 Recording notes: 1080p screen capture, no face cam needed. Every number spoken
-below is real and reproducible; nothing is mocked. Where a command is given,
-run it live rather than showing a recording of it.
+below is real; nothing is mocked. Where a command is given, run it live.
+
+Style note: short sentences, plain words, one idea at a time. If a line needs
+a second read to understand, cut it or split it. Skip anything that isn't
+either (a) the point, or (b) proof for the point. When in doubt, cut it.
 
 ---
 
-## 0:00 – 0:30 · The problem, stated as a fact about one person
+## 0:00 – 0:20 · The app and the problem
 
-**On screen:** synqology on the App Store, then `LONGEVITY_FEATURE_STACK.md`
-scrolling past the eleven scoring components.
+**On screen:** synqology on the App Store, then a quick scroll down
+`LONGEVITY_FEATURE_STACK.md` — don't stop on any one line.
 
-> "This is a longevity app I built. Its Vitality Index scores you out of a
-> hundred across eleven components — sleep, cardio, VO2 max, heart rate
-> variability. Every threshold in it came from a paper.
+> "This is a longevity app I built. It scores your health out of 100, using
+> rules based on medical research.
 >
-> I'm a pharmacist by training, so I can read those papers. I'm also a solo
-> founder — I maintain the algorithm, the marketing, the support and the app —
-> so I can't read all of them. The literature moves every week, and the gap
-> between 'a relevant study was published' and 'the algorithm knows about it'
-> is however long it takes me to notice.
->
-> And the same number that's wrong in the app is wrong in a reel, just faster.
-> So this had to be one evidence pipeline for both."
+> New studies come out every week. I can't read all of them myself. So I
+> built a system that does — and keeps the app's numbers up to date on its
+> own."
 
 ---
 
-## 0:30 – 1:00 · The idea, which is not a topic list
+## 0:20 – 0:45 · It figures out what to check
 
 **On screen:** run it live.
 
@@ -34,204 +31,103 @@ scrolling past the eleven scoring components.
 python -m provenance agenda --detail
 ```
 
-> "Provenance is never told what to research. It reads the algorithm's own
-> source — the spec and the Swift file the constants live in — and works out
-> what literature would bear on it.
+> "It reads my own code to figure out what to research — I don't hand it a
+> topic list.
 >
-> Cardio credits a day at twenty minutes and wants three days a week. So it
-> goes looking for bout-duration and weekend-warrior studies. Not 'exercise is
-> good for you' — the literature that could prove that specific number wrong."
+> For example, my app gives credit for a workout after 20 minutes, and
+> wants 3 of those a week. So it goes and checks: is that still the right
+> number, based on the latest studies?"
 
-**Point at the screen:** the agenda is cached against a digest of those files.
-Edit the algorithm and the research agenda changes with it.
+**Quick flash:** GitHub → synq → Actions, the green "Publish Provenance
+agenda" run. One sentence, then move on.
 
-**Then cut to GitHub → synq → Actions → "Publish Provenance agenda".** Show the
-green run, its step list ("Authenticate to Google Cloud", "Build and publish
-agenda"), and the summary block listing the eleven components.
-
-> "And that handoff is automatic now. Push a change to one of the three files
-> that govern the algorithm on the production branch, and GitHub Actions
-> publishes the new agenda to Firestore before the next nightly run. It gets a
-> short-lived Google credential for that one job — no key stored anywhere —
-> and the private Swift source never leaves that checkout. My Mac doesn't have
-> to be on."
+> "And it publishes what it finds automatically, every night — I don't have
+> to be at my computer."
 
 ---
 
-## 1:00 – 1:45 · The filter, which is the trust surface
+## 0:45 – 1:15 · Proof it's careful, not lazy
 
-**On screen:** the console's counters — 1,437 papers read, 288 appraised,
-1,174 rejected, 1 finding (as of Aug 25; run `python -m provenance status`
-right before recording — the 3:00 AM job moves these nightly).
-Keep the browser's address bar in frame here — the `.run.app` domain is the
-first proof this runs on Google Cloud, not a laptop. Then scroll the
-rejection reasons.
+**On screen:** the console's counters — 1,681 papers read, 336 appraised,
+1,370 rejected, 2 findings (as of Aug 31; run `python -m provenance status`
+right before recording — the 3 AM job moves these numbers). Two findings
+show now — point at the **APPROVED** one, not the OPEN one.
+Keep the address bar in frame — the `.run.app` domain shows this is running
+on Google Cloud, not a laptop.
 
-> "So far it has read one thousand four hundred and thirty-seven papers. Two
-> hundred and eighty-eight survived appraisal.
+> "It's read one thousand six hundred eighty-one papers so far. Only three
+> hundred thirty-six were solid enough to use.
 >
-> Everything else is on file with a reason: not relevant, no quantitative
-> result, ungrounded claim, insufficient convergence. A system that discards
-> silently is indistinguishable from one that never looked.
->
-> Every morning it emails me a briefing — and it says which of two things
-> happened: nothing qualified, or it didn't get through everything. Those are
-> different, and it never pretends the second one is the first."
-
-**Then the grounding check, in the editor:**
-
-> "Every claim carries a sentence the model says appears in the paper — the
-> abstract, or the PubMed Central full text when there is one. Code checks
-> that it does. And separately, that the number attached to it appears
-> in that same sentence — because a real quote with an invented effect size
-> beside it passes a quote check and fails this one."
+> Everything else got rejected, and it wrote down why. So I always know it
+> did the work — it's not just skimming."
 
 ---
 
-## 1:45 – 2:30 · It proposes a change to production
+## 1:15 – 1:45 · It writes the fix itself
 
-**On screen:** GitHub — issue #1, then draft PR #2, scrolling the evidence
-table and the backtest.
+**On screen:** GitHub PR #2, scrolled to the evidence table.
 
-> "Twenty-two papers converged on one thing: hitting your weekly exercise
-> across one or two days tracks with the same mortality outcomes as spreading
-> it out. That contradicts a constant in my code.
+> "It found twenty-two studies that all agreed on something my app had
+> wrong. So it wrote the code fix itself, and ran my tests.
 >
-> So it opened this. Eleven edits across five files — the constant, both call
-> sites, the pinned tests, and the version history entry, because my own
-> contributing rules require all of them.
->
-> It ran my scoring suite against the change: fifty-one of fifty-one pass. That
-> number is from xcodebuild, not from a model."
-
-**Scroll to the caveat.** Read it aloud:
-
-> "And it worked out on its own that nine of the twenty-two studies are UK
-> Biobank re-analyses, so twenty-two papers is not twenty-two replications. It
-> put that in the pull request instead of leaving me to find it."
+> All fifty-one passed."
 
 ---
 
-## 2:30 – 3:05 · Reading the diff myself
+## 1:45 – 2:05 · Same system runs my social videos
 
-**On screen:** the pull request on GitHub, scrolled to the diff.
+**On screen:** play the reel, then the Instagram insights screenshot.
 
-> "I don't approve a change to a health app off a green test suite. I read
-> every diff myself before deciding. Here's what that caught on the first
-> real one."
-
-**Scroll to the guard clause. Read the finding aloud:**
-
-```swift
-guard let schedule = schedule, schedule.isEnabled, schedule.isShiftWorker else { return 2.0 }
-return 2.0
-```
-
-> "Both branches return the same number. The guard does nothing. And shift
-> workers — people on disrupted schedules — quietly lost an accommodation the
-> comment still says they have.
+> "The same fact-checked research also powers my Instagram videos — every
+> number on screen is one this system verified first.
 >
-> Fifty-one tests passed on this. Both assertions had been updated to the new
-> value, so you could delete the whole guard and the suite stays green. Only
-> reading it catches that."
-
-**Then the trap, which is the best 15 seconds in the video:**
-
-> "The obvious fix is to restore the old ratio, which means a denominator of
-> 1.33. That would have been worse. The code divides by it *and* truncates it
-> to an integer — so every shift worker gets capped at 75% of the score they
-> earned. Permanently. No test fails.
->
-> It's 1.0 now, with a test that asserts the shift bar stays strictly easier
-> than the default — because pinning each number separately is exactly what let
-> them collide in the first place."
-
-**Show the mutation test.** Put the bug back, run the suite, three tests go red.
-
-## 3:05 – 3:20 · From grounded claims to the reel
-
-**On screen:** show the ranked sweepable queue.
-
-```
-python -m provenance content --sweepable
-```
-
-> "The same grounded evidence becomes the content queue. This view ranks papers
-> whose data can actually be shown — at least three grounded points on one axis
-> for the sweep format."
-
-**Open** `library/*/spec-sweep.json` and expand its `_provenance` block.
-
-> "A human content session chooses the words and chart. Every digit in the spec
-> maps back to a claim id and the verbatim quote that grounded it; the renderer
-> then draws that reviewed spec deterministically."
-
-**Then play the reel, and cut to the Instagram insights screenshot**
-(`~/Desktop/provenance-hackathon-screenshots/07-reel-insights-126k-views-cropped.png`).
-
-> "The first five reels built on this evidence have passed four hundred
-> thousand views on Instagram. All organic. Same pipeline, same grounding —
-> the number on screen is a number the code checked."
+> My first five videos made this way passed four hundred thousand views."
 
 ---
 
-## 3:20 – 3:45 · The human decides
+## 2:05 – 2:30 · I approve everything, and it's real
 
-**On screen:** the console, approving the finding.
+**On screen:** the console, the finding marked APPROVED. Then three Google
+Cloud Console tabs — Logs, Cloud Run, Cloud Scheduler — one per beat, fast.
+Close on the architecture diagram.
 
-> "Nothing merges. There is no merge function in this codebase — not a rule in
-> a prompt, an absent tool, and a callback that refuses any pull request that
-> isn't a draft on a branch it owns.
+> "Nothing goes live without me. I approve or reject every single change.
 >
-> I approve or I reject. A rejection is recorded with a reason, and that reason
-> goes back to the agents as guidance for the next run."
-
----
-
-## 3:45 – 4:00 · Stack, and close
-
-**On screen:** cut between the architecture diagram and the Cloud Console —
-this is the hackathon's required proof the backend actually runs on Google
-Cloud, not just a claim in the diagram. Timed to the words below:
-
-- On "Vertex AI" — Logs Explorer filtered to the `provenance-nightly` job
-  with the `Sending out request, model: gemini-3.7-flash, backend:
-  VERTEX_AI` lines visible (the Vertex data-access audit log is not enabled,
-  so an `aiplatform.googleapis.com` filter comes back empty — use the job log).
-- On "Cloud Run" — the Cloud Run **Jobs** list, `provenance-nightly`, with a
-  completed execution open so the timestamp is visible on screen.
-- On "Cloud Scheduler" — the trigger firing `provenance-nightly` at 03:00.
-- On "GitHub Actions" — a two-second flash of the green "Publish Provenance
-  agenda" run from 0:45; the step list is enough.
-
-> "Gemini 3.7 Flash for appraisal, 3.5 Flash-Lite for triage. ADK for the
-> fleet. Vertex AI, Firestore, Cloud Run, Cloud Scheduler — and GitHub Actions
-> with a short-lived federated credential for the agenda. No static API key
-> anywhere; the fleet's service account is the credential.
+> And this isn't just running on my laptop — it's real Google Cloud
+> infrastructure, running on its own every night.
 >
-> It reads the literature so the algorithm doesn't fall behind it. It shows its
-> working every time. And the most useful thing it does is refuse."
+> It keeps my app honest. And I'm still the one who decides."
 
 ---
 
 ## Things to have open before recording
 
-1. synqology App Store page (or the Vitality Index screenshot at
+1. synqology App Store page (or the screenshot at
    `~/Desktop/provenance-hackathon-screenshots/10-synqology-vitality-index-cropped.png`)
 2. `LONGEVITY_FEATURE_STACK.md`
 3. Terminal in `provenance`, venv active
-4. github.com/m1insights/synq — issue #1 and PR #2, scrolled to the diff
-5. The console, unlocked with the write token — address bar visible, not
-   cropped, so the `.run.app` domain reads on camera
+4. github.com/m1insights/synq — PR #2, scrolled to the evidence table
+5. The console, unlocked with the write token — address bar visible so the
+   `.run.app` domain reads on camera
 6. Google Cloud Console, signed in as the account that owns the project,
-   three tabs pre-loaded: Logs Explorer filtered to the `provenance-nightly`
-   job with `gemini-3.7-flash` request lines visible, Cloud Run → Jobs →
-   `provenance-nightly` → Executions (the 03:00 rows), and Cloud Scheduler
-   showing `provenance-nightly-0300` — this is the hard requirement ("must
-   demonstrate the backend is running on Google Cloud"), don't discover
-   navigation live
-7. github.com/m1insights/synq → Actions → the latest green "Publish Provenance
-   agenda" run, on the job page so the step list is visible
-8. Preview: `07-reel-insights-126k-views-cropped.png` and the Chetty reel
-   (`library/2026-08-23-income-rich-live-longer/reel.mp4`) queued in QuickTime
+   three tabs pre-loaded: Logs Explorer filtered to `provenance-nightly`
+   with `gemini` request lines visible, Cloud Run → Jobs →
+   `provenance-nightly` → Executions, Cloud Scheduler showing
+   `provenance-nightly-0300` — this is the hard requirement ("must
+   demonstrate the backend is running on Google Cloud"), don't navigate live
+7. github.com/m1insights/synq → Actions → the latest green "Publish
+   Provenance agenda" run
+8. Preview: the Instagram insights screenshot, and the Chetty reel queued
+   in QuickTime
 9. `docs/architecture.md` scrolled to the diagram — the closing shot
+
+**Cut from the old script, on purpose:** the double grounding-check
+explanation (quote check vs. number check), the UK Biobank re-analysis
+caveat, the "eleven edits across five files" detail, the exact 1.33 →
+75%-cap math, the `jq` / `_provenance` JSON walkthrough, the full stack
+name-drop (Gemini/ADK/Firestore/etc.), and the whole "I read every line
+myself and caught a bug" beat (the guard-clause / commit `5f342ef` story).
+That last one is real and verified — it's just not in the video anymore. It
+still lives in `docs/devpost-submission.md` and `docs/architecture.md` if
+you want to point someone to it in writing. If you want any of this back,
+the prior version is in git history.
