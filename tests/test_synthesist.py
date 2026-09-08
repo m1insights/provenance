@@ -5,11 +5,23 @@ It runs before any model is consulted, so it is testable in full.
 
 from __future__ import annotations
 
+import asyncio
+from unittest.mock import AsyncMock, patch
+
 from provenance.agents.synthesist import (
     MIN_CHALLENGERS,
     gate,
+    synthesise,
 )
-from provenance.models import Alignment, Appraisal, Claim, EvidenceTier
+from provenance.config import SUBJECTS
+from provenance.models import (
+    Alignment,
+    AgendaItem,
+    Appraisal,
+    Claim,
+    EvidenceTier,
+    ResearchAgenda,
+)
 
 QUOTE = "bout duration did not modify the mortality benefit of activity"
 
@@ -269,3 +281,77 @@ class TestOneRunDoesNotFloodTheReviewer:
     def test_the_cap_is_small_enough_to_be_read(self):
         from provenance.agents.synthesist import MAX_FINDINGS_PER_RUN
         assert 1 <= MAX_FINDINGS_PER_RUN <= 3
+
+
+class TestQuotaRetryIsScopedToOneComponent:
+    """A 429 on one component must not re-run a component that already
+    succeeded -- that was the bug: retrying the whole ``synthesise()`` loop
+    re-issued LLM calls for every component ahead of the one that hit quota.
+    """
+
+    def _agenda(self) -> ResearchAgenda:
+        return ResearchAgenda(
+            subject_key="synqology",
+            algorithm_version="VI test",
+            source_digest="digest",
+            items=[
+                AgendaItem(
+                    component_id="mvpa",
+                    display_name="Cardio",
+                    weight=20,
+                    current_rule="20 minutes of moderate-to-vigorous activity",
+                ),
+                AgendaItem(
+                    component_id="sleep",
+                    display_name="Sleep",
+                    weight=15,
+                    current_rule="7-9 hours nightly",
+                ),
+            ],
+        )
+
+    def _payload(self, component: str) -> dict:
+        return {
+            "statement": f"{component} evidence converged.",
+            "current_behavior": "unchanged",
+            "proposed_changes": [
+                {
+                    "file_path": "algorithm.py",
+                    "symbol": component.upper(),
+                    "current_value": "old",
+                    "proposed_value": "new",
+                    "rationale": "evidence",
+                }
+            ],
+            "confidence": 0.7,
+        }
+
+    def test_a_retried_component_does_not_recompute_an_earlier_one(self):
+        agenda = self._agenda()
+        appraisals = _distinct(3, component="mvpa") + _distinct(3, component="sleep")
+        calls: list[str] = []
+
+        async def fake_run(_agent, prompt: str) -> dict:
+            component = "mvpa" if "COMPONENT: mvpa" in prompt else "sleep"
+            calls.append(component)
+            # The second component ("sleep") is quota-exhausted on its first
+            # attempt only, then succeeds on retry.
+            if component == "sleep" and calls.count("sleep") == 1:
+                error = RuntimeError("429 RESOURCE_EXHAUSTED")
+                error.status_code = 429  # type: ignore[attr-defined]
+                raise error
+            return self._payload(component)
+
+        with patch("provenance.agents.synthesist.LlmAgent", return_value=AsyncMock()), \
+             patch("provenance.agents.synthesist.llm_model", return_value=object()), \
+             patch("provenance.agents.appraiser._run", side_effect=fake_run), \
+             patch("asyncio.sleep", new=AsyncMock(return_value=None)):
+            findings, _gated = asyncio.run(
+                synthesise(SUBJECTS["synqology"], agenda, appraisals, {})
+            )
+
+        # "mvpa" (first in the agenda) must have been called exactly once --
+        # a whole-function retry would have called it twice.
+        assert calls.count("mvpa") == 1
+        assert calls.count("sleep") == 2
+        assert {f.component_id for f in findings} == {"mvpa", "sleep"}
