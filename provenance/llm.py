@@ -16,13 +16,17 @@ from __future__ import annotations
 import logging
 import re
 from functools import lru_cache
+from typing import Awaitable, Callable, TypeVar
 
 from google.adk.models.google_llm import Gemini
+from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
 
 from . import auth
 from .config import settings
 
 log = logging.getLogger(__name__)
+
+T = TypeVar("T")
 
 _QUOTA_MESSAGE = re.compile(
     r"(?:"
@@ -65,6 +69,30 @@ def is_quota_error(exc: BaseException) -> bool:
     except Exception:
         return False
     return bool(_QUOTA_MESSAGE.search(message))
+
+
+async def call_with_quota_retry(fn: Callable[[], Awaitable[T]]) -> T:
+    """Run ``fn`` once, retrying only 429 quota exhaustion, with backoff.
+
+    A single busy night otherwise costs the whole stage: the model's per-minute
+    quota is shared across every stage in the same run, so triage and appraisal
+    can spend it before synthesis gets a turn. Waiting a few minutes and trying
+    again is usually enough for the per-minute budget to refill -- no retry
+    existed anywhere in this path before, so a transient 429 always fell
+    straight through to the fail-soft "did not finish tonight" outcome. Any
+    other exception is not retried; it is not a capacity problem.
+    """
+
+    @retry(
+        retry=retry_if_exception(is_quota_error),
+        wait=wait_exponential(multiplier=30, max=180),
+        stop=stop_after_attempt(4),
+        reraise=True,
+    )
+    async def _attempt() -> T:
+        return await fn()
+
+    return await _attempt()
 
 
 @lru_cache(maxsize=8)
