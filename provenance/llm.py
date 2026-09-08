@@ -19,7 +19,13 @@ from functools import lru_cache
 from typing import Awaitable, Callable, TypeVar
 
 from google.adk.models.google_llm import Gemini
-from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
+from tenacity import (
+    before_sleep_log,
+    retry,
+    retry_if_exception,
+    stop_after_attempt,
+    wait_exponential_jitter,
+)
 
 from . import auth
 from .config import settings
@@ -85,8 +91,9 @@ async def call_with_quota_retry(fn: Callable[[], Awaitable[T]]) -> T:
 
     @retry(
         retry=retry_if_exception(is_quota_error),
-        wait=wait_exponential(multiplier=30, max=180),
+        wait=wait_exponential_jitter(initial=30, max=180),
         stop=stop_after_attempt(4),
+        before_sleep=before_sleep_log(log, logging.WARNING),
         reraise=True,
     )
     async def _attempt() -> T:

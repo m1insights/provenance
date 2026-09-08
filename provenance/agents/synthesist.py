@@ -29,6 +29,7 @@ from pydantic import BaseModel, Field
 
 from ..config import REASONING_MODEL, SubjectApp
 from ..content_agenda import is_content_component
+from ..llm import call_with_quota_retry
 from ..llm import model as llm_model
 from ..models import (
     AgendaItem,
@@ -342,7 +343,16 @@ async def synthesise(
             rejections.append(suppressed)
             continue
 
-        finding = await _synthesise_one(agent, subject, item, challengers, papers)
+        # Retried per component, not around the whole loop: the model's
+        # per-minute quota is shared across every stage of the run, so a 429
+        # here is expected to be transient. Retrying the whole function
+        # instead would re-issue LLM calls for every component that already
+        # succeeded before the one that hit quota -- burning several times
+        # the intended budget on work already done, and risking a different
+        # (temperature > 0) answer for a component that had already settled.
+        finding = await call_with_quota_retry(
+            lambda: _synthesise_one(agent, subject, item, challengers, papers)
+        )
         if finding is None:
             rejections.append(
                 Rejection(

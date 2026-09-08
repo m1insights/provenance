@@ -28,7 +28,7 @@ from . import notify
 from .agents.synthesist import synthesise
 from .backlog import select_for_appraisal
 from .config import SUBJECTS, SubjectApp
-from .llm import call_with_quota_retry, is_quota_error
+from .llm import is_quota_error
 from .models import Appraisal, Finding, FindingStatus, Paper
 from .store import firestore as store
 
@@ -201,10 +201,8 @@ async def run(
         }
     else:
         try:
-            findings, gated = await call_with_quota_retry(
-                lambda: synthesise(
-                    subject, result.agenda, all_appraisals, papers, prior_findings=prior
-                )
+            findings, gated = await synthesise(
+                subject, result.agenda, all_appraisals, papers, prior_findings=prior
             )
         except Exception as exc:
             # Only provider quota exhaustion is fail-soft. Programming and
