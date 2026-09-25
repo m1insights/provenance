@@ -313,6 +313,134 @@ ITEMS: list[AgendaItem] = [
         ],
         mesh_terms=["Resistance Training", "Mortality"],
     ),
+    AgendaItem(
+        component_id="content.vigorous",
+        display_name="Vigorous minutes",
+        weight=0.0,
+        current_rule=(
+            "CONTENT LANE — no scoring rule to change. The popular belief under "
+            "test: you need 150 minutes of exercise a week, in structured "
+            "sessions, or it does not count. The accelerometry literature "
+            "reports a steep dose-response for vigorous-intensity minutes per "
+            "week against mortality, with roughly half the total benefit "
+            "reached in the first ~15 minutes a week and the nadir near 54."
+        ),
+        search_concepts=[
+            "vigorous physical activity", "high-intensity interval",
+            "minutes per week", "dose-response", "all-cause mortality",
+        ],
+        mesh_terms=["Exercise", "Mortality"],
+    ),
+    AgendaItem(
+        component_id="content.running",
+        display_name="Running minutes",
+        weight=0.0,
+        current_rule=(
+            "CONTENT LANE — no scoring rule to change. The popular belief under "
+            "test: running only pays off in volume — long runs, marathon "
+            "training, more miles is always better. Cohort data report the "
+            "mortality benefit is similar across quintiles of weekly running "
+            "time, with even <51 minutes a week (5–10 minutes a day) sufficient."
+        ),
+        search_concepts=[
+            "running", "jogging", "minutes per week", "dose-response",
+            "all-cause mortality",
+        ],
+        mesh_terms=["Running", "Mortality"],
+    ),
+    AgendaItem(
+        component_id="content.eggs",
+        display_name="Eggs",
+        weight=0.0,
+        current_rule=(
+            "CONTENT LANE — no scoring rule to change. The popular belief under "
+            "test: eggs raise your cholesterol, so hold it to about three a "
+            "week. The meta-analysis literature reports dose-response "
+            "associations per egg per day against all-cause, cardiovascular "
+            "and cancer mortality."
+        ),
+        search_concepts=[
+            "egg consumption", "eggs per day", "dose-response",
+            "all-cause mortality", "dietary cholesterol",
+        ],
+        mesh_terms=["Eggs", "Mortality"],
+    ),
+    AgendaItem(
+        component_id="content.ultraprocessed",
+        display_name="Ultra-processed food",
+        weight=0.0,
+        current_rule=(
+            "CONTENT LANE — no scoring rule to change. The popular belief under "
+            "test: 'processed' is a vague scare word and a calorie is a "
+            "calorie. The meta-analysis literature reports graded "
+            "dose-response associations per serving or per 10% of daily "
+            "energy from ultra-processed food against cardiovascular events "
+            "and all-cause mortality."
+        ),
+        search_concepts=[
+            "ultra-processed food", "NOVA classification", "dose-response",
+            "cardiovascular events", "all-cause mortality",
+        ],
+        mesh_terms=["Food, Processed", "Mortality"],
+    ),
+    AgendaItem(
+        component_id="content.hydration",
+        display_name="Water intake",
+        weight=0.0,
+        current_rule=(
+            "CONTENT LANE — no scoring rule to change. The popular belief under "
+            "test: everyone needs eight glasses of water a day. The literature "
+            "reports graded associations for hydration markers (serum sodium, "
+            "measured fluid intake) against biological aging, chronic disease "
+            "and mortality — on a scale nobody has checked against the folk "
+            "number."
+        ),
+        search_concepts=[
+            "water intake", "hydration", "serum sodium", "fluid intake",
+            "biological aging", "all-cause mortality",
+        ],
+        mesh_terms=["Drinking Water", "Dehydration"],
+    ),
+    AgendaItem(
+        component_id="content.sodium",
+        display_name="Salt",
+        weight=0.0,
+        current_rule=(
+            "CONTENT LANE — no scoring rule to change. The popular belief under "
+            "test: salt is straightforwardly bad and less is always better. "
+            "The literature reports dose-response — and in some cohorts "
+            "J-shaped — associations for sodium intake against blood pressure "
+            "and mortality."
+        ),
+        search_concepts=[
+            "sodium intake", "salt", "dose-response", "blood pressure",
+            "all-cause mortality",
+        ],
+        mesh_terms=["Sodium, Dietary", "Blood Pressure"],
+    ),
+    # --- Added 2026-09-09: GLP-1/peptide topic, per founder request.
+    AgendaItem(
+        component_id="content.glp1",
+        display_name="GLP-1 dose",
+        weight=0.0,
+        current_rule=(
+            "CONTENT LANE — no scoring rule to change. The popular belief under "
+            "test: a GLP-1 shot is a single miracle intervention — you get on "
+            "it and the weight comes off, dose is a footnote. The phase 3 "
+            "RCT literature (STEP, SURMOUNT and related dose-ranging trials) "
+            "reports a steep, graded dose-response for GLP-1/GIP agonist dose "
+            "(semaglutide, tirzepatide) against percent body weight change, "
+            "tabulated by randomized dose arm."
+        ),
+        search_concepts=[
+            "dose-ranging trial", "placebo-controlled", "phase 2 trial",
+            "semaglutide", "tirzepatide", "obesity",
+        ],
+        mesh_terms=[
+            "Glucagon-Like Peptide-1 Receptor Agonists", "Weight Loss",
+            "Placebos", "Dose-Response Relationship, Drug",
+        ],
+    ),
 ]
 
 

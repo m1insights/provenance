@@ -98,7 +98,10 @@ not summarise a table down to its extremes. Three or more grounded points along 
 one axis are what let a downstream chart draw the curve; the highest-vs-lowest \
 contrast alone cannot. When the abstract names the exposure level inside the \
 quoted span (e.g. "quartile 3, median 8,300 steps"), keep that span intact so \
-the level survives grounding with the result.
+the level survives grounding with the result. When a point comes from a TABLE \
+row (cells separated by " | "), quote the WHOLE row, row label included \
+(e.g. "Model 2 | 1.00 | 0.70 (0.58-0.85) | 0.67 (0.55-0.80)"), never a lone \
+cell: a bare "0.70 (0.58-0.85)" is too short to ground and names no level.
 
 Set `alignment` by comparing the paper against the CURRENT RULES shown:
 - `supports`   - consistent with what the algorithm already does.

@@ -294,13 +294,71 @@ async def fulltext(pmcid: str, *, client: httpx.AsyncClient | None = None) -> st
             timeout=60.0,
         )
         response.raise_for_status()
-        root = ET.fromstring(response.text)
-        body = root.find(".//body")
-        if body is None:
+        text = jats_text(response.text)
+        if not text:
             log.warning("pmc fulltext: no <body> for PMC%s (not open access?)", ident)
-            return ""
-        text = " ".join(chunk.strip() for chunk in body.itertext() if chunk.strip())
         return text
     finally:
         if owns_client:
             await client.aclose()
+
+
+def _table_text(wrap: ET.Element) -> str:
+    """One <table-wrap> as lines: label, caption, one line per row, footnotes.
+
+    A row is joined with " | " so a quote can span the row label and its
+    cells ("Multivariable-adjusted model | Ref. | 0.95 (0.92, 0.99)"), which
+    is how a dose-response point survives grounding with its level attached.
+    """
+    lines: list[str] = []
+    for tag in ("label", "caption"):
+        node = wrap.find(tag)
+        if node is not None:
+            lines.append(" ".join(node.itertext()))
+    for row in wrap.iter("tr"):
+        cells = [
+            " ".join(" ".join(cell.itertext()).split())
+            for cell in row
+            if cell.tag in ("td", "th")
+        ]
+        if any(cells):
+            lines.append(" | ".join(cells))
+    foot = wrap.find("table-wrap-foot")
+    if foot is not None:
+        lines.append(" ".join(foot.itertext()))
+    return "\n".join(" ".join(line.split()) for line in lines if line.strip())
+
+
+def jats_text(xml: str) -> str:
+    """Flatten a JATS article into the grounding haystack.
+
+    Body prose first, then every table the article carries, one row per
+    line. Author manuscripts inline their <table-wrap> in <body>; publisher
+    XML floats them in <floats-group>, outside <body>, where a body-only walk
+    never looks -- so a curve tabulated in Table 2 could not ground. Tables
+    inside the body are lifted out of the prose walk and rendered once, as
+    rows, so a number sits in the haystack exactly once.
+    """
+    root = ET.fromstring(xml)
+    body = root.find(".//body")
+    if body is None:
+        return ""
+
+    tables: list[ET.Element] = list(body.iter("table-wrap"))
+    floats = root.find(".//floats-group")
+    if floats is not None:
+        tables.extend(floats.iter("table-wrap"))
+
+    inside_table = {id(node) for wrap in tables for node in wrap.iter()}
+    table_roots = {id(wrap) for wrap in tables}
+    parts: list[str] = []
+    for node in body.iter():
+        if id(node) not in inside_table and (node.text or "").strip():
+            parts.append(node.text.strip())
+        # A table-wrap's tail is the prose that follows the table.
+        if (id(node) not in inside_table or id(node) in table_roots) and (node.tail or "").strip():
+            parts.append(node.tail.strip())
+    prose = " ".join(parts)
+
+    table_text = "\n".join(_table_text(wrap) for wrap in tables)
+    return f"{prose}\n{table_text}".strip() if table_text else prose
